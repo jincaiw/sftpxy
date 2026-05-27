@@ -79,6 +79,18 @@ docker-compose up -d
 
 ### Windows服务
 
+**使用PowerShell脚本（推荐）：**
+
+```powershell
+# 以管理员身份运行安装脚本
+.\deploy\windows\install.ps1
+
+# 以管理员身份运行卸载脚本
+.\deploy\windows\uninstall.ps1
+```
+
+**手动管理：**
+
 ```powershell
 # 安装为Windows服务
 sftpxy.exe install
