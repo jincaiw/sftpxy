@@ -1,0 +1,59 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+coverage.out
+*.out
+
+# Dependency directories
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Keys (sensitive)
+keys/
+*.key
+*.pem
+
+# Config (may contain secrets)
+config.yaml
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Node modules (for frontend)
+node_modules/
+web/admin/node_modules/
+web/client/node_modules/
+web/admin/dist/
+web/client/dist/
+
+# Build artifacts
+dist/

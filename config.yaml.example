@@ -1,0 +1,136 @@
+# SFTPxy Example Configuration
+# Copy this file to config.yaml and modify as needed
+
+# Common settings
+common:
+  service_name: "sftpxy"
+  log_level: "info"  # debug, info, warn, error, fatal
+  log_path: "/var/log/sftpxy/sftpxy.log"
+  temp_dir: "/tmp/sftpxy"
+  plugin_path: "./plugins"
+  global_timeout: 300
+
+# SSH/SFTP/SCP server configuration
+ssh:
+  enabled: true
+  listen_address: "0.0.0.0"
+  listen_port: 2022
+  host_keys:
+    - "./keys/host_key_rsa"
+    - "./keys/host_key_ecdsa"
+    - "./keys/host_key_ed25519"
+  password_auth: true
+  public_key_auth: true
+  certificate_auth: false
+  max_connections: 100
+  login_timeout: 60
+  idle_timeout: 300
+  scp_enabled: true
+  banner: "Welcome to SFTPxy"
+  allowed_algorithms: []
+  disabled_algorithms: []
+
+# FTP/FTPS server configuration
+ftp:
+  enabled: false
+  listen_address: "0.0.0.0"
+  listen_port: 2121
+  explicit_tls: false
+  tls_cert_file: ""
+  tls_key_file: ""
+  force_control_tls: false
+  force_data_tls: false
+  passive_port_start: 21000
+  passive_port_end: 21999
+  nat_external_address: ""
+  max_connections: 50
+  login_timeout: 60
+  idle_timeout: 300
+
+# WebDAV server configuration
+webdav:
+  enabled: false
+  listen_address: "0.0.0.0"
+  listen_port: 8081
+  base_path: "/"
+  tls_cert_file: ""
+  tls_key_file: ""
+  client_cert: false
+
+# HTTPD (WebAdmin, WebClient, REST API) configuration
+httpd:
+  enabled: true
+  listen_address: "0.0.0.0"
+  listen_port: 8080
+  tls_cert_file: ""
+  tls_key_file: ""
+  client_cert: false
+  webadmin_enabled: true
+  webclient_enabled: true
+  rest_api_enabled: true
+  openapi_enabled: true
+  static_path: "./web/dist"
+  template_path: "./templates"
+  session_secret: "change-this-to-a-random-secret"
+  token_expiry: 3600
+  cors_origins:
+    - "*"
+
+# Data provider (database) configuration
+data_provider:
+  driver: "sqlite"  # sqlite or mysql
+  connection_string: "./data/sftpxy.db"
+  ssl_mode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 300
+  auto_migrate: true
+
+# Telemetry server configuration
+telemetry:
+  enabled: true
+  listen_address: "0.0.0.0"
+  listen_port: 9090
+  tls_cert_file: ""
+  tls_key_file: ""
+  enable_profiling: false
+
+# HTTP clients configuration
+http_clients:
+  default_timeout: 30
+  tls_verify: true
+  max_connections: 100
+
+# Command execution configuration
+commands:
+  whitelist:
+    - "/usr/local/bin/sftpxy-hook"
+  timeout: 30
+
+# KMS (Key Management Service) configuration
+kms:
+  type: "local"  # local or file
+  key_path: "./keys/kms.key"
+
+# MFA (Multi-Factor Authentication) configuration
+mfa:
+  enabled: false
+  issuer: "SFTPxy"
+  force_for_admins: false
+  force_for_users: false
+
+# SMTP configuration for email notifications
+smtp:
+  host: "smtp.example.com"
+  port: 587
+  username: ""
+  password: ""
+  from: "noreply@example.com"
+  use_tls: true
+
+# Plugin configuration
+plugins:
+  path: "./plugins"
+  enabled:
+    ldap: false
+    geoip: false
