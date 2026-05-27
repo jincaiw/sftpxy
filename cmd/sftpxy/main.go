@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/sftpxy/sftpxy/internal/auth"
@@ -58,6 +59,16 @@ func main() {
 		log.Warn("Database health check failed", zap.Error(err))
 	} else {
 		log.Info("Database connected", zap.String("driver", db.Driver()))
+	}
+
+	// Run database migrations if auto_migrate is enabled
+	if cfg.DataProvider.AutoMigrate {
+		log.Info("Running database migrations...")
+		if err := runMigrations(db, cfg.DataProvider); err != nil {
+			log.Warn("Database migration failed", zap.Error(err))
+		} else {
+			log.Info("Database migrations completed")
+		}
 	}
 
 	// Repositories
@@ -142,4 +153,91 @@ func main() {
 	metricsCollector.Shutdown(shutdownCtx)
 
 	log.Info("SFTPxy stopped")
+}
+
+// runMigrations runs database migrations
+func runMigrations(db *database.DB, cfg config.DataProviderConfig) error {
+	// Read migration files based on driver
+	var migrationDir string
+	switch cfg.Driver {
+	case "sqlite":
+		migrationDir = "migrations/sqlite"
+	case "mysql":
+		migrationDir = "migrations/mysql"
+	default:
+		return fmt.Errorf("unsupported driver: %s", cfg.Driver)
+	}
+
+	// Read and execute migration files
+	files, err := os.ReadDir(migrationDir)
+	if err != nil {
+		return fmt.Errorf("failed to read migration directory: %w", err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		if len(name) < 4 || name[len(name)-4:] != ".sql" {
+			continue
+		}
+
+		filePath := fmt.Sprintf("%s/%s", migrationDir, file.Name())
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", filePath, err)
+		}
+
+		// Remove goose directives and comments
+		sqlContent := removeGooseDirectives(string(content))
+
+		// Execute the migration SQL
+		if sqlContent != "" {
+			_, err = db.Exec(sqlContent)
+			if err != nil {
+				return fmt.Errorf("failed to execute migration %s: %w", file.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// removeGooseDirectives removes goose directives and non-SQL comments from migration content
+func removeGooseDirectives(content string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inUpSection := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty lines and pure comment lines at the start
+		if trimmed == "" {
+			continue
+		}
+
+		// Check for goose directives
+		if strings.HasPrefix(trimmed, "-- +goose") {
+			if strings.Contains(trimmed, "Up") {
+				inUpSection = true
+			} else if strings.Contains(trimmed, "Down") {
+				inUpSection = false
+			}
+			continue
+		}
+
+		// Skip comments in Up section
+		if inUpSection && strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+
+		// Only include lines from Up section
+		if inUpSection {
+			result = append(result, line)
+		}
+	}
+
+	return strings.Join(result, "\n")
 }
