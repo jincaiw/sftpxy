@@ -48,8 +48,8 @@ func NewRemoteSFTPFileSystem(cfg Config) (*RemoteSFTPFileSystem, error) {
 
 	// Create SSH config
 	sshConfig := &ssh.ClientConfig{
-		User: cfg.Username,
-		Auth: []ssh.AuthMethod{},
+		User:            cfg.Username,
+		Auth:            []ssh.AuthMethod{},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Add proper host key verification
 		Timeout:         time.Duration(cfg.Timeout) * time.Second,
 	}

@@ -94,11 +94,11 @@ func (hfs *HTTPFsFileSystem) Create(ctx context.Context, path string) (io.WriteC
 }
 
 type httpWriter struct {
-	hfs     *HTTPFsFileSystem
-	path    string
-	ctx     context.Context
-	buffer  bytes.Buffer
-	closed  bool
+	hfs    *HTTPFsFileSystem
+	path   string
+	ctx    context.Context
+	buffer bytes.Buffer
+	closed bool
 }
 
 func (hw *httpWriter) Write(p []byte) (n int, err error) {

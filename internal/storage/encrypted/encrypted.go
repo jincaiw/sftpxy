@@ -162,17 +162,17 @@ func (efs *EncryptedFileSystem) Create(ctx context.Context, path string) (io.Wri
 	}
 
 	return &encryptedWriter{
-		path:    fullPath,
-		buffer:  make([]byte, 0),
-		fs:      efs,
+		path:   fullPath,
+		buffer: make([]byte, 0),
+		fs:     efs,
 	}, nil
 }
 
 type encryptedWriter struct {
-	path    string
-	buffer  []byte
-	fs      *EncryptedFileSystem
-	closed  bool
+	path   string
+	buffer []byte
+	fs     *EncryptedFileSystem
+	closed bool
 }
 
 func (ew *encryptedWriter) Write(p []byte) (n int, err error) {
