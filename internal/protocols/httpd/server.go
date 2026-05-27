@@ -54,24 +54,24 @@ func (s *Server) setupRoutes() {
 	// Health check endpoint with detailed status
 	s.router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		status := map[string]interface{}{
 			"status":    "healthy",
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 			"uptime":    time.Since(s.startTime).String(),
 			"version":   s.version,
 		}
-		
+
 		json.NewEncoder(w).Encode(status)
 	})
 
 	// Detailed system status endpoint
 	s.router.Get("/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		
+
 		status := map[string]interface{}{
 			"service": "SFTPxy",
 			"version": s.version,
@@ -84,21 +84,21 @@ func (s *Server) setupRoutes() {
 				"num_cpu":       runtime.NumCPU(),
 			},
 			"memory": map[string]interface{}{
-				"alloc_mb":        float64(m.Alloc) / 1024 / 1024,
-				"total_alloc_mb":  float64(m.TotalAlloc) / 1024 / 1024,
-				"sys_mb":          float64(m.Sys) / 1024 / 1024,
-				"num_gc":          m.NumGC,
-				"heap_objects":    m.HeapObjects,
+				"alloc_mb":       float64(m.Alloc) / 1024 / 1024,
+				"total_alloc_mb": float64(m.TotalAlloc) / 1024 / 1024,
+				"sys_mb":         float64(m.Sys) / 1024 / 1024,
+				"num_gc":         m.NumGC,
+				"heap_objects":   m.HeapObjects,
 			},
 			"protocols": map[string]interface{}{
-				"ssh_enabled":  true,
-				"ftp_enabled":  true,
+				"ssh_enabled":    true,
+				"ftp_enabled":    true,
 				"webdav_enabled": true,
-				"http_enabled": true,
+				"http_enabled":   true,
 			},
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}
-		
+
 		json.NewEncoder(w).Encode(status)
 	})
 
