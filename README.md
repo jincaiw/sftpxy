@@ -77,6 +77,39 @@ docker run -d \
 docker-compose up -d
 ```
 
+### Windows服务
+
+```powershell
+# 安装为Windows服务
+sftpxy.exe install
+
+# 启动服务
+sftpxy.exe start
+
+# 停止服务
+sftpxy.exe stop
+
+# 卸载服务
+sftpxy.exe remove
+
+# 调试模式运行
+sftpxy.exe debug
+```
+
+### Linux systemd服务
+
+```bash
+# 使用安装脚本
+sudo ./deploy/systemd/install.sh
+
+# 或者手动安装
+sudo cp bin/sftpxy /usr/local/bin/
+sudo cp deploy/systemd/sftpxy.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable sftpxy
+sudo systemctl start sftpxy
+```
+
 ## 项目结构
 
 ```
