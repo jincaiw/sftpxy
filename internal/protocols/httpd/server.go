@@ -2,8 +2,10 @@ package httpd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,10 +16,12 @@ import (
 
 // Server represents the HTTP server
 type Server struct {
-	config config.HTTPDConfig
-	router *chi.Mux
-	server *http.Server
-	logger *zap.Logger
+	config    config.HTTPDConfig
+	router    *chi.Mux
+	server    *http.Server
+	logger    *zap.Logger
+	startTime time.Time
+	version   string
 }
 
 // NewServer creates a new HTTP server
@@ -32,9 +36,11 @@ func NewServer(cfg config.HTTPDConfig, log *zap.Logger) *Server {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	s := &Server{
-		config: cfg,
-		router: r,
-		logger: log,
+		config:    cfg,
+		router:    r,
+		logger:    log,
+		startTime: time.Now(),
+		version:   "1.0.0",
 	}
 
 	// Setup routes
@@ -45,10 +51,55 @@ func NewServer(cfg config.HTTPDConfig, log *zap.Logger) *Server {
 
 // setupRoutes configures all HTTP routes
 func (s *Server) setupRoutes() {
-	// Health check
+	// Health check endpoint with detailed status
 	s.router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		w.Header().Set("Content-Type", "application/json")
+		
+		status := map[string]interface{}{
+			"status":    "healthy",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"uptime":    time.Since(s.startTime).String(),
+			"version":   s.version,
+		}
+		
+		json.NewEncoder(w).Encode(status)
+	})
+
+	// Detailed system status endpoint
+	s.router.Get("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		
+		status := map[string]interface{}{
+			"service": "SFTPxy",
+			"version": s.version,
+			"uptime":  time.Since(s.startTime).String(),
+			"runtime": map[string]interface{}{
+				"go_version":    runtime.Version(),
+				"os":            runtime.GOOS,
+				"arch":          runtime.GOARCH,
+				"num_goroutine": runtime.NumGoroutine(),
+				"num_cpu":       runtime.NumCPU(),
+			},
+			"memory": map[string]interface{}{
+				"alloc_mb":        float64(m.Alloc) / 1024 / 1024,
+				"total_alloc_mb":  float64(m.TotalAlloc) / 1024 / 1024,
+				"sys_mb":          float64(m.Sys) / 1024 / 1024,
+				"num_gc":          m.NumGC,
+				"heap_objects":    m.HeapObjects,
+			},
+			"protocols": map[string]interface{}{
+				"ssh_enabled":  true,
+				"ftp_enabled":  true,
+				"webdav_enabled": true,
+				"http_enabled": true,
+			},
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		}
+		
+		json.NewEncoder(w).Encode(status)
 	})
 
 	// API routes
