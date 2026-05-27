@@ -1,0 +1,41 @@
+[Unit]
+Description=SFTPxy Managed File Transfer Platform
+Documentation=https://github.com/sftpxy/sftpxy
+After=network.target syslog.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=sftpxy
+Group=sftpxy
+
+# Executable and config
+ExecStart=/usr/local/bin/sftpxy --config /etc/sftpxy/config.yaml
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sftpxy /var/log/sftpxy
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sftpxy
+
+# Environment
+Environment="SFTPXY_COMMON_LOG_LEVEL=info"
+
+[Install]
+WantedBy=multi-user.target
