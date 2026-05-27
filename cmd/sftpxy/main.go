@@ -11,6 +11,7 @@ import (
 	"github.com/sftpxy/sftpxy/internal/auth"
 	"github.com/sftpxy/sftpxy/internal/config"
 	"github.com/sftpxy/sftpxy/internal/database"
+	"github.com/sftpxy/sftpxy/internal/defender"
 	"github.com/sftpxy/sftpxy/internal/events"
 	"github.com/sftpxy/sftpxy/internal/logger"
 	"github.com/sftpxy/sftpxy/internal/metrics"
@@ -20,6 +21,7 @@ import (
 	sshd "github.com/sftpxy/sftpxy/internal/protocols/ssh"
 	"github.com/sftpxy/sftpxy/internal/protocols/webdav"
 	"github.com/sftpxy/sftpxy/internal/repository"
+	"github.com/sftpxy/sftpxy/internal/shares"
 	"go.uber.org/zap"
 )
 
@@ -61,11 +63,20 @@ func main() {
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	adminRepo := repository.NewAdminRepository(db)
-	_ = repository.NewAuditRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
+
+	// Defender (anti-brute force)
+	defenderCfg := defender.DefaultConfig()
+	defenderService := defender.NewDefender(defenderCfg, log, auditRepo)
+	_ = defenderService // Use defenderService in auth handlers
 
 	// Auth & Policy
 	authService := auth.NewAuthenticationService(userRepo, adminRepo)
 	policyEngine := policy.NewPolicyEngine(userRepo)
+
+	// Share Manager
+	shareManager := shares.NewManager(userRepo, log)
+	_ = shareManager // Use shareManager in HTTP handlers
 
 	// Event Manager
 	eventManager := events.NewManager(log, cfg.Commands.Whitelist)
