@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/sftpxy/sftpxy/internal/storage"
-	"golang.org/x/crypto/hkdf"
 )
 
 // EncryptedFileSystem wraps a local filesystem with encryption
