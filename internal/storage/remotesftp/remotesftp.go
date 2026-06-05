@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/jincaiw/sftpxy/internal/storage"
 	"github.com/pkg/sftp"
-	"github.com/sftpxy/sftpxy/internal/storage"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -33,6 +35,7 @@ type Config struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	PrivateKey string `json:"private_key"` // Path to private key file
+	HostKey    string `json:"host_key"`    // SSH public key or SHA256 fingerprint
 	PathPrefix string `json:"path_prefix"`
 	Timeout    int    `json:"timeout"` // Seconds
 }
@@ -48,11 +51,15 @@ func NewRemoteSFTPFileSystem(cfg Config) (*RemoteSFTPFileSystem, error) {
 
 	// Create SSH config
 	sshConfig := &ssh.ClientConfig{
-		User:            cfg.Username,
-		Auth:            []ssh.AuthMethod{},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Add proper host key verification
-		Timeout:         time.Duration(cfg.Timeout) * time.Second,
+		User:    cfg.Username,
+		Auth:    []ssh.AuthMethod{},
+		Timeout: time.Duration(cfg.Timeout) * time.Second,
 	}
+	hostKeyCallback, err := buildHostKeyCallback(cfg.HostKey)
+	if err != nil {
+		return nil, err
+	}
+	sshConfig.HostKeyCallback = hostKeyCallback
 
 	// Add authentication methods
 	if cfg.Password != "" {
@@ -95,6 +102,34 @@ func NewRemoteSFTPFileSystem(cfg Config) (*RemoteSFTPFileSystem, error) {
 		privateKey: cfg.PrivateKey,
 		pathPrefix: cfg.PathPrefix,
 		timeout:    time.Duration(cfg.Timeout) * time.Second,
+	}, nil
+}
+
+func buildHostKeyCallback(expected string) (ssh.HostKeyCallback, error) {
+	expected = strings.TrimSpace(expected)
+	if expected == "" {
+		return nil, fmt.Errorf("remote sftp host_key verification must be configured")
+	}
+
+	if strings.HasPrefix(expected, "ssh-") {
+		expectedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(expected))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse remote sftp host_key: %w", err)
+		}
+		return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			if string(key.Marshal()) != string(expectedKey.Marshal()) {
+				return fmt.Errorf("remote sftp host key mismatch for %s", hostname)
+			}
+			return nil
+		}, nil
+	}
+
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		actualFingerprint := ssh.FingerprintSHA256(key)
+		if actualFingerprint != expected {
+			return fmt.Errorf("remote sftp host key fingerprint mismatch for %s: got %s", hostname, actualFingerprint)
+		}
+		return nil
 	}, nil
 }
 

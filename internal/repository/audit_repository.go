@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sftpxy/sftpxy/internal/database"
+	"github.com/jincaiw/sftpxy/internal/database"
 )
 
 // AuditLog represents an audit event
@@ -21,6 +21,23 @@ type AuditLog struct {
 	Result       string    `json:"result"`
 	ErrorMessage string    `json:"error_message"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// AuditFilter holds all 12 query filter criteria from PRD 17.5
+type AuditFilter struct {
+	FromTime       time.Time
+	ToTime         time.Time
+	Username       string
+	Admin          string
+	ClientIP       string
+	Protocol       string
+	EventType      string
+	FilePath       string
+	Status         string
+	ErrorCode      string
+	ConnectionID   string
+	EventRuleID    string
+	StorageBackend string
 }
 
 // TransferLog represents a file transfer log entry
@@ -60,6 +77,7 @@ type AuditRepository interface {
 	// Audit logs
 	CreateAuditLog(ctx context.Context, log *AuditLog) (*AuditLog, error)
 	ListAuditLogs(ctx context.Context, eventType, actorName, clientIP, protocol, result string, limit, offset int) ([]*AuditLog, error)
+	ListAuditLogsFiltered(ctx context.Context, filter *AuditFilter, limit, offset int) ([]*AuditLog, error)
 	CountAuditLogs(ctx context.Context) (int64, error)
 
 	// Transfer logs
@@ -165,6 +183,91 @@ func (r *auditRepository) CountAuditLogs(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_logs").Scan(&count)
 	return count, err
+}
+
+func (r *auditRepository) ListAuditLogsFiltered(ctx context.Context, filter *AuditFilter, limit, offset int) ([]*AuditLog, error) {
+	query := "SELECT id, event_id, event_type, actor_type, actor_name, target_type, target_id, protocol, client_ip, result, error_message, created_at FROM audit_logs WHERE 1=1"
+	args := []interface{}{}
+
+	if filter == nil {
+		filter = &AuditFilter{}
+	}
+
+	if !filter.FromTime.IsZero() {
+		query += " AND created_at >= ?"
+		args = append(args, filter.FromTime)
+	}
+	if !filter.ToTime.IsZero() {
+		query += " AND created_at <= ?"
+		args = append(args, filter.ToTime)
+	}
+	if filter.Username != "" {
+		query += " AND actor_name = ? AND actor_type = 'user'"
+		args = append(args, filter.Username)
+	}
+	if filter.Admin != "" {
+		query += " AND actor_name = ? AND actor_type = 'admin'"
+		args = append(args, filter.Admin)
+	}
+	if filter.ClientIP != "" {
+		query += " AND client_ip = ?"
+		args = append(args, filter.ClientIP)
+	}
+	if filter.Protocol != "" {
+		query += " AND protocol = ?"
+		args = append(args, filter.Protocol)
+	}
+	if filter.EventType != "" {
+		query += " AND event_type = ?"
+		args = append(args, filter.EventType)
+	}
+	if filter.FilePath != "" {
+		query += " AND target_id LIKE ?"
+		args = append(args, "%"+filter.FilePath+"%")
+	}
+	if filter.Status != "" {
+		query += " AND result = ?"
+		args = append(args, filter.Status)
+	}
+	if filter.ErrorCode != "" {
+		query += " AND error_message LIKE ?"
+		args = append(args, "%"+filter.ErrorCode+"%")
+	}
+	if filter.ConnectionID != "" {
+		query += " AND target_id = ?"
+		args = append(args, filter.ConnectionID)
+	}
+	if filter.EventRuleID != "" {
+		query += " AND target_id = ?"
+		args = append(args, filter.EventRuleID)
+	}
+	if filter.StorageBackend != "" {
+		query += " AND protocol = ?"
+		args = append(args, filter.StorageBackend)
+	}
+	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []*AuditLog
+	for rows.Next() {
+		var log AuditLog
+		err := rows.Scan(
+			&log.ID, &log.EventID, &log.EventType, &log.ActorType,
+			&log.ActorName, &log.TargetType, &log.TargetID, &log.Protocol,
+			&log.ClientIP, &log.Result, &log.ErrorMessage, &log.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, &log)
+	}
+	return logs, rows.Err()
 }
 
 func (r *auditRepository) CreateTransferLog(ctx context.Context, log *TransferLog) (*TransferLog, error) {

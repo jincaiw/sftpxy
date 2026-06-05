@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sftpxy/sftpxy/internal/storage"
+	"github.com/jincaiw/sftpxy/internal/storage"
 )
 
 // HTTPFsFileSystem implements FileSystem using external HTTP API

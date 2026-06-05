@@ -1,5 +1,6 @@
 # Binaries
 bin/
+/sftpxy
 *.exe
 *.exe~
 *.dll
@@ -28,9 +29,12 @@ vendor/
 Thumbs.db
 
 # Data
+data/
 data/*.db
 data/*.db-shm
 data/*.db-wal
+/sftpxy.db
+/sftpxy.db-*
 
 # Keys (sensitive)
 keys/
@@ -39,6 +43,7 @@ keys/
 
 # Config (may contain secrets)
 config.yaml
+config.local.yaml
 
 # Logs
 logs/
@@ -47,6 +52,7 @@ logs/
 # Temporary files
 tmp/
 temp/
+.tmp/
 
 # Node modules (for frontend)
 node_modules/
@@ -54,6 +60,15 @@ web/admin/node_modules/
 web/client/node_modules/
 web/admin/dist/
 web/client/dist/
+web/test-results/
+web/tests/e2e/playwright-report/
 
 # Build artifacts
 dist/
+
+# Local/private workspace files
+.trae/
+SFTPxy_PRD_CN_v2.4.md
+
+# Local screenshots and manual QA artifacts
+/*.png

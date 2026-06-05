@@ -5,16 +5,24 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"sync"
 
-	"github.com/sftpxy/sftpxy/internal/repository"
+	"github.com/jincaiw/sftpxy/internal/defender"
+	"github.com/jincaiw/sftpxy/internal/hooks"
+	"github.com/jincaiw/sftpxy/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrUserDisabled       = errors.New("user is disabled")
-	ErrUserExpired        = errors.New("user has expired")
-	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidCredentials     = errors.New("invalid credentials")
+	ErrUserDisabled           = errors.New("user is disabled")
+	ErrUserExpired            = errors.New("user has expired")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrPasswordExpired        = errors.New("password has expired")
+	ErrPasswordChangeRequired = errors.New("password change required")
+	ErrCertificateRevoked     = errors.New("certificate has been revoked")
+	ErrGeoIPBlocked           = errors.New("access denied from your location")
+	ErrPartialAuthRequired    = errors.New("additional authentication required")
 )
 
 // PasswordAuthenticator handles password-based authentication
@@ -96,32 +104,34 @@ func VerifyPassword(password, hash string) bool {
 
 // APIKeyAuthenticator handles API key authentication
 type APIKeyAuthenticator struct {
+	mu        sync.RWMutex
 	validKeys map[string]bool
 }
 
-// NewAPIKeyAuthenticator creates a new APIKeyAuthenticator
 func NewAPIKeyAuthenticator() *APIKeyAuthenticator {
 	return &APIKeyAuthenticator{
 		validKeys: make(map[string]bool),
 	}
 }
 
-// AddKey adds a valid API key
 func (a *APIKeyAuthenticator) AddKey(key string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.validKeys[key] = true
 }
 
-// RemoveKey removes an API key
 func (a *APIKeyAuthenticator) RemoveKey(key string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	delete(a.validKeys, key)
 }
 
-// Authenticate checks if the provided API key is valid
 func (a *APIKeyAuthenticator) Authenticate(key string) bool {
 	if len(key) == 0 {
 		return false
 	}
-	// Use constant-time comparison to prevent timing attacks
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	for validKey := range a.validKeys {
 		if subtle.ConstantTimeCompare([]byte(key), []byte(validKey)) == 1 {
 			return true
@@ -132,20 +142,22 @@ func (a *APIKeyAuthenticator) Authenticate(key string) bool {
 
 // AuthResult contains authentication result information
 type AuthResult struct {
-	Success     bool
-	User        *repository.User
-	Admin       *repository.Admin
-	MFARequired bool
-	Message     string
+	Success       bool
+	User          *repository.User
+	Admin         *repository.Admin
+	MFARequired   bool
+	Message       string
+	DynamicConfig *hooks.DynamicUserConfig
 }
 
 // AuthenticationService provides unified authentication interface
 type AuthenticationService struct {
 	passwordAuth *PasswordAuthenticator
 	apiKeyAuth   *APIKeyAuthenticator
+	hookManager  *hooks.HookManager
+	defender     *defender.Defender
 }
 
-// NewAuthenticationService creates a new AuthenticationService
 func NewAuthenticationService(
 	userRepo repository.UserRepository,
 	adminRepo repository.AdminRepository,
@@ -156,8 +168,74 @@ func NewAuthenticationService(
 	}
 }
 
+func NewAuthenticationServiceWithHooks(
+	userRepo repository.UserRepository,
+	adminRepo repository.AdminRepository,
+	hookMgr *hooks.HookManager,
+) *AuthenticationService {
+	return &AuthenticationService{
+		passwordAuth: NewPasswordAuthenticator(userRepo, adminRepo),
+		apiKeyAuth:   NewAPIKeyAuthenticator(),
+		hookManager:  hookMgr,
+	}
+}
+
+// SetDefender sets the defender service for brute-force protection
+func (s *AuthenticationService) SetDefender(d *defender.Defender) {
+	s.defender = d
+}
+
 // LoginUser attempts to authenticate a user
 func (s *AuthenticationService) LoginUser(ctx context.Context, username, password string) (*AuthResult, error) {
+	if s.hookManager != nil && s.hookManager.AuthHook != nil {
+		hookResult, err := s.hookManager.Authenticate(ctx, username, password)
+		if err != nil {
+			return &AuthResult{
+				Success: false,
+				Message: fmt.Sprintf("External auth failed: %v", err),
+			}, nil
+		}
+		if !hookResult.Authenticated {
+			return &AuthResult{
+				Success: false,
+				Message: hookResult.ErrorReason,
+			}, nil
+		}
+
+		var dynConfig *hooks.DynamicUserConfig
+		if s.hookManager.DynamicUserHook != nil {
+			cfg, cfgErr := s.hookManager.GetDynamicConfig(ctx, username)
+			if cfgErr == nil && cfg != nil {
+				dynConfig = cfg
+			}
+			if hookResult.UserConfig != nil && dynConfig != nil {
+				dynConfig = hooks.MergeDynamicConfig(hookResult.UserConfig, dynConfig)
+			} else if hookResult.UserConfig != nil {
+				dynConfig = hookResult.UserConfig
+			}
+		} else if hookResult.UserConfig != nil {
+			dynConfig = hookResult.UserConfig
+		}
+
+		user, userErr := s.passwordAuth.AuthenticateUser(ctx, username, password)
+		if userErr == nil {
+			return &AuthResult{
+				Success:       true,
+				User:          user,
+				MFARequired:   user.MFAEnabled,
+				Message:       "Login successful",
+				DynamicConfig: dynConfig,
+			}, nil
+		}
+
+		return &AuthResult{
+			Success:       true,
+			MFARequired:   false,
+			Message:       "Login successful via external auth",
+			DynamicConfig: dynConfig,
+		}, nil
+	}
+
 	user, err := s.passwordAuth.AuthenticateUser(ctx, username, password)
 	if err != nil {
 		return &AuthResult{

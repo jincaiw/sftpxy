@@ -5,7 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sftpxy/sftpxy/internal/repository"
+	"github.com/jincaiw/sftpxy/internal/audit"
+	"github.com/jincaiw/sftpxy/internal/repository"
 	"go.uber.org/zap"
 )
 
@@ -37,6 +38,7 @@ type Defender struct {
 	config           Config
 	logger           *zap.Logger
 	repo             repository.AuditRepository
+	auditRecorder    audit.AuditRecorder
 	failures         map[string][]FailureRecord
 	mu               sync.RWMutex
 	blockCache       map[string]time.Time // IP -> expiry
@@ -97,19 +99,19 @@ func (d *Defender) RecordFailure(ip, protocol string) {
 // IsBlocked checks if an IP is currently blocked
 func (d *Defender) IsBlocked(ip string) bool {
 	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	// Check cache first
 	if expiry, ok := d.blockCache[ip]; ok {
 		if time.Now().Before(expiry) {
+			d.mu.RUnlock()
 			return true
 		}
-		// Expired, remove from cache
+		d.mu.RUnlock()
+		d.mu.Lock()
 		delete(d.blockCache, ip)
+		d.mu.Unlock()
 		return false
 	}
+	d.mu.RUnlock()
 
-	// Check database
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -119,7 +121,9 @@ func (d *Defender) IsBlocked(ip string) bool {
 	}
 
 	if block.IsActive && time.Now().Before(block.ExpiresAt) {
+		d.mu.Lock()
 		d.blockCache[ip] = block.ExpiresAt
+		d.mu.Unlock()
 		return true
 	}
 
@@ -140,6 +144,17 @@ func (d *Defender) Unblock(ip string) error {
 
 	delete(d.blockCache, ip)
 	delete(d.failures, ip)
+
+	if d.auditRecorder != nil {
+		_ = d.auditRecorder.Record(context.Background(), &audit.AuditEvent{
+			EventType:  audit.DefenderUnblock,
+			ActorType:  audit.ActorAdmin,
+			ActorName:  "admin",
+			TargetType: audit.TargetIP,
+			TargetID:   ip,
+			Result:     "success",
+		})
+	}
 
 	d.logger.Info("IP manually unblocked", zap.String("ip", ip))
 	return nil
@@ -171,7 +186,7 @@ func (d *Defender) blockIP(ip, protocol string) {
 
 	expiresAt := time.Now().Add(d.config.BlockDuration)
 
-	_ , err := d.repo.AddBlockedIP(ctx, ip, protocol, "brute-force", expiresAt)
+	_, err := d.repo.AddBlockedIP(ctx, ip, protocol, "brute-force", expiresAt)
 	if err != nil {
 		d.logger.Error("Failed to add blocked IP", zap.String("ip", ip), zap.Error(err))
 		return
@@ -185,6 +200,18 @@ func (d *Defender) blockIP(ip, protocol string) {
 		zap.String("protocol", protocol),
 		zap.Duration("duration", d.config.BlockDuration),
 	)
+
+	if d.auditRecorder != nil {
+		_ = d.auditRecorder.Record(context.Background(), &audit.AuditEvent{
+			EventType:  audit.DefenderBlock,
+			ActorType:  audit.ActorSystem,
+			ActorName:  "defender",
+			TargetType: audit.TargetIP,
+			TargetID:   ip,
+			Protocol:   protocol,
+			Result:     "success",
+		})
+	}
 
 	// Update metrics
 	if d.metricsCollector != nil {
@@ -242,6 +269,11 @@ func (d *Defender) cleanup() {
 // SetMetricsCollector sets the metrics collector (optional)
 func (d *Defender) SetMetricsCollector(mc MetricsCollector) {
 	d.metricsCollector = mc
+}
+
+// SetAuditRecorder sets the audit recorder for structured audit events
+func (d *Defender) SetAuditRecorder(recorder audit.AuditRecorder) {
+	d.auditRecorder = recorder
 }
 
 // MetricsCollector interface for metrics

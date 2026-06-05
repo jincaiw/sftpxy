@@ -5,11 +5,11 @@ services:
     build: .
     container_name: sftpxy
     ports:
-      - "2022:2022"   # SSH/SFTP
-      - "2121:2121"   # FTP
-      - "8080:8080"   # HTTP (WebAdmin/WebClient/API)
-      - "8081:8081"   # WebDAV
-      - "9090:9090"   # Telemetry/Metrics
+      - "30082:30082"   # SSH/SFTP
+      - "30086:30086"   # FTP
+      - "30080:30080"   # WebClient
+      - "30084:30084"   # WebDAV
+      - "30088:30088"   # HTTP (WebAdmin/API)
     volumes:
       - ./config.yaml:/etc/sftpxy/config.yaml:ro
       - sftpxy-data:/data/sftpxy
@@ -19,7 +19,7 @@ services:
       - SFTPXY_COMMON_LOG_LEVEL=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:30088/health"]
       interval: 30s
       timeout: 10s
       retries: 3

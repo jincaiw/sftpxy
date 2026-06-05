@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS admins (
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255),
     status VARCHAR(50) NOT NULL DEFAULT 'active',
     password_hash TEXT,
     home_dir TEXT NOT NULL,

@@ -18,7 +18,7 @@ Write-Host ""
 
 # Stop service first
 Write-Host "Stopping SFTPxy service..." -ForegroundColor Yellow
-$ServiceBinary = Join-Path $InstallPath "sftpxy.exe"
+$ServiceBinary = Join-Path $InstallPath "sftpxy-service.exe"
 if (Test-Path $ServiceBinary) {
     & $ServiceBinary stop 2>$null
     Start-Sleep -Seconds 2

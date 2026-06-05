@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sftpxy/sftpxy/internal/storage"
+	"github.com/jincaiw/sftpxy/internal/storage"
 )
 
 // LocalFileSystem implements FileSystem for local disk storage
@@ -78,18 +78,11 @@ func (fs *LocalFileSystem) Create(ctx context.Context, path string) (io.WriteClo
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Create temp file first for atomic write
-	tempFile, err := os.CreateTemp(dir, ".tmp-*")
+	file, err := os.Create(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
-
-	// Return a wrapper that renames on close
-	return &atomicWriter{
-		file:     tempFile,
-		tempPath: tempFile.Name(),
-		finalPath: fullPath,
-	}, nil
+	return file, nil
 }
 
 // atomicWriter wraps a temp file and renames it on close

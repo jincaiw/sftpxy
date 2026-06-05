@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sftpxy/sftpxy/internal/database"
+	"github.com/jincaiw/sftpxy/internal/database"
 )
 
 // Admin represents an administrator in the system

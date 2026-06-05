@@ -5,8 +5,8 @@
 common:
   service_name: "sftpxy"
   log_level: "info"  # debug, info, warn, error, fatal
-  log_path: "/var/log/sftpxy/sftpxy.log"
-  temp_dir: "/tmp/sftpxy"
+  log_path: "./logs/sftpxy.log"
+  temp_dir: "./data/tmp"
   plugin_path: "./plugins"
   global_timeout: 300
 
@@ -14,11 +14,9 @@ common:
 ssh:
   enabled: true
   listen_address: "0.0.0.0"
-  listen_port: 2022
+  listen_port: 30082
   host_keys:
-    - "./keys/host_key_rsa"
-    - "./keys/host_key_ecdsa"
-    - "./keys/host_key_ed25519"
+    - "/var/lib/sftpxy/keys/ssh_host_ed25519_key"  # Production must use a persistent host key; use generate-hostkey to create it
   password_auth: true
   public_key_auth: true
   certificate_auth: false
@@ -34,15 +32,15 @@ ssh:
 ftp:
   enabled: false
   listen_address: "0.0.0.0"
-  listen_port: 2121
-  explicit_tls: false
-  tls_cert_file: ""
-  tls_key_file: ""
-  force_control_tls: false
-  force_data_tls: false
+  listen_port: 30086
+  explicit_tls: true
+  tls_cert_file: "/etc/sftpxy/certs/sftpxy.crt"
+  tls_key_file: "/etc/sftpxy/certs/sftpxy.key"
+  force_control_tls: true
+  force_data_tls: true
   passive_port_start: 21000
-  passive_port_end: 21999
-  nat_external_address: ""
+  passive_port_end: 30199
+  nat_external_address: ""  # Set this when the server is behind NAT and passive FTP must advertise a public address
   max_connections: 50
   login_timeout: 60
   idle_timeout: 300
@@ -53,28 +51,82 @@ webdav:
   listen_address: "0.0.0.0"
   listen_port: 8081
   base_path: "/"
-  tls_cert_file: ""
-  tls_key_file: ""
-  client_cert: false
+  tls_cert_file: "/etc/sftpxy/certs/sftpxy.crt"
+  tls_key_file: "/etc/sftpxy/certs/sftpxy.key"
+  client_cert: false  # Client certificate auth is outside the current production scope
 
 # HTTPD (WebAdmin, WebClient, REST API) configuration
 httpd:
   enabled: true
   listen_address: "0.0.0.0"
-  listen_port: 8080
-  tls_cert_file: ""
-  tls_key_file: ""
+  listen_port: 30088
+  client_listen_port: 30080
+  tls_cert_file: "/etc/sftpxy/certs/sftpxy.crt"
+  tls_key_file: "/etc/sftpxy/certs/sftpxy.key"
   client_cert: false
   webadmin_enabled: true
   webclient_enabled: true
   rest_api_enabled: true
   openapi_enabled: true
   static_path: "./web/dist"
-  template_path: "./templates"
-  session_secret: "change-this-to-a-random-secret"
+  template_path: "./web/dist"
+  session_secret: "replace-with-a-random-32-char-secret"
   token_expiry: 3600
   cors_origins:
-    - "*"
+    - "https://files.example.com"
+  jwt:
+    enabled: true
+    secret: ""
+    issuer: "sftpxy"
+    audience: "sftpxy-api"
+    expiry_seconds: 3600
+  api_keys:
+    - key: "replace-with-a-long-random-api-key"
+      subject: "automation-admin"
+      role: "admin"
+      scopes:
+        - "admin"
+      description: "automation access"
+      enabled: false
+  oidc:
+    enabled: false
+    provider_name: "corp-sso"
+    client_id: ""
+    client_secret: ""
+    issuer_url: ""
+    auth_url: ""
+    token_url: ""
+    user_info_url: ""
+    redirect_url: "https://files.example.com/api/v1/auth/oidc/callback"
+    scopes:
+      - "openid"
+      - "profile"
+      - "email"
+    username_field: "preferred_username"
+    email_field: "email"
+    role_field: "role"
+    role_mappings:
+      admin: "admin"
+      user: "user"
+    allow_admin: false
+    allow_user: true
+    auto_create_users: true
+    user_home_base_dir: "/var/lib/sftpxy/oidc-users"
+    insecure_skip_verify: false
+  ldap:
+    enabled: false
+    url: "ldaps://ldap.example.com:636"
+    bind_dn: "cn=readonly,dc=example,dc=com"
+    bind_password: ""
+    base_dn: "dc=example,dc=com"
+    user_filter: "(&(objectClass=person)(uid=%s))"
+    username_attribute: "uid"
+    admin_group_cn: "sftpxy-admins"
+    allow_admin: false
+    allow_user: true
+    auto_create_users: true
+    user_home_base_dir: "/var/lib/sftpxy/ldap-users"
+    insecure_skip_verify: false
 
 # Data provider (database) configuration
 data_provider:
@@ -90,7 +142,7 @@ data_provider:
 telemetry:
   enabled: true
   listen_address: "0.0.0.0"
-  listen_port: 9090
+  listen_port: 0
   tls_cert_file: ""
   tls_key_file: ""
   enable_profiling: false

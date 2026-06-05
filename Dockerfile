@@ -28,7 +28,7 @@ COPY --from=builder /app/sftpxy /usr/local/bin/sftpxy
 # Create directories
 RUN mkdir -p /etc/sftpxy /var/log/sftpxy /data/sftpxy
 
-EXPOSE 2022 2121 8080 8081 9090
+EXPOSE 30082 30086 30080 30084 30088
 
 VOLUME ["/etc/sftpxy", "/var/log/sftpxy", "/data/sftpxy"]
 

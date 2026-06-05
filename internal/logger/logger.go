@@ -2,8 +2,9 @@ package logger
 
 import (
 	"os"
+	"path/filepath"
 
-	"github.com/sftpxy/sftpxy/internal/config"
+	"github.com/jincaiw/sftpxy/internal/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -59,6 +60,12 @@ type fileWriter struct {
 
 func (fw *fileWriter) Write(p []byte) (n int, err error) {
 	if fw.file == nil {
+		dir := filepath.Dir(fw.path)
+		if dir != "." && dir != "" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return 0, err
+			}
+		}
 		fw.file, err = os.OpenFile(fw.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return 0, err

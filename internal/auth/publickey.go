@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sftpxy/sftpxy/internal/repository"
+	"github.com/jincaiw/sftpxy/internal/repository"
 	"golang.org/x/crypto/ssh"
 )
 

@@ -1,0 +1,1786 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SFTPxy API",
+    "description": "OpenAPI schema for the HTTP, REST, sharing, health, and telemetry endpoints exposed by SFTPxy.",
+    "version": "1.0.0"
+  },
+  "servers": [],
+  "tags": [
+    {
+      "name": "system"
+    },
+    {
+      "name": "auth"
+    },
+    {
+      "name": "admin"
+    },
+    {
+      "name": "files"
+    },
+    {
+      "name": "shares"
+    },
+    {
+      "name": "events"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Read service health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Current health snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Read runtime status",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "description": "Current service status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Read the OpenAPI document",
+        "operationId": "getOpenAPI",
+        "responses": {
+          "200": {
+            "description": "Generated OpenAPI schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Read Prometheus metrics",
+        "operationId": "getMetrics",
+        "responses": {
+          "200": {
+            "description": "Prometheus text format",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Read REST API status",
+        "operationId": "getAPIStatus",
+        "responses": {
+          "200": {
+            "description": "REST API runtime status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunningStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/admin/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Authenticate an administrator",
+        "operationId": "adminLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Administrator token and profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/user/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Authenticate an end user",
+        "operationId": "userLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User token and profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials or MFA required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MFARequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Blocked by policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Start an OIDC login flow",
+        "description": "Starts the server-brokered OpenID Connect authorization code flow with PKCE. The endpoint redirects by default, or returns JSON when the client sends `Accept: application/json`.",
+        "operationId": "startOIDCLogin",
+        "parameters": [
+          {
+            "name": "return_to",
+            "in": "query",
+            "description": "Local path to redirect back to after the OIDC callback completes.",
+            "schema": {
+              "type": "string",
+              "default": "/client"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Requested role hint for the OIDC session.",
+            "schema": {
+              "type": "string",
+              "enum": ["admin", "user"],
+              "default": "user"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OIDC redirect metadata for non-browser clients.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OIDCStartResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Redirects the browser to the configured OIDC provider authorization endpoint.",
+            "headers": {
+              "Location": {
+                "description": "OIDC provider authorization URL.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OIDC is not enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to initialize the OIDC flow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Complete an OIDC login flow",
+        "description": "Consumes the OIDC authorization response, provisions or loads the mapped account, issues the same bearer token format used by password login, and redirects back to the requested local route with token details in the query string.",
+        "operationId": "completeOIDCLogin",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Opaque state returned by the start endpoint.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code returned by the OIDC provider.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "description": "OIDC provider error returned instead of a code.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirects back to `/client` or `/admin` with `token`, `token_type`, `username`, and `role` query parameters.",
+            "headers": {
+              "Location": {
+                "description": "Local redirect URL containing the issued token details.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The callback is missing the required `state` or `code` parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The OIDC login failed, or the callback state is invalid or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The mapped account is disabled, not provisioned, or the requested OIDC role is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OIDC is not enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/access/{token}": {
+      "post": {
+        "tags": ["shares"],
+        "summary": "Access a public share",
+        "operationId": "accessShare",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareAccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved share information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List users",
+        "operationId": "listUsers",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Current users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["admin"],
+        "summary": "Create a user",
+        "operationId": "createUser",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "put": {
+        "tags": ["admin"],
+        "summary": "Update a user",
+        "operationId": "updateUser",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["admin"],
+        "summary": "Delete a user",
+        "operationId": "deleteUser",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List active sessions",
+        "operationId": "listConnections",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Active connections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections/{id}": {
+      "delete": {
+        "tags": ["admin"],
+        "summary": "Disconnect a session",
+        "operationId": "disconnectConnection",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disconnection result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logs": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List audit and transfer logs",
+        "operationId": "listLogs",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20
+            }
+          },
+          {
+            "name": "protocol",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/rules": {
+      "get": {
+        "tags": ["events"],
+        "summary": "List event rules",
+        "operationId": "listEventRules",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Current event rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRulesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/history": {
+      "get": {
+        "tags": ["events"],
+        "summary": "List event history",
+        "operationId": "listEventHistory",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/emit": {
+      "post": {
+        "tags": ["events"],
+        "summary": "Emit an event",
+        "operationId": "emitEvent",
+        "security": [{"BearerAuth": []}, {"APIKeyAuth": []}, {"APIKeyAuthorizationAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventEmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event processing result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventEmitResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profile": {
+      "get": {
+        "tags": ["files"],
+        "summary": "Read the current user profile",
+        "operationId": "getProfile",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profile/password": {
+      "post": {
+        "tags": ["files"],
+        "summary": "Change the current user password",
+        "operationId": "changePassword",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password change result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files": {
+      "get": {
+        "tags": ["files"],
+        "summary": "List files",
+        "operationId": "listFiles",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "/"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Directory entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["files"],
+        "summary": "Delete a file or directory",
+        "operationId": "deleteFile",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/download": {
+      "get": {
+        "tags": ["files"],
+        "summary": "Download a file",
+        "operationId": "downloadFile",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Requested file content",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/upload": {
+      "post": {
+        "tags": ["files"],
+        "summary": "Upload a file",
+        "operationId": "uploadFile",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "/"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/rename": {
+      "put": {
+        "tags": ["files"],
+        "summary": "Rename a file or directory",
+        "operationId": "renameFile",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rename result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/folder": {
+      "post": {
+        "tags": ["files"],
+        "summary": "Create a directory",
+        "operationId": "createFolder",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFolderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Directory creation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares": {
+      "get": {
+        "tags": ["shares"],
+        "summary": "List current user shares",
+        "operationId": "listShares",
+        "security": [{"BearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Shares owned by the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["shares"],
+        "summary": "Create a share",
+        "operationId": "createShare",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShareRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created share",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/{shareID}/revoke": {
+      "post": {
+        "tags": ["shares"],
+        "summary": "Revoke a share",
+        "operationId": "revokeShare",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "shareID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revocation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Bearer token returned by password login and OIDC callback flows. When JWT support is enabled this token is a JWT and must be sent as `Authorization: Bearer <token>`."
+      },
+      "APIKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Static API key for administrator API access."
+      },
+      "APIKeyAuthorizationAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Alternative administrator API key header using the format `ApiKey <key>`."
+      },
+      "OIDCAuth": {
+        "type": "openIdConnect",
+        "openIdConnectUrl": "https://example.invalid/.well-known/openid-configuration",
+        "description": "Represents the external OpenID Connect provider configured at runtime. The application brokers this flow through `/api/v1/auth/oidc/start` and `/api/v1/auth/oidc/callback` using authorization code + PKCE."
+      }
+    },
+    "schemas": {
+      "GenericObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RunningStatusResponse": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "UserLoginRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LoginRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mfa_code": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "MFARequiredResponse": {
+        "type": "object",
+        "required": ["message", "mfa_required"],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "mfa_required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuthUser": {
+        "type": "object",
+        "required": ["id", "username", "role", "status"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "user"]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "required": ["token", "token_type", "user"],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": ["jwt", "opaque"],
+            "description": "Authentication token type returned by the server."
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          }
+        }
+      },
+      "OIDCStartResponse": {
+        "type": "object",
+        "required": ["redirect_url", "state"],
+        "properties": {
+          "redirect_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "required": ["id", "username", "home_directory", "status"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "home_directory": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "last_login": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "UserList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/UserSummary"
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "home_directory": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "home_directory": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "Connection": {
+        "type": "object",
+        "required": ["id", "username", "protocol", "remote_addr", "connected_at", "bytes_sent", "bytes_recv"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "remote_addr": {
+            "type": "string"
+          },
+          "connected_at": {
+            "type": "string"
+          },
+          "bytes_sent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bytes_recv": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ConnectionList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Connection"
+        }
+      },
+      "LogItem": {
+        "type": "object",
+        "required": ["id", "timestamp", "username", "action", "protocol", "remote_addr", "details", "status"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "remote_addr": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "LogPage": {
+        "type": "object",
+        "required": ["items", "total", "page", "limit"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventRulesResponse": {
+        "type": "object",
+        "required": ["items", "total"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventPage": {
+        "type": "object",
+        "required": ["items", "total", "page", "limit"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventEmitRequest": {
+        "type": "object",
+        "required": ["event_type"],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "EventEmitResponse": {
+        "type": "object",
+        "required": ["event", "results"],
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          }
+        }
+      },
+      "FileEntry": {
+        "type": "object",
+        "required": ["name", "size", "mod_time", "is_dir", "mode", "path"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "mod_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_dir": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "FileList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/FileEntry"
+        }
+      },
+      "RenameRequest": {
+        "type": "object",
+        "required": ["old_path", "new_path"],
+        "properties": {
+          "old_path": {
+            "type": "string"
+          },
+          "new_path": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateFolderRequest": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": ["current_password", "new_password"],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 6
+          }
+        }
+      },
+      "CreateShareRequest": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "share_type": {
+            "type": "string",
+            "enum": ["download", "upload"]
+          },
+          "password": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "max_downloads": {
+            "type": "integer"
+          },
+          "max_uploads": {
+            "type": "integer"
+          },
+          "ip_restrictions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ShareAccessRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ShareInfo": {
+        "type": "object",
+        "required": ["id", "token", "user_id", "username", "share_type", "path", "max_downloads", "max_uploads", "download_count", "upload_count", "is_active", "created_at"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "share_type": {
+            "type": "string",
+            "enum": ["download", "upload"]
+          },
+          "path": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "max_downloads": {
+            "type": "integer"
+          },
+          "max_uploads": {
+            "type": "integer"
+          },
+          "download_count": {
+            "type": "integer"
+          },
+          "upload_count": {
+            "type": "integer"
+          },
+          "ip_restrictions": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ShareListResponse": {
+        "type": "object",
+        "required": ["items", "total"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShareInfo"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "required": ["id", "username", "status", "home_directory", "mfa_enabled", "quota", "public_keys", "created_at", "updated_at"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "home_directory": {
+            "type": "string"
+          },
+          "mfa_enabled": {
+            "type": "boolean"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "public_keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenericObject"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "timestamp", "uptime", "version", "database", "telemetry"],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "uptime": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "database": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/GenericObject"
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "required": ["service", "version", "uptime", "runtime", "memory", "protocols", "connections", "shares", "telemetry", "timestamp"],
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "uptime": {
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "protocols": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "connections": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "shares": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/GenericObject"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sftpxy/sftpxy/internal/storage"
+	"github.com/jincaiw/sftpxy/internal/storage"
 )
 
 // EncryptedFileSystem wraps a local filesystem with encryption

@@ -1,209 +1,170 @@
 # SFTPxy
 
-企业级托管文件传输平台 (Enterprise Managed File Transfer Platform)
+[中文](README.zh-CN.md)
 
-## 项目概述
+SFTPxy is an enterprise managed file transfer platform. It provides SFTP/SCP, FTP/FTPS, WebDAV, WebAdmin, WebClient, REST APIs, audit logs, Prometheus metrics, policy controls, and pluggable storage backends in one deployable service.
 
-SFTPxy 是一套企业级、安全、可配置、可审计、可扩展的托管文件传输平台，支持 SFTP、SCP、FTP/S、WebDAV 和 HTTP/S 等多种文件传输协议。
+## Features
 
-## 核心特性
+- Multi-protocol access: SFTP/SCP, FTP/FTPS, WebDAV, HTTP/WebAdmin/WebClient, and REST APIs.
+- Storage backends: local filesystem, encrypted local filesystem, remote SFTP, and HTTPFs.
+- Unified access control: file permissions, quotas, bandwidth limits, IP filters, and protocol policies.
+- Authentication: password, SSH public key, TOTP MFA, OIDC, LDAP/AD, JWT bearer tokens, and API keys.
+- Operations: JSON logs, audit records, active sessions, shares, event rules, hooks, backup/restore, and Prometheus metrics.
+- Deployment: single Linux binary, Linux systemd service, Docker, Docker Compose, and Windows service wrapper.
 
-- **多协议支持**: SFTP/SCP, FTP/FTPS, WebDAV, HTTP/HTTPS
-- **多种存储后端**: 本地文件系统、加密本地文件系统、远程SFTP、HTTPFs
-- **统一权限控制**: 细粒度的文件权限、配额管理、带宽限制、IP过滤
-- **认证方式**: 密码认证、SSH公钥、TOTP MFA、OIDC、LDAP插件
-- **Web管理界面**: WebAdmin管理端 + WebClient文件客户端
-- **REST API**: 完整的OpenAPI 3接口
-- **事件驱动**: 文件事件触发HTTP回调、命令执行、邮件通知
-- **审计日志**: 结构化JSON日志，完整的操作审计
-- **监控指标**: Prometheus metrics暴露
-- **灵活部署**: 单二进制、Docker、Linux systemd、Windows服务
-
-## 技术栈
-
-| 组件 | 技术 |
-|------|------|
-| 后端语言 | Go 1.21+ |
-| HTTP路由 | Chi v5 |
-| API规范 | REST + OpenAPI 3 |
-| 数据库 | SQLite (默认) / MySQL 8.0+ |
-| 数据迁移 | Goose |
-| 数据访问 | SQLC (类型安全) |
-| 配置管理 | Viper |
-| 日志 | Zap (JSON结构化) |
-| 指标 | Prometheus client_golang |
-| SSH/SFTP | golang.org/x/crypto/ssh, pkg/sftp |
-| FTP | fclairamb/ftpserverlib |
-| WebDAV | golang.org/x/net/webdav |
-
-## 快速开始
-
-### 本地运行
+## Quick Start
 
 ```bash
-# 克隆仓库
-git clone https://github.com/sftpxy/sftpxy.git
+git clone https://github.com/jincaiw/sftpxy.git
 cd sftpxy
-
-# 构建
 make build
-
-# 使用默认配置运行
 ./bin/sftpxy --config config.yaml.example
-
-# 或者复制配置文件并修改
-cp config.yaml.example config.yaml
-./bin/sftpxy --config config.yaml
 ```
 
-### Docker运行
+The default ports are:
+
+| Service | Port |
+|---|---:|
+| SSH/SFTP/SCP | 30082 |
+| WebAdmin/API | 30088 |
+| WebClient | 30080 |
+| WebDAV | 30084 |
+| FTP/FTPS | 30086 |
+
+## Build From Source
 
 ```bash
-# 构建镜像
-docker build -t sftpxy:latest .
-
-# 运行容器
-docker run -d \
-  -p 2022:2022 \
-  -p 8080:8080 \
-  -v $(pwd)/config.yaml:/etc/sftpxy/config.yaml \
-  -v sftpxy-data:/data/sftpxy \
-  sftpxy:latest
+go mod download
+npm --prefix web install
+make verify-prod
+make release-bundle
 ```
 
-### Docker Compose
+The Linux release archive is written to:
+
+```text
+dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz
+```
+
+## Linux Single-Binary Deployment
+
+1. Build or download the Linux binary:
 
 ```bash
-docker-compose up -d
+VERSION=0.1.0 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
 ```
 
-### Windows服务
-
-**使用PowerShell脚本（推荐）：**
-
-```powershell
-# 以管理员身份运行安装脚本
-.\deploy\windows\install.ps1
-
-# 以管理员身份运行卸载脚本
-.\deploy\windows\uninstall.ps1
-```
-
-**手动管理：**
-
-```powershell
-# 安装为Windows服务
-sftpxy.exe install
-
-# 启动服务
-sftpxy.exe start
-
-# 停止服务
-sftpxy.exe stop
-
-# 卸载服务
-sftpxy.exe remove
-
-# 调试模式运行
-sftpxy.exe debug
-```
-
-### Linux systemd服务
+2. Install the binary and runtime assets:
 
 ```bash
-# 使用安装脚本
-sudo ./deploy/systemd/install.sh
-
-# 或者手动安装
-sudo cp bin/sftpxy /usr/local/bin/
-sudo cp deploy/systemd/sftpxy.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable sftpxy
-sudo systemctl start sftpxy
+sudo install -m 755 /tmp/sftpxy-linux-amd64-systemd-v0.1.0/sftpxy /usr/local/bin/sftpxy
+sudo install -d -m 750 /etc/sftpxy /var/lib/sftpxy /var/log/sftpxy /usr/local/share/sftpxy
+sudo cp /tmp/sftpxy-linux-amd64-systemd-v0.1.0/config.yaml.example /etc/sftpxy/config.yaml
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/migrations /usr/local/share/sftpxy/
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/web /usr/local/share/sftpxy/
 ```
 
-## 项目结构
-
-```
-gosftp/
-├── cmd/sftpxy/           # 应用入口
-├── internal/
-│   ├── auth/             # 认证模块 (密码/公钥/MFA)
-│   ├── config/           # 配置管理
-│   ├── database/         # 数据库连接
-│   ├── events/           # 事件管理器
-│   ├── logger/           # 日志系统
-│   ├── metrics/          # Prometheus指标
-│   ├── policy/           # 统一策略引擎
-│   ├── protocols/        # 协议服务器
-│   │   ├── ssh/          # SSH/SFTP/SCP
-│   │   ├── ftp/          # FTP/FTPS
-│   │   ├── webdav/       # WebDAV
-│   │   └── httpd/        # HTTP服务器
-│   ├── repository/       # 数据访问层
-│   └── storage/          # 存储后端
-│       ├── local/        # 本地文件系统
-│       └── storage.go    # FileSystem接口
-├── migrations/           # 数据库迁移脚本
-│   ├── sqlite/
-│   └── mysql/
-├── sqlc/                 # SQLC配置
-├── Makefile              # 构建脚本
-├── Dockerfile            # Docker镜像
-├── docker-compose.yml    # Docker Compose配置
-└── config.yaml.example   # 示例配置
-```
-
-## 配置
-
-主要配置项见 `config.yaml.example`：
+3. Edit `/etc/sftpxy/config.yaml` for production:
 
 ```yaml
-# SSH/SFTP配置
+common:
+  log_path: /var/log/sftpxy/sftpxy.log
 ssh:
-  enabled: true
-  listen_port: 2022
-  password_auth: true
-  public_key_auth: true
-
-# HTTP配置
+  host_keys:
+    - /var/lib/sftpxy/keys/ssh_host_ed25519_key
 httpd:
-  enabled: true
-  listen_port: 8080
-  webadmin_enabled: true
-  webclient_enabled: true
-  rest_api_enabled: true
-
-# 数据库配置
+  static_path: /usr/local/share/sftpxy/web/dist
+  template_path: /usr/local/share/sftpxy/web/dist
+  session_secret: replace-with-a-random-hex-secret
 data_provider:
-  driver: "sqlite"
-  connection_string: "./data/sftpxy.db"
+  connection_string: /var/lib/sftpxy/sftpxy.db
 ```
 
-## API文档
-
-启动后访问 `http://localhost:8080/openapi` 查看OpenAPI文档。
-
-## 监控指标
-
-Prometheus指标暴露在 `http://localhost:9090/metrics`。
-
-## 开发
+4. Generate a persistent SSH host key and validate the config:
 
 ```bash
-# 安装依赖
-go mod download
-
-# 运行测试
-make test
-
-# 代码生成 (SQLC)
-make generate
-
-# 运行linter
-make lint
+sudo /usr/local/bin/sftpxy generate-hostkey --output /var/lib/sftpxy/keys/ssh_host_ed25519_key
+sudo /usr/local/bin/sftpxy validate-config --config /etc/sftpxy/config.yaml --strict-production
 ```
 
-## 许可证
+5. Run SFTPxy:
 
-MIT License
+```bash
+sudo /usr/local/bin/sftpxy --config /etc/sftpxy/config.yaml
+```
+
+6. Create the first administrator:
+
+```bash
+printf 'StrongPasswordHere' | sudo /usr/local/bin/sftpxy \
+  bootstrap-admin \
+  --config /etc/sftpxy/config.yaml \
+  --username admin \
+  --password-stdin
+```
+
+## Linux systemd Deployment
+
+1. Build the release bundle:
+
+```bash
+VERSION=0.1.0 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
+cd /tmp/sftpxy-linux-amd64-systemd-v0.1.0
+```
+
+2. Install with the bundled script:
+
+```bash
+sudo SFTPXY_TLS_CERT_FILE=/path/to/sftpxy.crt \
+  SFTPXY_TLS_KEY_FILE=/path/to/sftpxy.key \
+  ./systemd/install.sh
+```
+
+3. Manage the service:
+
+```bash
+sudo systemctl status sftpxy
+sudo systemctl restart sftpxy
+sudo journalctl -u sftpxy -f
+```
+
+4. Smoke test:
+
+```bash
+curl -k https://127.0.0.1:30088/health
+curl -k https://127.0.0.1:30088/status
+curl -k https://127.0.0.1:30088/openapi
+curl http://127.0.0.1:30088/metrics
+```
+
+## Docker
+
+```bash
+docker build -t sftpxy:latest .
+docker compose up -d
+```
+
+## Development
+
+```bash
+make test
+make test-protocols
+make web-build
+make verify-prod
+```
+
+## Documentation
+
+- [Linux systemd deployment](docs/production/systemd.md)
+- [Docker deployment](docs/production/docker.md)
+- [Production configuration](docs/production/configuration.md)
+- [Backup and restore](docs/production/backup-restore.md)
+- [Release checklist](docs/production/release-checklist.md)
+- [Release notes](docs/production/release-notes.md)
+
+## License
+
+SFTPxy is released under the [MIT License](LICENSE).

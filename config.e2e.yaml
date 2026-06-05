@@ -1,0 +1,195 @@
+auth:
+    geoip:
+        allowed_countries: null
+        db_path: ""
+        denied_countries: null
+        enabled: false
+    ip_filter:
+        allow_list: null
+        deny_list: null
+    multistep_auth:
+        enabled: false
+        required_methods: null
+        ttl_seconds: 300
+    password_expires_days: 0
+    password_policy:
+        disallow_username: false
+        min_length: 8
+        require_digit: false
+        require_lowercase: false
+        require_special: false
+        require_uppercase: false
+commands:
+    timeout: 30
+    whitelist:
+        - /usr/local/bin/sftpxy-hook
+common:
+    global_timeout: 300
+    log_level: info
+    log_path: ./data/e2e/sftpxy.log
+    plugin_path: ./plugins
+    service_name: sftpxy
+    temp_dir: ./data/e2e/tmp
+data_provider:
+    auto_migrate: true
+    conn_max_lifetime: 300
+    connection_string: ./data/e2e/sftpxy.db
+    driver: sqlite
+    max_idle_conns: 5
+    max_open_conns: 25
+    ssl_mode: disable
+defender:
+    ban_duration: 0
+    max_failures: 0
+    observation_window: 0
+    whitelist: null
+ftp:
+    enabled: true
+    explicit_tls: false
+    force_control_tls: false
+    force_data_tls: false
+    idle_timeout: 0
+    listen_address: 0.0.0.0
+    listen_port: 30086
+    login_timeout: 0
+    max_connections: 50
+    nat_external_address: ""
+    passive_port_end: 30199
+    passive_port_start: 30100
+    tls_cert_file: ""
+    tls_key_file: ""
+hooks:
+    auth:
+        cache_ttl: 0
+        command: ""
+        endpoint: ""
+        timeout: 0
+        type: ""
+    connection: null
+    dynamic_user:
+        command: ""
+        endpoint: ""
+        timeout: 0
+        type: ""
+    file_events: null
+http_clients:
+    default_timeout: 30
+    max_connections: 100
+    tls_verify: true
+httpd:
+    api_keys: null
+    client_cert: false
+    client_listen_port: 30080
+    cors_origins:
+        - '*'
+    enabled: true
+    jwt:
+        audience: sftpxy-api
+        enabled: true
+        expiry_seconds: 3600
+        issuer: sftpxy
+        secret: ""
+    ldap:
+        admin_group_cn: ""
+        allow_admin: false
+        allow_user: false
+        auto_create_users: false
+        base_dn: ""
+        bind_dn: ""
+        bind_password: ""
+        enabled: false
+        insecure_skip_verify: false
+        url: ""
+        user_filter: (&(objectClass=person)(uid=%s))
+        user_home_base_dir: ""
+        username_attribute: uid
+    listen_address: 0.0.0.0
+    listen_port: 30088
+    oidc:
+        allow_admin: false
+        allow_user: false
+        auth_url: ""
+        auto_create_users: false
+        client_id: ""
+        client_secret: ""
+        email_field: email
+        enabled: false
+        insecure_skip_verify: false
+        issuer_url: ""
+        provider_name: default
+        redirect_url: ""
+        role_field: ""
+        role_mappings: null
+        scopes:
+            - openid
+            - profile
+            - email
+        token_url: ""
+        user_home_base_dir: ""
+        user_info_url: ""
+        username_field: preferred_username
+    openapi_enabled: false
+    request_timeout: 0
+    rest_api_enabled: true
+    session_secret: e2e-test-secret
+    static_path: ./web/dist
+    template_path: ./templates
+    tls_cert_file: ""
+    tls_key_file: ""
+    token_expiry: 3600
+    webadmin_enabled: true
+    webclient_enabled: true
+kms:
+    key_path: ./keys/kms.key
+    type: local
+mfa:
+    enabled: false
+    force_for_admins: false
+    force_for_users: false
+    issuer: SFTPxy
+plugins:
+    configs: null
+    directory: ""
+    disabled: null
+    enabled: []
+    enabled_map: null
+    path: ./plugins
+smtp:
+    from: noreply@example.com
+    host: smtp.example.com
+    password: ""
+    port: 587
+    use_tls: true
+    username: ""
+ssh:
+    allowed_algorithms: null
+    banner: ""
+    ca_keys: null
+    cert_principals: false
+    certificate_auth: false
+    disabled_algorithms: null
+    enabled: true
+    host_keys: null
+    idle_timeout: 300
+    listen_address: 0.0.0.0
+    listen_port: 30082
+    login_timeout: 60
+    max_connections: 100
+    password_auth: true
+    public_key_auth: true
+    scp_enabled: true
+telemetry:
+    enable_profiling: false
+    enabled: false
+    listen_address: 0.0.0.0
+    listen_port: 0
+    tls_cert_file: ""
+    tls_key_file: ""
+webdav:
+    base_path: /
+    client_cert: false
+    enabled: true
+    listen_address: 0.0.0.0
+    listen_port: 30084
+    tls_cert_file: ""
+    tls_key_file: ""

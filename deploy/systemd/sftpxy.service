@@ -1,6 +1,6 @@
 [Unit]
 Description=SFTPxy Managed File Transfer Platform
-Documentation=https://github.com/sftpxy/sftpxy
+Documentation=https://github.com/jincaiw/sftpxy
 After=network.target syslog.target
 Wants=network.target
 
@@ -9,7 +9,8 @@ Type=simple
 User=sftpxy
 Group=sftpxy
 
-# Executable and config
+# Executable, config and runtime resources
+WorkingDirectory=/usr/local/share/sftpxy
 ExecStart=/usr/local/bin/sftpxy --config /etc/sftpxy/config.yaml
 
 # Restart policy
@@ -24,6 +25,7 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/sftpxy /var/log/sftpxy
 PrivateTmp=true
+UMask=0077
 
 # Resource limits
 LimitNOFILE=65536
