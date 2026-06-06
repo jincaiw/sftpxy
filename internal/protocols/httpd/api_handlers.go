@@ -171,6 +171,42 @@ func (s *Server) createShare(w http.ResponseWriter, r *http.Request) {
 		req.ShareType = string(shares.ShareTypeDownload)
 	}
 
+	user, err := s.loadUser(r.Context(), session)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "failed to load user")
+		return
+	}
+	virtualPath, _, err := s.resolveVirtualPath(req.Path)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	switch shares.ShareType(req.ShareType) {
+	case shares.ShareTypeDownload:
+		if err := s.authorizeFileOperation(r.Context(), session, user, r, policy.OpDownload, virtualPath, 0); err != nil {
+			s.writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+	case shares.ShareTypeUpload:
+		if err := s.authorizeFileOperation(r.Context(), session, user, r, policy.OpUpload, virtualPath, 0); err != nil {
+			s.writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+	case "both":
+		if err := s.authorizeFileOperation(r.Context(), session, user, r, policy.OpDownload, virtualPath, 0); err != nil {
+			s.writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if err := s.authorizeFileOperation(r.Context(), session, user, r, policy.OpUpload, virtualPath, 0); err != nil {
+			s.writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+	default:
+		s.writeError(w, http.StatusBadRequest, "invalid share_type")
+		return
+	}
+	req.Path = virtualPath
+
 	var expiresAt time.Time
 	if strings.TrimSpace(req.ExpiresAt) != "" {
 		parsed, err := time.Parse(time.RFC3339, req.ExpiresAt)
@@ -308,6 +344,15 @@ func (s *Server) downloadSharedFile(w http.ResponseWriter, r *http.Request) {
 	if resolved, storage, resolveErr := s.resolveVirtualPath(virtualPath); resolveErr == nil {
 		storagePath = storage
 		virtualPath = resolved
+	}
+	shareSession := &authSession{
+		UserID:   share.UserID,
+		Username: share.Username,
+		Role:     "user",
+	}
+	if err := s.authorizeFileOperation(r.Context(), shareSession, user, r, policy.OpDownload, virtualPath, 0); err != nil {
+		s.writeError(w, http.StatusForbidden, err.Error())
+		return
 	}
 
 	info, err := fs.Stat(r.Context(), storagePath)

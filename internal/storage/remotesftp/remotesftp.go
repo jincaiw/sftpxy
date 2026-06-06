@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
+	pathpkg "path"
 	"strings"
 	"time"
 
@@ -148,17 +148,35 @@ func loadPrivateKey(path string) (ssh.Signer, error) {
 	return signer, nil
 }
 
-// fullPath returns the full path with prefix
-func (fs *RemoteSFTPFileSystem) fullPath(path string) string {
-	if fs.pathPrefix == "" {
-		return path
+// fullPath returns the full path with prefix and rejects prefix escapes.
+func (fs *RemoteSFTPFileSystem) fullPath(path string) (string, error) {
+	cleanPath := strings.TrimSpace(path)
+	if cleanPath == "" {
+		cleanPath = "."
 	}
-	return filepath.Join(fs.pathPrefix, path)
+	cleanPath = strings.TrimLeft(cleanPath, "/")
+	cleanPath = pathpkg.Clean(cleanPath)
+	if cleanPath == "." {
+		cleanPath = ""
+	}
+	if fs.pathPrefix == "" {
+		return cleanPath, nil
+	}
+
+	cleanPrefix := pathpkg.Clean("/" + strings.TrimSpace(fs.pathPrefix))
+	fullPath := pathpkg.Join(cleanPrefix, cleanPath)
+	if cleanPrefix != "/" && fullPath != cleanPrefix && !strings.HasPrefix(fullPath, cleanPrefix+"/") {
+		return "", fmt.Errorf("path escapes remote prefix")
+	}
+	return fullPath, nil
 }
 
 // Open opens a file for reading
 func (fs *RemoteSFTPFileSystem) Open(ctx context.Context, path string) (io.ReadCloser, error) {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	file, err := fs.client.Open(fullPath)
 	if err != nil {
@@ -170,10 +188,13 @@ func (fs *RemoteSFTPFileSystem) Open(ctx context.Context, path string) (io.ReadC
 
 // Create creates a new file for writing
 func (fs *RemoteSFTPFileSystem) Create(ctx context.Context, path string) (io.WriteCloser, error) {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure parent directory exists
-	dir := filepath.Dir(fullPath)
+	dir := pathpkg.Dir(fullPath)
 	if err := fs.client.MkdirAll(dir); err != nil {
 		// Ignore error if directory already exists
 	}
@@ -188,7 +209,10 @@ func (fs *RemoteSFTPFileSystem) Create(ctx context.Context, path string) (io.Wri
 
 // Stat returns file information
 func (fs *RemoteSFTPFileSystem) Stat(ctx context.Context, path string) (*storage.FileInfo, error) {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	info, err := fs.client.Stat(fullPath)
 	if err != nil {
@@ -207,32 +231,50 @@ func (fs *RemoteSFTPFileSystem) Stat(ctx context.Context, path string) (*storage
 
 // Delete removes a file
 func (fs *RemoteSFTPFileSystem) Delete(ctx context.Context, path string) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.Remove(fullPath)
 }
 
 // Rename renames a file or directory
 func (fs *RemoteSFTPFileSystem) Rename(ctx context.Context, oldPath, newPath string) error {
-	oldFullPath := fs.fullPath(oldPath)
-	newFullPath := fs.fullPath(newPath)
+	oldFullPath, err := fs.fullPath(oldPath)
+	if err != nil {
+		return err
+	}
+	newFullPath, err := fs.fullPath(newPath)
+	if err != nil {
+		return err
+	}
 	return fs.client.Rename(oldFullPath, newFullPath)
 }
 
 // Mkdir creates a directory
 func (fs *RemoteSFTPFileSystem) Mkdir(ctx context.Context, path string) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.MkdirAll(fullPath)
 }
 
 // Rmdir removes an empty directory
 func (fs *RemoteSFTPFileSystem) Rmdir(ctx context.Context, path string) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.RemoveDirectory(fullPath)
 }
 
 // ListDir lists directory contents
 func (fs *RemoteSFTPFileSystem) ListDir(ctx context.Context, path string) ([]*storage.FileInfo, error) {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	entries, err := fs.client.ReadDir(fullPath)
 	if err != nil {
@@ -256,39 +298,63 @@ func (fs *RemoteSFTPFileSystem) ListDir(ctx context.Context, path string) ([]*st
 
 // Chmod changes file permissions
 func (fs *RemoteSFTPFileSystem) Chmod(ctx context.Context, path string, mode os.FileMode) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.Chmod(fullPath, mode)
 }
 
 // Chown changes file ownership (may not be supported by all SFTP servers)
 func (fs *RemoteSFTPFileSystem) Chown(ctx context.Context, path string, uid, gid int) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.Chown(fullPath, uid, gid)
 }
 
 // Chtimes changes file times
 func (fs *RemoteSFTPFileSystem) Chtimes(ctx context.Context, path string, atime, mtime time.Time) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.Chtimes(fullPath, atime, mtime)
 }
 
 // Truncate truncates a file
 func (fs *RemoteSFTPFileSystem) Truncate(ctx context.Context, path string, size int64) error {
-	fullPath := fs.fullPath(path)
+	fullPath, err := fs.fullPath(path)
+	if err != nil {
+		return err
+	}
 	return fs.client.Truncate(fullPath, size)
 }
 
 // Symlink creates a symbolic link (may not be supported)
 func (fs *RemoteSFTPFileSystem) Symlink(ctx context.Context, oldPath, newPath string) error {
-	oldFullPath := fs.fullPath(oldPath)
-	newFullPath := fs.fullPath(newPath)
+	oldFullPath, err := fs.fullPath(oldPath)
+	if err != nil {
+		return err
+	}
+	newFullPath, err := fs.fullPath(newPath)
+	if err != nil {
+		return err
+	}
 	return fs.client.Symlink(oldFullPath, newFullPath)
 }
 
 // Copy copies a file (downloads and re-uploads)
 func (fs *RemoteSFTPFileSystem) Copy(ctx context.Context, src, dst string) error {
-	srcFullPath := fs.fullPath(src)
-	dstFullPath := fs.fullPath(dst)
+	srcFullPath, err := fs.fullPath(src)
+	if err != nil {
+		return err
+	}
+	dstFullPath, err := fs.fullPath(dst)
+	if err != nil {
+		return err
+	}
 
 	// Open source file
 	srcFile, err := fs.client.Open(srcFullPath)

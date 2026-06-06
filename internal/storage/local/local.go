@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/jincaiw/sftpxy/internal/storage"
@@ -28,27 +27,11 @@ func NewLocalFileSystem(basePath string, chroot bool) *LocalFileSystem {
 
 // sanitizePath ensures the path is within the base path
 func (fs *LocalFileSystem) sanitizePath(path string) (string, error) {
-	// Clean the path
-	cleanPath := filepath.Clean(path)
-
-	// If chroot is enabled, ensure path doesn't escape base
 	if fs.chroot {
-		fullPath := filepath.Join(fs.basePath, cleanPath)
-		absPath, err := filepath.Abs(fullPath)
-		if err != nil {
-			return "", fmt.Errorf("invalid path: %w", err)
-		}
-		absBase, err := filepath.Abs(fs.basePath)
-		if err != nil {
-			return "", fmt.Errorf("invalid base path: %w", err)
-		}
-		if !strings.HasPrefix(absPath, absBase) {
-			return "", fmt.Errorf("path escapes chroot: %s", path)
-		}
-		return absPath, nil
+		return storage.ResolveLocalPath(fs.basePath, path)
 	}
 
-	return filepath.Join(fs.basePath, cleanPath), nil
+	return filepath.Join(fs.basePath, filepath.Clean(path)), nil
 }
 
 // Open opens a file for reading

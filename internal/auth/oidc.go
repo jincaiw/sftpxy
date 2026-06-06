@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/jincaiw/sftpxy/internal/config"
 	"golang.org/x/oauth2"
@@ -95,7 +96,10 @@ func (a *OIDCAuthenticator) ExchangeCode(ctx context.Context, code, verifier str
 		return nil, fmt.Errorf("oidc token exchange failed: %w", err)
 	}
 
-	claims := map[string]any{}
+	claims, err := claimsFromIDToken(token)
+	if err != nil {
+		return nil, err
+	}
 	if a.config.UserInfoURL != "" {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.config.UserInfoURL, nil)
 		if err != nil {
@@ -113,6 +117,7 @@ func (a *OIDCAuthenticator) ExchangeCode(ctx context.Context, code, verifier str
 		if err := json.NewDecoder(resp.Body).Decode(&claims); err != nil {
 			return nil, fmt.Errorf("oidc userinfo decode failed: %w", err)
 		}
+		claims = mergeOIDCClaims(claimsFromTokenClaims(token), claims)
 	}
 
 	identity := &OIDCIdentity{
@@ -125,6 +130,45 @@ func (a *OIDCAuthenticator) ExchangeCode(ctx context.Context, code, verifier str
 		return nil, fmt.Errorf("oidc identity missing username")
 	}
 	return identity, nil
+}
+
+func claimsFromIDToken(token *oauth2.Token) (map[string]any, error) {
+	if token == nil {
+		return map[string]any{}, nil
+	}
+	return claimsFromTokenClaims(token), nil
+}
+
+func claimsFromTokenClaims(token *oauth2.Token) map[string]any {
+	idToken, _ := token.Extra("id_token").(string)
+	idToken = strings.TrimSpace(idToken)
+	if idToken == "" {
+		return map[string]any{}
+	}
+	parts := strings.Split(idToken, ".")
+	if len(parts) < 2 {
+		return map[string]any{}
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return map[string]any{}
+	}
+	claims := map[string]any{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return map[string]any{}
+	}
+	return claims
+}
+
+func mergeOIDCClaims(baseClaims, overrideClaims map[string]any) map[string]any {
+	merged := map[string]any{}
+	for key, value := range baseClaims {
+		merged[key] = value
+	}
+	for key, value := range overrideClaims {
+		merged[key] = value
+	}
+	return merged
 }
 
 func normalizeOIDCRole(claims map[string]any, roleField string, mappings map[string]string) string {

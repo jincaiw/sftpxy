@@ -255,7 +255,7 @@ func (m *Manager) IncrementUploadCount(ctx context.Context, shareID int64) error
 	return m.shareRepo.IncrementUploadCount(ctx, shareID)
 }
 
-// AccessShare validates a share access request and increments usage counters.
+// AccessShare validates a share access request and returns the current share state.
 func (m *Manager) AccessShare(ctx context.Context, token, password, clientIP string) (*ShareInfo, error) {
 	if m.shareRepo == nil {
 		return nil, fmt.Errorf("share repository is not configured")
@@ -307,27 +307,16 @@ func (m *Manager) AccessShare(ctx context.Context, token, password, clientIP str
 			m.recordShareMetric(share.ShareType, "limit_reached")
 			return nil, fmt.Errorf("download limit reached")
 		}
-		if err := m.shareRepo.IncrementDownloadCount(ctx, share.ID); err != nil {
-			return nil, err
-		}
 	case ShareTypeUpload:
 		if share.MaxUploads.Valid && share.UploadCount >= int(share.MaxUploads.Int64) {
 			m.recordShareMetric(share.ShareType, "limit_reached")
 			return nil, fmt.Errorf("upload limit reached")
 		}
-		if err := m.shareRepo.IncrementUploadCount(ctx, share.ID); err != nil {
-			return nil, err
-		}
 	}
 
-	updated, err := m.shareRepo.GetByID(ctx, share.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	m.recordShareMetric(updated.ShareType, "success")
-	m.writeAudit(ctx, "share.access", updated.Username, updated.Token, "success", "")
-	return toShareInfo(updated), nil
+	m.recordShareMetric(share.ShareType, "success")
+	m.writeAudit(ctx, "share.access", share.Username, share.Token, "success", "")
+	return toShareInfo(share), nil
 }
 
 // Helper functions

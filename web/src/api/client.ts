@@ -96,6 +96,7 @@ export interface Connection {
   connected_at: string
   bytes_sent: number
   bytes_recv: number
+  principal?: 'user' | 'admin'
 }
 
 export interface AuditLog {

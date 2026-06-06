@@ -134,30 +134,40 @@ TEST_FILE="$SFTP_TEST_DIR/test_upload.txt"
 echo "hello sftp $(date)" > $TEST_FILE
 
 if command -v sftp >/dev/null 2>&1; then
-    # SFTP upload
-    SFTP_CMD="put $TEST_FILE /test_upload_sftp.txt
-ls /
-bye"
-    SFTP_OUT=$(echo "$SFTP_CMD" | timeout 10 sftp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P $SFTP_PORT $TEST_USER@$HOST 2>&1 <<< "$TEST_CMD")
-    if echo "$SFTP_OUT" | grep -q "test_upload_sftp.txt\|sftp>"; then
-        log_pass "SFTP connection successful"
+    # Reuse the dedicated Python helper so password auth and upload/download
+    # verification work consistently across macOS and Linux.
+    if python3 tests/sftp-test.py > "$SFTP_TEST_DIR/sftp_result.txt" 2>&1; then
+        if grep -q "SFTP UPLOAD: OK" "$SFTP_TEST_DIR/sftp_result.txt"; then
+            log_pass "SFTP upload works"
+        else
+            log_fail "SFTP upload failed"
+        fi
+        if grep -q "SFTP DOWNLOAD: OK" "$SFTP_TEST_DIR/sftp_result.txt"; then
+            log_pass "SFTP download works"
+        else
+            log_fail "SFTP download failed"
+        fi
     else
-        log_warn "SFTP client may not be available, trying SSH"
+        log_fail "SFTP client test failed: $(tail -n 5 "$SFTP_TEST_DIR/sftp_result.txt" 2>/dev/null)"
     fi
 else
     log_warn "sftp client not installed, skipping SFTP client test"
 fi
 
 # SSH protocol version
-SSH_BANNER=$(timeout 3 bash -c "echo '' | nc $HOST $SFTP_PORT" 2>&1 | head -1) || SSH_BANNER=""
-# Try gtimeout on macOS
-if [ -z "$SSH_BANNER" ]; then
-    SSH_BANNER=$(gtimeout 3 bash -c "echo '' | nc $HOST $SFTP_PORT" 2>&1 | head -1) || SSH_BANNER=""
-fi
-# Try a simpler approach
-if [ -z "$SSH_BANNER" ]; then
-    SSH_BANNER=$( (echo '' | nc -w 3 $HOST $SFTP_PORT 2>&1 | head -1) ) || SSH_BANNER=""
-fi
+SSH_BANNER=$(python3 - <<PY
+import socket
+
+try:
+    sock = socket.create_connection(("$HOST", $SFTP_PORT), timeout=3)
+    sock.settimeout(3)
+    banner = sock.recv(256).decode("utf-8", "ignore").strip()
+    sock.close()
+    print(banner)
+except Exception:
+    pass
+PY
+)
 if echo "$SSH_BANNER" | grep -q "SSH-"; then
     log_pass "SSH protocol banner received: $(echo $SSH_BANNER | head -c 50)"
 else

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.1.1}"
 TARGET_NAME="sftpxy-linux-amd64-systemd-v${VERSION}"
 DIST_DIR="$ROOT_DIR/dist/release"
 PACKAGE_DIR="$DIST_DIR/$TARGET_NAME"

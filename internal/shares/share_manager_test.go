@@ -300,7 +300,7 @@ func TestAccessShareRejectsInvalidPasswordAndAllowedIPMismatch(t *testing.T) {
 	}
 }
 
-func TestAccessShareIncrementsDownloadCountAndAuditsSuccess(t *testing.T) {
+func TestAccessShareDoesNotIncrementDownloadCountAndAuditsSuccess(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -326,11 +326,11 @@ func TestAccessShareIncrementsDownloadCountAndAuditsSuccess(t *testing.T) {
 		t.Fatalf("AccessShare returned error: %v", err)
 	}
 
-	if len(shareRepo.downloadIncrIDs) != 1 || shareRepo.downloadIncrIDs[0] != 1 {
-		t.Fatalf("expected one download increment for share 1, got %+v", shareRepo.downloadIncrIDs)
+	if len(shareRepo.downloadIncrIDs) != 0 {
+		t.Fatalf("expected access to avoid download increments, got %+v", shareRepo.downloadIncrIDs)
 	}
-	if info.DownloadCount != 2 {
-		t.Fatalf("expected updated download count 2, got %d", info.DownloadCount)
+	if info.DownloadCount != 1 {
+		t.Fatalf("expected unchanged download count 1, got %d", info.DownloadCount)
 	}
 	if len(auditRepo.logs) != 1 || auditRepo.logs[0].EventType != "share.access" || auditRepo.logs[0].Result != "success" {
 		t.Fatalf("expected successful share.access audit log, got %+v", auditRepo.logs)

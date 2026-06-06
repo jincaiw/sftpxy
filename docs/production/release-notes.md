@@ -1,5 +1,22 @@
 # SFTPxy 发布说明
 
+## v0.1.1
+
+本次版本聚焦生产安全和会话健壮性：
+
+- 强化本地、加密本地和远端 SFTP 存储路径隔离，避免路径穿越和符号链接逃逸。
+- 强化 OIDC/LDAP 自动创建用户的用户名校验，避免外部身份构造越权 home 目录。
+- 强化用户和管理员 HTTP session 管理，刷新令牌时轮换 JWT，并在禁用账号或断开会话后撤销访问。
+- 支持管理员 MFA 登录校验，并允许无本地密码的 OIDC/LDAP 用户使用 MFA/恢复码禁用 MFA。
+- 分享访问只做授权校验，下载/上传计数在实际传输路径递增，减少预检请求消耗限额的问题。
+- 前端 OIDC 回调改用 URL fragment 读取令牌，降低令牌出现在查询参数和日志中的风险。
+
+验证命令：
+
+- `make verify-prod`
+- `go vet ./...`
+- `make release-bundle`
+
 ## 版本范围
 
 当前发布包面向以下交付范围：
@@ -62,8 +79,8 @@ make release-bundle
 
 生成产物位于：
 
-- `dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz`
-- `dist/release/sftpxy-linux-amd64-systemd-v0.1.0.manifest.txt`
+- `dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz`
+- `dist/release/sftpxy-linux-amd64-systemd-v0.1.1.manifest.txt`
 
 发布包中包含：
 

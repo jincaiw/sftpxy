@@ -44,7 +44,7 @@ make release-bundle
 The Linux release archive is written to:
 
 ```text
-dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz
+dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz
 ```
 
 ## Linux Single-Binary Deployment
@@ -52,18 +52,18 @@ dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz
 1. Build or download the Linux binary:
 
 ```bash
-VERSION=0.1.0 make release-bundle
-tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
+VERSION=0.1.1 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz -C /tmp
 ```
 
 2. Install the binary and runtime assets:
 
 ```bash
-sudo install -m 755 /tmp/sftpxy-linux-amd64-systemd-v0.1.0/sftpxy /usr/local/bin/sftpxy
+sudo install -m 755 /tmp/sftpxy-linux-amd64-systemd-v0.1.1/sftpxy /usr/local/bin/sftpxy
 sudo install -d -m 750 /etc/sftpxy /var/lib/sftpxy /var/log/sftpxy /usr/local/share/sftpxy
-sudo cp /tmp/sftpxy-linux-amd64-systemd-v0.1.0/config.yaml.example /etc/sftpxy/config.yaml
-sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/migrations /usr/local/share/sftpxy/
-sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/web /usr/local/share/sftpxy/
+sudo cp /tmp/sftpxy-linux-amd64-systemd-v0.1.1/config.yaml.example /etc/sftpxy/config.yaml
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.1/migrations /usr/local/share/sftpxy/
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.1/web /usr/local/share/sftpxy/
 ```
 
 3. Edit `/etc/sftpxy/config.yaml` for production:
@@ -110,9 +110,9 @@ printf 'StrongPasswordHere' | sudo /usr/local/bin/sftpxy \
 1. Build the release bundle:
 
 ```bash
-VERSION=0.1.0 make release-bundle
-tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
-cd /tmp/sftpxy-linux-amd64-systemd-v0.1.0
+VERSION=0.1.1 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz -C /tmp
+cd /tmp/sftpxy-linux-amd64-systemd-v0.1.1
 ```
 
 2. Install with the bundled script:

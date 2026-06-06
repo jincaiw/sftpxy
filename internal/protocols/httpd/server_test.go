@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	authn "github.com/jincaiw/sftpxy/internal/auth"
 	"github.com/jincaiw/sftpxy/internal/config"
 	"github.com/jincaiw/sftpxy/internal/database"
 	"github.com/jincaiw/sftpxy/internal/events"
@@ -24,6 +26,7 @@ import (
 	"github.com/jincaiw/sftpxy/internal/policy"
 	"github.com/jincaiw/sftpxy/internal/repository"
 	"github.com/jincaiw/sftpxy/internal/shares"
+	"github.com/pquerna/otp/totp"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
@@ -186,12 +189,18 @@ func TestUserFileAPIContract(t *testing.T) {
 
 	var connections []map[string]interface{}
 	decodeJSON(t, connectionsResp.Body, &connections)
-	if len(connections) != 1 {
-		t.Fatalf("connection count = %d, want 1", len(connections))
+	if len(connections) < 1 {
+		t.Fatalf("connection count = %d, want at least 1", len(connections))
 	}
-	connectionID, _ := connections[0]["id"].(string)
+	connectionID := ""
+	for _, connection := range connections {
+		if connection["username"] == "bob" && connection["principal"] == "user" {
+			connectionID, _ = connection["id"].(string)
+			break
+		}
+	}
 	if connectionID == "" {
-		t.Fatalf("connection id should not be empty")
+		t.Fatalf("user connection id should not be empty: %+v", connections)
 	}
 
 	disconnectResp := doJSONRequest(t, server, http.MethodDelete, "/api/v1/connections/"+connectionID, adminToken, nil)
@@ -210,7 +219,11 @@ func TestUserProfileAPIContract(t *testing.T) {
 	}
 	seedUser(t, db, "dave", "dave-pass", userHome)
 
-	if _, err := db.Exec("UPDATE users SET quotas = ?, mfa_enabled = TRUE WHERE username = ?", `{"max_size":1048576,"current_size":512}`, "dave"); err != nil {
+	secret, err := authn.NewTOTPAuthenticator("SFTPxy").GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate dave MFA secret failed: %v", err)
+	}
+	if _, err := db.Exec("UPDATE users SET quotas = ?, mfa_enabled = TRUE, mfa_secret = ? WHERE username = ?", `{"max_size":1048576,"current_size":512}`, secret, "dave"); err != nil {
 		t.Fatalf("seed user quota failed: %v", err)
 	}
 	var userID int64
@@ -221,10 +234,14 @@ func TestUserProfileAPIContract(t *testing.T) {
 		t.Fatalf("seed public key failed: %v", err)
 	}
 
+	validCode, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("generate login MFA code failed: %v", err)
+	}
 	loginResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
 		"username": "dave",
 		"password": "dave-pass",
-		"mfa_code": "123456",
+		"mfa_code": validCode,
 	})
 	if loginResp.StatusCode != http.StatusOK {
 		t.Fatalf("user login status = %d, want %d", loginResp.StatusCode, http.StatusOK)
@@ -263,10 +280,14 @@ func TestUserProfileAPIContract(t *testing.T) {
 		t.Fatalf("change password status = %d, want %d", changePasswordResp.StatusCode, http.StatusOK)
 	}
 
+	reloginCode, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("generate relogin MFA code failed: %v", err)
+	}
 	reloginResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
 		"username": "dave",
 		"password": "dave-pass-2",
-		"mfa_code": "123456",
+		"mfa_code": reloginCode,
 	})
 	if reloginResp.StatusCode != http.StatusOK {
 		t.Fatalf("relogin status = %d, want %d", reloginResp.StatusCode, http.StatusOK)
@@ -489,6 +510,470 @@ func TestShareAndObservabilityContract(t *testing.T) {
 	})
 	if failedAccessResp.StatusCode == http.StatusOK {
 		t.Fatalf("expected revoked share access to fail")
+	}
+}
+
+func TestCreateShareRespectsDownloadPolicy(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "frank-home")
+	if err := os.MkdirAll(filepath.Join(userHome, "docs"), 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(userHome, "docs", "report.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatalf("seed file failed: %v", err)
+	}
+	seedUser(t, db, "frank", "frank-pass", userHome)
+
+	permissions, err := json.Marshal([]map[string]interface{}{
+		{
+			"path":        "/docs",
+			"list":        true,
+			"download":    false,
+			"upload":      false,
+			"overwrite":   false,
+			"delete":      false,
+			"rename":      false,
+			"create_dirs": false,
+			"chmod":       false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal permissions failed: %v", err)
+	}
+	if _, err := db.Exec("UPDATE users SET permissions = ? WHERE username = ?", string(permissions), "frank"); err != nil {
+		t.Fatalf("update permissions failed: %v", err)
+	}
+
+	userToken := loginUser(t, server, "frank", "frank-pass")
+	createResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/shares", userToken, map[string]interface{}{
+		"path":       "/docs/report.txt",
+		"share_type": "download",
+	})
+	if createResp.StatusCode != http.StatusForbidden {
+		body, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("create share status = %d, want %d, body=%s", createResp.StatusCode, http.StatusForbidden, string(body))
+	}
+}
+
+func TestShareDownloadIncrementsCountOnce(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "gina-home")
+	if err := os.MkdirAll(filepath.Join(userHome, "docs"), 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(userHome, "docs", "report.txt"), []byte("download me"), 0o644); err != nil {
+		t.Fatalf("seed file failed: %v", err)
+	}
+	seedUser(t, db, "gina", "gina-pass", userHome)
+
+	userToken := loginUser(t, server, "gina", "gina-pass")
+	createResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/shares", userToken, map[string]interface{}{
+		"path":          "/docs/report.txt",
+		"share_type":    "download",
+		"password":      "secret",
+		"max_downloads": 2,
+	})
+	if createResp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("create share status = %d, want %d, body=%s", createResp.StatusCode, http.StatusCreated, string(body))
+	}
+
+	var share map[string]interface{}
+	decodeJSON(t, createResp.Body, &share)
+	token, _ := share["token"].(string)
+	if token == "" {
+		t.Fatal("expected share token")
+	}
+
+	downloadResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/shares/download/"+token+"?password=secret", "", nil)
+	if downloadResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(downloadResp.Body)
+		t.Fatalf("download status = %d, want %d, body=%s", downloadResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	var downloadCount int
+	if err := db.QueryRow("SELECT download_count FROM shares WHERE token = ?", token).Scan(&downloadCount); err != nil {
+		t.Fatalf("load download count failed: %v", err)
+	}
+	if downloadCount != 1 {
+		t.Fatalf("download_count = %d, want 1", downloadCount)
+	}
+}
+
+func TestUserLoginRequiresValidMFACode(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "mfa-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "mfa-user", "mfa-pass", userHome)
+
+	secret, err := authn.NewTOTPAuthenticator("SFTPxy").GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate user MFA secret failed: %v", err)
+	}
+	if _, err := db.Exec("UPDATE users SET mfa_enabled = TRUE, mfa_secret = ? WHERE username = ?", secret, "mfa-user"); err != nil {
+		t.Fatalf("enable user MFA failed: %v", err)
+	}
+
+	missingCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "mfa-user",
+		"password": "mfa-pass",
+	})
+	if missingCodeResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("missing MFA code status = %d, want %d", missingCodeResp.StatusCode, http.StatusUnauthorized)
+	}
+	var missingPayload map[string]any
+	decodeJSON(t, missingCodeResp.Body, &missingPayload)
+	if missingPayload["mfa_required"] != true {
+		t.Fatalf("expected mfa_required=true, got %+v", missingPayload)
+	}
+
+	invalidCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "mfa-user",
+		"password": "mfa-pass",
+		"mfa_code": "123456",
+	})
+	if invalidCodeResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("invalid MFA code status = %d, want %d", invalidCodeResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	validCode, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("generate valid MFA code failed: %v", err)
+	}
+	validCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "mfa-user",
+		"password": "mfa-pass",
+		"mfa_code": validCode,
+	})
+	if validCodeResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(validCodeResp.Body)
+		t.Fatalf("valid MFA login status = %d, want %d, body=%s", validCodeResp.StatusCode, http.StatusOK, string(body))
+	}
+}
+
+func TestUserLoginAcceptsAndConsumesRecoveryCode(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "recovery-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "recovery-user", "recovery-pass", userHome)
+
+	secret, err := authn.NewTOTPAuthenticator("SFTPxy").GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate recovery MFA secret failed: %v", err)
+	}
+	recoveryCodesJSON := `["recover-1","recover-2"]`
+	if _, err := db.Exec("UPDATE users SET mfa_enabled = TRUE, mfa_secret = ?, mfa_recovery_codes = ? WHERE username = ?", secret, recoveryCodesJSON, "recovery-user"); err != nil {
+		t.Fatalf("seed recovery codes failed: %v", err)
+	}
+
+	recoveryResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "recovery-user",
+		"password": "recovery-pass",
+		"mfa_code": "recover-1",
+	})
+	if recoveryResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(recoveryResp.Body)
+		t.Fatalf("recovery code login status = %d, want %d, body=%s", recoveryResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	var remainingCodesRaw string
+	if err := db.QueryRow("SELECT COALESCE(mfa_recovery_codes, '') FROM users WHERE username = ?", "recovery-user").Scan(&remainingCodesRaw); err != nil {
+		t.Fatalf("load remaining recovery codes failed: %v", err)
+	}
+	var remainingCodes []string
+	if err := json.Unmarshal([]byte(remainingCodesRaw), &remainingCodes); err != nil {
+		t.Fatalf("decode remaining recovery codes failed: %v", err)
+	}
+	if len(remainingCodes) != 1 || remainingCodes[0] != "recover-2" {
+		t.Fatalf("remaining recovery codes = %+v, want [recover-2]", remainingCodes)
+	}
+
+	reuseResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "recovery-user",
+		"password": "recovery-pass",
+		"mfa_code": "recover-1",
+	})
+	if reuseResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("reused recovery code status = %d, want %d", reuseResp.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestDisableMFAAcceptsRecoveryCodeWithoutPasswordHash(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "disable-mfa-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "federated-user", "unused-pass", userHome)
+
+	secret, err := authn.NewTOTPAuthenticator("SFTPxy").GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate MFA secret failed: %v", err)
+	}
+	if _, err := db.Exec("UPDATE users SET password_hash = NULL, mfa_enabled = TRUE, mfa_secret = ?, mfa_recovery_codes = ? WHERE username = ?", secret, `["disable-recovery"]`, "federated-user"); err != nil {
+		t.Fatalf("seed federated user MFA failed: %v", err)
+	}
+
+	var userID int64
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", "federated-user").Scan(&userID); err != nil {
+		t.Fatalf("load federated user id failed: %v", err)
+	}
+	sessionID, err := generateToken()
+	if err != nil {
+		t.Fatalf("generate session id failed: %v", err)
+	}
+	session := &authSession{
+		SessionID: sessionID,
+		UserID:    userID,
+		Username:  "federated-user",
+		Role:      "user",
+		HomeDir:   userHome,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	app := newConfiguredServer(t, db, nil, nil)
+	token, err := app.issueToken(session)
+	if err != nil {
+		t.Fatalf("issue token failed: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO sessions (session_id, user_id, protocol, client_ip, is_active) VALUES (?, ?, ?, ?, TRUE)", sessionID, userID, "http", "127.0.0.1"); err != nil {
+		t.Fatalf("insert federated session failed: %v", err)
+	}
+
+	disableResp := doJSONRequest(t, server, http.MethodDelete, "/api/v1/user/mfa", token, map[string]string{
+		"password": "disable-recovery",
+	})
+	if disableResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(disableResp.Body)
+		t.Fatalf("disable MFA status = %d, want %d, body=%s", disableResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	var enabled bool
+	var recoveryCodes sql.NullString
+	if err := db.QueryRow("SELECT mfa_enabled, mfa_recovery_codes FROM users WHERE id = ?", userID).Scan(&enabled, &recoveryCodes); err != nil {
+		t.Fatalf("load disabled MFA state failed: %v", err)
+	}
+	if enabled {
+		t.Fatalf("expected MFA to be disabled")
+	}
+	if recoveryCodes.Valid && strings.TrimSpace(recoveryCodes.String) != "" {
+		t.Fatalf("expected recovery codes to be cleared, got %q", recoveryCodes.String)
+	}
+}
+
+func TestUserRefreshRevokesPreviousJWT(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "refresh-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "refresh-user", "refresh-pass", userHome)
+
+	oldToken := loginUser(t, server, "refresh-user", "refresh-pass")
+
+	refreshResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/refresh", oldToken, nil)
+	if refreshResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(refreshResp.Body)
+		t.Fatalf("refresh status = %d, want %d, body=%s", refreshResp.StatusCode, http.StatusOK, string(body))
+	}
+	var refreshPayload map[string]any
+	decodeJSON(t, refreshResp.Body, &refreshPayload)
+	newToken, _ := refreshPayload["token"].(string)
+	if newToken == "" || newToken == oldToken {
+		t.Fatalf("expected a rotated token, got old=%q new=%q", oldToken, newToken)
+	}
+
+	oldProfileResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/profile", oldToken, nil)
+	if oldProfileResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("old token profile status = %d, want %d", oldProfileResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	newProfileResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/profile", newToken, nil)
+	if newProfileResp.StatusCode != http.StatusOK {
+		t.Fatalf("new token profile status = %d, want %d", newProfileResp.StatusCode, http.StatusOK)
+	}
+
+	var activeSessions int
+	if err := db.QueryRow(
+		`SELECT COUNT(*)
+		FROM sessions s
+		JOIN users u ON u.id = s.user_id
+		WHERE u.username = ? AND s.is_active = TRUE`,
+		"refresh-user",
+	).Scan(&activeSessions); err != nil {
+		t.Fatalf("count active sessions failed: %v", err)
+	}
+	if activeSessions != 1 {
+		t.Fatalf("active session count = %d, want 1", activeSessions)
+	}
+}
+
+func TestDisabledUserTokenIsRevokedAfterStatusChange(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "disabled-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "disabled-user", "disabled-pass", userHome)
+
+	userToken := loginUser(t, server, "disabled-user", "disabled-pass")
+	adminToken := loginAdmin(t, server)
+
+	var userID int64
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", "disabled-user").Scan(&userID); err != nil {
+		t.Fatalf("load disabled user id failed: %v", err)
+	}
+
+	updateResp := doJSONRequest(t, server, http.MethodPut, "/api/v1/users/"+strconv.FormatInt(userID, 10), adminToken, map[string]any{
+		"status": "disabled",
+	})
+	if updateResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(updateResp.Body)
+		t.Fatalf("disable user status = %d, want %d, body=%s", updateResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	profileResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/profile", userToken, nil)
+	if profileResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("disabled user token status = %d, want %d", profileResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	var activeSessions int
+	if err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE user_id = ? AND is_active = TRUE", userID).Scan(&activeSessions); err != nil {
+		t.Fatalf("count disabled user sessions failed: %v", err)
+	}
+	if activeSessions != 0 {
+		t.Fatalf("active disabled-user sessions = %d, want 0", activeSessions)
+	}
+}
+
+func TestDisconnectOwnSessionRevokesJWTAccess(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	userHome := filepath.Join(t.TempDir(), "disconnect-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "disconnect-user", "disconnect-pass", userHome)
+
+	token := loginUser(t, server, "disconnect-user", "disconnect-pass")
+
+	sessionsResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/user/sessions", token, nil)
+	if sessionsResp.StatusCode != http.StatusOK {
+		t.Fatalf("list own sessions status = %d, want %d", sessionsResp.StatusCode, http.StatusOK)
+	}
+	var sessions []map[string]any
+	decodeJSON(t, sessionsResp.Body, &sessions)
+	if len(sessions) != 1 {
+		t.Fatalf("session count = %d, want 1", len(sessions))
+	}
+	sessionID, _ := sessions[0]["id"].(string)
+	if sessionID == "" {
+		t.Fatalf("session id should not be empty")
+	}
+
+	disconnectResp := doJSONRequest(t, server, http.MethodDelete, "/api/v1/user/sessions/"+sessionID, token, nil)
+	if disconnectResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(disconnectResp.Body)
+		t.Fatalf("disconnect own session status = %d, want %d, body=%s", disconnectResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	profileResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/profile", token, nil)
+	if profileResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("revoked token profile status = %d, want %d", profileResp.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestPasswordExpiryRequiresForcedPasswordChangeForUnsetTimestamp(t *testing.T) {
+	baseServer, db, cleanup := newTestServer(t)
+	defer cleanup()
+	defer baseServer.Close()
+
+	userHome := filepath.Join(t.TempDir(), "expired-user-home")
+	if err := os.MkdirAll(userHome, 0o755); err != nil {
+		t.Fatalf("mkdir user home failed: %v", err)
+	}
+	seedUser(t, db, "expired-user", "expired-pass", userHome)
+
+	expiryServer := newConfiguredHTTPServer(t, db, &config.Config{
+		Auth: config.AuthConfig{
+			PasswordExpiresDays: 1,
+		},
+	}, nil)
+
+	loginResp := doJSONRequest(t, expiryServer, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "expired-user",
+		"password": "expired-pass",
+	})
+	if loginResp.StatusCode != http.StatusForbidden {
+		body, _ := io.ReadAll(loginResp.Body)
+		t.Fatalf("expired password login status = %d, want %d, body=%s", loginResp.StatusCode, http.StatusForbidden, string(body))
+	}
+	var loginPayload map[string]any
+	decodeJSON(t, loginResp.Body, &loginPayload)
+	if loginPayload["password_expired"] != true {
+		t.Fatalf("expected password_expired=true, got %+v", loginPayload)
+	}
+	changeToken, _ := loginPayload["password_change_token"].(string)
+	if changeToken == "" {
+		t.Fatalf("password_change_token should not be empty")
+	}
+
+	shortResp := doJSONRequest(t, expiryServer, http.MethodPost, "/api/v1/auth/user/password/change", "", map[string]string{
+		"password_change_token": changeToken,
+		"new_password":          "a",
+	})
+	if shortResp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(shortResp.Body)
+		t.Fatalf("short forced password change status = %d, want %d, body=%s", shortResp.StatusCode, http.StatusBadRequest, string(body))
+	}
+
+	loginResp = doJSONRequest(t, expiryServer, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "expired-user",
+		"password": "expired-pass",
+	})
+	if loginResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expired password relogin status = %d, want %d", loginResp.StatusCode, http.StatusForbidden)
+	}
+	decodeJSON(t, loginResp.Body, &loginPayload)
+	changeToken, _ = loginPayload["password_change_token"].(string)
+	if changeToken == "" {
+		t.Fatalf("second password_change_token should not be empty")
+	}
+
+	validResp := doJSONRequest(t, expiryServer, http.MethodPost, "/api/v1/auth/user/password/change", "", map[string]string{
+		"password_change_token": changeToken,
+		"new_password":          "expired-pass-2",
+	})
+	if validResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(validResp.Body)
+		t.Fatalf("valid forced password change status = %d, want %d, body=%s", validResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	reloginResp := doJSONRequest(t, expiryServer, http.MethodPost, "/api/v1/auth/user/login", "", map[string]string{
+		"username": "expired-user",
+		"password": "expired-pass-2",
+	})
+	if reloginResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(reloginResp.Body)
+		t.Fatalf("post-change login status = %d, want %d, body=%s", reloginResp.StatusCode, http.StatusOK, string(body))
 	}
 }
 
@@ -786,7 +1271,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *sql.DB, func()) {
 			username TEXT UNIQUE NOT NULL,
 			email TEXT,
 			status TEXT NOT NULL DEFAULT 'active',
-			password_hash TEXT NOT NULL,
+			password_hash TEXT,
 			home_dir TEXT NOT NULL,
 			filesystem TEXT,
 			permissions TEXT,
@@ -800,6 +1285,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *sql.DB, func()) {
 			denied_protocols TEXT,
 			ip_filters TEXT,
 			mfa_secret TEXT,
+			mfa_recovery_codes TEXT,
 			expiration_date DATETIME,
 			description TEXT,
 			password_changed_at TEXT,
@@ -812,6 +1298,16 @@ func newTestServer(t *testing.T) (*httptest.Server, *sql.DB, func()) {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			session_id TEXT UNIQUE NOT NULL,
 			user_id INTEGER NOT NULL,
+			protocol TEXT NOT NULL,
+			client_ip TEXT,
+			connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			is_active BOOLEAN DEFAULT TRUE
+		)`,
+		`CREATE TABLE admin_sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT UNIQUE NOT NULL,
+			admin_id INTEGER NOT NULL,
 			protocol TEXT NOT NULL,
 			client_ip TEXT,
 			connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1050,6 +1546,265 @@ func TestAdminLoginReturnsJWTWhenEnabled(t *testing.T) {
 	}
 	if tokenType != "jwt" {
 		t.Fatalf("token_type = %q, want jwt", tokenType)
+	}
+}
+
+func TestAdminLoginRequiresValidMFACode(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	secret, err := authn.NewTOTPAuthenticator("SFTPxy").GenerateSecret()
+	if err != nil {
+		t.Fatalf("generate admin MFA secret failed: %v", err)
+	}
+	if _, err := db.Exec("UPDATE admins SET mfa_enabled = TRUE, mfa_secret = ? WHERE username = ?", secret, "admin"); err != nil {
+		t.Fatalf("enable admin MFA failed: %v", err)
+	}
+
+	missingCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/admin/login", "", map[string]string{
+		"username": "admin",
+		"password": "admin-pass",
+	})
+	if missingCodeResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("missing admin MFA code status = %d, want %d", missingCodeResp.StatusCode, http.StatusUnauthorized)
+	}
+	var missingPayload map[string]any
+	decodeJSON(t, missingCodeResp.Body, &missingPayload)
+	if missingPayload["mfa_required"] != true {
+		t.Fatalf("expected admin mfa_required=true, got %+v", missingPayload)
+	}
+
+	invalidCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/admin/login", "", map[string]string{
+		"username": "admin",
+		"password": "admin-pass",
+		"mfa_code": "123456",
+	})
+	if invalidCodeResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("invalid admin MFA code status = %d, want %d", invalidCodeResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	validCode, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("generate valid admin MFA code failed: %v", err)
+	}
+	validCodeResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/admin/login", "", map[string]string{
+		"username": "admin",
+		"password": "admin-pass",
+		"mfa_code": validCode,
+	})
+	if validCodeResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(validCodeResp.Body)
+		t.Fatalf("valid admin MFA login status = %d, want %d, body=%s", validCodeResp.StatusCode, http.StatusOK, string(body))
+	}
+}
+
+func TestAdminRefreshRevokesPreviousJWT(t *testing.T) {
+	server, _, cleanup := newTestServer(t)
+	defer cleanup()
+
+	oldToken := loginAdmin(t, server)
+
+	refreshResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/refresh", oldToken, nil)
+	if refreshResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(refreshResp.Body)
+		t.Fatalf("admin refresh status = %d, want %d, body=%s", refreshResp.StatusCode, http.StatusOK, string(body))
+	}
+	var refreshPayload map[string]any
+	decodeJSON(t, refreshResp.Body, &refreshPayload)
+	newToken, _ := refreshPayload["token"].(string)
+	if newToken == "" || newToken == oldToken {
+		t.Fatalf("expected rotated admin token, got old=%q new=%q", oldToken, newToken)
+	}
+
+	oldUsersResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/users", oldToken, nil)
+	if oldUsersResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("old admin token status = %d, want %d", oldUsersResp.StatusCode, http.StatusUnauthorized)
+	}
+
+	newUsersResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/users", newToken, nil)
+	if newUsersResp.StatusCode != http.StatusOK {
+		t.Fatalf("new admin token status = %d, want %d", newUsersResp.StatusCode, http.StatusOK)
+	}
+}
+
+func TestAdminLoginPersistsSessionAndRefreshKeepsSingleActiveRecord(t *testing.T) {
+	server, db, cleanup := newTestServer(t)
+	defer cleanup()
+
+	oldToken := loginAdmin(t, server)
+
+	var activeSessions int
+	if err := db.QueryRow("SELECT COUNT(*) FROM admin_sessions WHERE admin_id = 1 AND is_active = TRUE").Scan(&activeSessions); err != nil {
+		t.Fatalf("count initial admin sessions failed: %v", err)
+	}
+	if activeSessions != 1 {
+		t.Fatalf("initial active admin sessions = %d, want 1", activeSessions)
+	}
+
+	refreshResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/refresh", oldToken, nil)
+	if refreshResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(refreshResp.Body)
+		t.Fatalf("admin refresh status = %d, want %d, body=%s", refreshResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	if err := db.QueryRow("SELECT COUNT(*) FROM admin_sessions WHERE admin_id = 1 AND is_active = TRUE").Scan(&activeSessions); err != nil {
+		t.Fatalf("count refreshed admin sessions failed: %v", err)
+	}
+	if activeSessions != 1 {
+		t.Fatalf("refreshed active admin sessions = %d, want 1", activeSessions)
+	}
+}
+
+func TestDisabledAdminTokenIsRevokedAfterStatusChange(t *testing.T) {
+	server, _, cleanup := newTestServer(t)
+	defer cleanup()
+
+	rootAdminToken := loginAdmin(t, server)
+
+	createResp := doJSONRequest(t, server, http.MethodPost, "/api/v1/admins", rootAdminToken, map[string]any{
+		"username":    "disabled-admin",
+		"password":    "disabled-admin-pass",
+		"status":      "active",
+		"permissions": []string{"*"},
+	})
+	if createResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("create disabled-admin status = %d, want %d, body=%s", createResp.StatusCode, http.StatusOK, string(body))
+	}
+	var createdAdmin map[string]any
+	decodeJSON(t, createResp.Body, &createdAdmin)
+	adminID := toStringID(t, createdAdmin["id"])
+
+	disabledAdminToken := loginAdminWithCredentials(t, server, "disabled-admin", "disabled-admin-pass")
+
+	updateResp := doJSONRequest(t, server, http.MethodPut, "/api/v1/admins/"+adminID, rootAdminToken, map[string]any{
+		"status":      "disabled",
+		"permissions": []string{"*"},
+	})
+	if updateResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(updateResp.Body)
+		t.Fatalf("disable admin status = %d, want %d, body=%s", updateResp.StatusCode, http.StatusOK, string(body))
+	}
+
+	usersResp := doJSONRequest(t, server, http.MethodGet, "/api/v1/users", disabledAdminToken, nil)
+	if usersResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("disabled admin token status = %d, want %d", usersResp.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestBuildOIDCSessionRejectsAdminRoleHintWithoutProviderRole(t *testing.T) {
+	baseServer, db, cleanup := newTestServer(t)
+	defer cleanup()
+	defer baseServer.Close()
+
+	s := newConfiguredServer(t, db, nil, func(cfg *config.HTTPDConfig) {
+		cfg.OIDC = config.OIDCConfig{
+			Enabled:         true,
+			AllowAdmin:      true,
+			AllowUser:       true,
+			AutoCreateUsers: true,
+		}
+	})
+
+	_, _, err := s.buildOIDCSession(context.Background(), &authn.OIDCIdentity{
+		Username: "admin",
+	}, oidcState{
+		RoleHint: "admin",
+		ReturnTo: "/admin",
+	})
+	if err == nil || !strings.Contains(err.Error(), "admin role not granted") {
+		t.Fatalf("expected oidc admin role rejection, got %v", err)
+	}
+}
+
+func TestBuildOIDCRedirectURLUsesFragment(t *testing.T) {
+	redirectURL := buildOIDCRedirectURL("/client/login?redirect=%2Fclient%2Ffiles", "token-123", "jwt", "alice", "user")
+	parsed, err := url.Parse(redirectURL)
+	if err != nil {
+		t.Fatalf("parse redirect url failed: %v", err)
+	}
+	if parsed.RawQuery != "redirect=%2Fclient%2Ffiles" {
+		t.Fatalf("raw query = %q, want redirect preserved", parsed.RawQuery)
+	}
+	if strings.Contains(parsed.RawQuery, "token=") {
+		t.Fatalf("token should not be present in query: %q", parsed.RawQuery)
+	}
+	fragmentValues, err := url.ParseQuery(parsed.Fragment)
+	if err != nil {
+		t.Fatalf("parse fragment failed: %v", err)
+	}
+	if fragmentValues.Get("token") != "token-123" {
+		t.Fatalf("fragment token = %q, want token-123", fragmentValues.Get("token"))
+	}
+	if fragmentValues.Get("role") != "user" {
+		t.Fatalf("fragment role = %q, want user", fragmentValues.Get("role"))
+	}
+}
+
+func TestGetConnectionsIncludesAdminSessions(t *testing.T) {
+	server, _, cleanup := newTestServer(t)
+	defer cleanup()
+
+	adminToken := loginAdmin(t, server)
+
+	resp := doJSONRequest(t, server, http.MethodGet, "/api/v1/connections", adminToken, nil)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("connections status = %d, want %d, body=%s", resp.StatusCode, http.StatusOK, string(body))
+	}
+	var connections []map[string]any
+	decodeJSON(t, resp.Body, &connections)
+	foundAdmin := false
+	for _, item := range connections {
+		if item["username"] == "admin" && item["principal"] == "admin" {
+			foundAdmin = true
+			break
+		}
+	}
+	if !foundAdmin {
+		t.Fatalf("expected admin session in connections list, got %+v", connections)
+	}
+}
+
+func TestFindOrProvisionLDAPUserRejectsPathTraversalUsername(t *testing.T) {
+	baseServer, db, cleanup := newTestServer(t)
+	defer cleanup()
+	defer baseServer.Close()
+
+	s := newConfiguredServer(t, db, nil, func(cfg *config.HTTPDConfig) {
+		cfg.LDAP = config.LDAPConfig{
+			Enabled:         true,
+			AutoCreateUsers: true,
+			UserHomeBaseDir: filepath.Join(t.TempDir(), "ldap-users"),
+		}
+	})
+
+	_, err := s.findOrProvisionLDAPUser(context.Background(), &authn.LDAPUser{
+		Username: "../escape",
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid path characters") {
+		t.Fatalf("expected ldap provision rejection, got %v", err)
+	}
+}
+
+func TestFindOrProvisionOIDCUserRejectsPathTraversalUsername(t *testing.T) {
+	baseServer, db, cleanup := newTestServer(t)
+	defer cleanup()
+	defer baseServer.Close()
+
+	s := newConfiguredServer(t, db, nil, func(cfg *config.HTTPDConfig) {
+		cfg.OIDC = config.OIDCConfig{
+			Enabled:         true,
+			AutoCreateUsers: true,
+			UserHomeBaseDir: filepath.Join(t.TempDir(), "oidc-users"),
+		}
+	})
+
+	_, err := s.findOrProvisionOIDCUser(context.Background(), &authn.OIDCIdentity{
+		Username: "..\\escape",
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid path characters") {
+		t.Fatalf("expected oidc provision rejection, got %v", err)
 	}
 }
 
@@ -1637,10 +2392,14 @@ func seedUser(t *testing.T, db *sql.DB, username, password, homeDir string) {
 }
 
 func loginAdmin(t *testing.T, server *httptest.Server) string {
+	return loginAdminWithCredentials(t, server, "admin", "admin-pass")
+}
+
+func loginAdminWithCredentials(t *testing.T, server *httptest.Server, username, password string) string {
 	t.Helper()
 	resp := doJSONRequest(t, server, http.MethodPost, "/api/v1/auth/admin/login", "", map[string]string{
-		"username": "admin",
-		"password": "admin-pass",
+		"username": username,
+		"password": password,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("admin login status = %d, want %d", resp.StatusCode, http.StatusOK)
@@ -1713,6 +2472,42 @@ func doJSONRequest(t *testing.T, server *httptest.Server, method, path, token st
 	resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(respBody))
 	return resp
+}
+
+func newConfiguredServer(t *testing.T, db *sql.DB, fullConfig *config.Config, mutate func(*config.HTTPDConfig)) *Server {
+	t.Helper()
+	httpConfig := config.HTTPDConfig{
+		RESTAPIEnabled: true,
+		Enabled:        true,
+		SessionSecret:  "test-session-secret-1234567890",
+		JWT: config.JWTConfig{
+			Enabled:       true,
+			Issuer:        "test-suite",
+			Audience:      "test-api",
+			ExpirySeconds: 3600,
+		},
+	}
+	if mutate != nil {
+		mutate(&httpConfig)
+	}
+	return NewServerWithDependencies(httpConfig, zap.NewNop(), ServerDependencies{
+		DB:         db,
+		FullConfig: fullConfig,
+	})
+}
+
+func newConfiguredHTTPServer(t *testing.T, db *sql.DB, fullConfig *config.Config, mutate func(*config.HTTPDConfig)) *httptest.Server {
+	t.Helper()
+	s := newConfiguredServer(t, db, fullConfig, mutate)
+	ts := httptest.NewUnstartedServer(s.Router())
+	ts.EnableHTTP2 = false
+	ts.Start()
+	t.Cleanup(func() {
+		ts.CloseClientConnections()
+		ts.Config.SetKeepAlivesEnabled(false)
+		ts.Close()
+	})
+	return ts
 }
 
 func uploadFileRequest(t *testing.T, server *httptest.Server, token, path, filename, content string) *http.Response {

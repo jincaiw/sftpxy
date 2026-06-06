@@ -57,6 +57,28 @@ func TestBuildHostKeyCallbackRejectsUnexpectedKey(t *testing.T) {
 	}
 }
 
+func TestFullPathRejectsPrefixEscape(t *testing.T) {
+	t.Parallel()
+
+	fs := &RemoteSFTPFileSystem{pathPrefix: "/srv/data"}
+	if _, err := fs.fullPath("../etc/passwd"); err == nil {
+		t.Fatal("expected remote prefix escape to be rejected")
+	}
+}
+
+func TestFullPathKeepsPathWithinPrefix(t *testing.T) {
+	t.Parallel()
+
+	fs := &RemoteSFTPFileSystem{pathPrefix: "/srv/data"}
+	fullPath, err := fs.fullPath("/docs/report.txt")
+	if err != nil {
+		t.Fatalf("fullPath returned error: %v", err)
+	}
+	if fullPath != "/srv/data/docs/report.txt" {
+		t.Fatalf("fullPath = %q, want %q", fullPath, "/srv/data/docs/report.txt")
+	}
+}
+
 func generateSSHTestKey(t *testing.T) ([]byte, ssh.PublicKey) {
 	t.Helper()
 

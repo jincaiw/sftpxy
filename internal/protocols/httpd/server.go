@@ -576,6 +576,7 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		MFACode  string `json:"mfa_code"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -594,12 +595,14 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 	var id int64
 	var passwordHash string
 	var status string
+	var mfaSecret sql.NullString
+	var mfaEnabled bool
 	loginCtx, loginCancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer loginCancel()
 	if err := s.db.QueryRowContext(loginCtx,
-		"SELECT id, password_hash, status FROM admins WHERE username = ?",
+		"SELECT id, password_hash, status, mfa_secret, mfa_enabled FROM admins WHERE username = ?",
 		req.Username,
-	).Scan(&id, &passwordHash, &status); err != nil {
+	).Scan(&id, &passwordHash, &status, &mfaSecret, &mfaEnabled); err != nil {
 		if err == sql.ErrNoRows {
 			s.writeError(w, http.StatusUnauthorized, "Invalid credentials")
 			return
@@ -616,13 +619,47 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
+	if mfaEnabled {
+		if !mfaSecret.Valid || strings.TrimSpace(mfaSecret.String) == "" {
+			s.logger.Error("admin MFA is enabled but secret is missing", zap.Int64("admin_id", id))
+			s.writeError(w, http.StatusInternalServerError, "MFA is not configured correctly")
+			return
+		}
+		if strings.TrimSpace(req.MFACode) == "" {
+			s.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"message":      "MFA code required",
+				"mfa_required": true,
+			})
+			return
+		}
+		valid, err := s.verifyMFACode(mfaSecret.String, req.MFACode)
+		if err != nil {
+			s.logger.Warn("admin MFA verification failed", zap.Error(err), zap.Int64("admin_id", id))
+			s.writeError(w, http.StatusUnauthorized, "Invalid MFA code")
+			return
+		}
+		if !valid {
+			s.writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"message":      "Invalid MFA code",
+				"mfa_required": true,
+			})
+			return
+		}
+	}
 	permissions, filters, err := s.loadAdminPermissions(id)
 	if err != nil {
 		s.logger.Error("load admin permissions failed", zap.Error(err), zap.Int64("admin_id", id))
 		s.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
+	sessionID, err := generateToken()
+	if err != nil {
+		s.logger.Error("generate admin session id failed", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
 	session := &authSession{
+		SessionID: sessionID,
 		UserID:    id,
 		Username:  req.Username,
 		Role:      "admin",
@@ -633,6 +670,11 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 	token, err := s.issueToken(session)
 	if err != nil {
 		s.logger.Error("generate admin token failed", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if err := s.persistHTTPSessionRecord(session, s.clientIP(r)); err != nil {
+		s.logger.Error("create admin session failed", zap.Error(err), zap.Int64("admin_id", id))
 		s.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
@@ -743,20 +785,21 @@ func (s *Server) userLogin(w http.ResponseWriter, r *http.Request) {
 		passwordHash      string
 		status            string
 		homeDir           string
+		mfaSecret         sql.NullString
 		mfaEnabled        bool
 		passwordChangedAt sql.NullString
 	)
 	queryErr := s.db.QueryRow(
-		"SELECT id, password_hash, status, home_dir, mfa_enabled, COALESCE(password_changed_at, '') FROM users WHERE username = ?",
+		"SELECT id, password_hash, status, home_dir, mfa_secret, mfa_enabled, COALESCE(password_changed_at, '') FROM users WHERE username = ?",
 		req.Username,
-	).Scan(&id, &passwordHash, &status, &homeDir, &mfaEnabled, &passwordChangedAt)
+	).Scan(&id, &passwordHash, &status, &homeDir, &mfaSecret, &mfaEnabled, &passwordChangedAt)
 	if queryErr != nil {
 		if queryErr != sql.ErrNoRows {
 			s.logger.Error("user login query failed", zap.Error(queryErr))
 			s.writeError(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
-		if handled := s.tryLDAPLogin(w, r, req.Username, req.Password); handled {
+		if handled := s.tryLDAPLogin(w, r, req.Username, req.Password, req.MFACode); handled {
 			return
 		}
 		s.writeError(w, http.StatusUnauthorized, "Invalid credentials")
@@ -767,7 +810,7 @@ func (s *Server) userLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
-		if handled := s.tryLDAPLogin(w, r, req.Username, req.Password); handled {
+		if handled := s.tryLDAPLogin(w, r, req.Username, req.Password, req.MFACode); handled {
 			return
 		}
 		s.writeError(w, http.StatusUnauthorized, "Invalid credentials")
@@ -777,11 +820,7 @@ func (s *Server) userLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusUnauthorized, "Account is disabled")
 		return
 	}
-	if mfaEnabled && strings.TrimSpace(req.MFACode) == "" {
-		s.writeJSON(w, http.StatusUnauthorized, map[string]interface{}{
-			"message":      "MFA code required",
-			"mfa_required": true,
-		})
+	if s.requireMFA(w, "user", id, mfaEnabled, mfaSecret, req.MFACode) {
 		return
 	}
 	if s.isPasswordExpired(passwordChangedAt) {
@@ -883,7 +922,7 @@ func (s *Server) ensurePolicyAllowsAuthentication(r *http.Request, username stri
 	return nil
 }
 
-func (s *Server) tryLDAPLogin(w http.ResponseWriter, r *http.Request, username, password string) bool {
+func (s *Server) tryLDAPLogin(w http.ResponseWriter, r *http.Request, username, password, mfaCode string) bool {
 	if s.ldapAuth == nil {
 		return false
 	}
@@ -903,6 +942,9 @@ func (s *Server) tryLDAPLogin(w http.ResponseWriter, r *http.Request, username, 
 	}
 	if user.Status != "active" {
 		s.writeError(w, http.StatusUnauthorized, "Account is disabled")
+		return true
+	}
+	if s.requireMFA(w, "user", user.ID, user.MFAEnabled, user.MFASecret, mfaCode) {
 		return true
 	}
 	sessionID, err := generateToken()
@@ -936,6 +978,9 @@ func (s *Server) tryLDAPLogin(w http.ResponseWriter, r *http.Request, username, 
 		s.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return true
 	}
+	if _, err := s.db.Exec("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", user.ID); err != nil {
+		s.logger.Warn("update ldap user last login failed", zap.Error(err), zap.Int64("user_id", user.ID))
+	}
 	s.recordAudit(user.Username, "user", "login_ldap", "http", "", "success", "")
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"token":      token,
@@ -962,14 +1007,18 @@ func (s *Server) findOrProvisionLDAPUser(ctx context.Context, identity *authn.LD
 		return nil, fmt.Errorf("ldap user %q is not provisioned locally", identity.Username)
 	}
 
-	homeDir := filepath.Join(firstNonEmptyString(s.config.LDAP.UserHomeBaseDir, "./data/ldap-users"), identity.Username)
+	safeUsername, err := sanitizeProvisionedUsername(identity.Username)
+	if err != nil {
+		return nil, err
+	}
+	homeDir := filepath.Join(firstNonEmptyString(s.config.LDAP.UserHomeBaseDir, "./data/ldap-users"), safeUsername)
 	email := sql.NullString{}
 	if strings.TrimSpace(identity.Email) != "" {
 		email = sql.NullString{String: identity.Email, Valid: true}
 	}
 
 	user := &repository.User{
-		Username:    identity.Username,
+		Username:    safeUsername,
 		Email:       email,
 		Status:      "active",
 		HomeDir:     homeDir,
@@ -1008,8 +1057,8 @@ func (s *Server) oidcStart(w http.ResponseWriter, r *http.Request) {
 	if returnTo == "" {
 		returnTo = "/client"
 	}
-	roleHint := strings.TrimSpace(r.URL.Query().Get("role"))
-	if roleHint == "" {
+	roleHint := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("role")))
+	if roleHint != "admin" {
 		roleHint = "user"
 	}
 	s.oidcStatesMu.Lock()
@@ -1078,22 +1127,22 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	session.Token = token
 	s.storeSession(session)
-
-	callbackURL, err := url.Parse(returnTo)
-	if err != nil {
-		callbackURL = &url.URL{Path: "/client"}
-	}
-	query := callbackURL.Query()
-	query.Set("token", token)
-	query.Set("token_type", s.tokenType())
-	query.Set("username", session.Username)
-	query.Set("role", session.Role)
-	callbackURL.RawQuery = query.Encode()
-	http.Redirect(w, r, callbackURL.String(), http.StatusFound)
+	http.Redirect(w, r, buildOIDCRedirectURL(returnTo, token, s.tokenType(), session.Username, session.Role), http.StatusFound)
 }
 
 func (s *Server) buildOIDCSession(ctx context.Context, identity *authn.OIDCIdentity, state oidcState) (*authSession, string, error) {
-	role := strings.ToLower(firstNonEmptyString(identity.Role, state.RoleHint, "user"))
+	requestedRole := strings.ToLower(strings.TrimSpace(state.RoleHint))
+	if requestedRole != "admin" {
+		requestedRole = "user"
+	}
+	providerRole := strings.ToLower(strings.TrimSpace(identity.Role))
+	if requestedRole == "admin" && providerRole != "admin" {
+		return nil, "", fmt.Errorf("oidc admin role not granted by provider")
+	}
+	role := "user"
+	if providerRole == "admin" {
+		role = "admin"
+	}
 	if role == "admin" {
 		if !s.config.OIDC.AllowAdmin {
 			return nil, "", fmt.Errorf("oidc admin login is disabled")
@@ -1109,11 +1158,22 @@ func (s *Server) buildOIDCSession(ctx context.Context, identity *authn.OIDCIdent
 		if status != "active" {
 			return nil, "", fmt.Errorf("admin account is disabled")
 		}
+		sessionID, err := generateToken()
+		if err != nil {
+			return nil, "", err
+		}
 		session := &authSession{
+			SessionID: sessionID,
 			UserID:    id,
 			Username:  identity.Username,
 			Role:      "admin",
 			ExpiresAt: time.Now().Add(s.tokenTTL()),
+		}
+		if err := s.persistHTTPSessionRecord(session, "oidc"); err != nil {
+			return nil, "", err
+		}
+		if _, err := s.db.ExecContext(ctx, "UPDATE admins SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", id); err != nil {
+			s.logger.Warn("update oidc admin last login failed", zap.Error(err), zap.Int64("admin_id", id))
 		}
 		s.recordAudit(identity.Username, "admin", "login_oidc", "http", "", "success", "")
 		return session, normalizeReturnTo(state.ReturnTo, "/admin"), nil
@@ -1144,6 +1204,9 @@ func (s *Server) buildOIDCSession(ctx context.Context, identity *authn.OIDCIdent
 	); err != nil {
 		return nil, "", err
 	}
+	if _, err := s.db.ExecContext(ctx, "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", user.ID); err != nil {
+		s.logger.Warn("update oidc user last login failed", zap.Error(err), zap.Int64("user_id", user.ID))
+	}
 	s.recordAudit(user.Username, "user", "login_oidc", "http", "", "success", "")
 	return session, normalizeReturnTo(state.ReturnTo, "/client"), nil
 }
@@ -1159,13 +1222,17 @@ func (s *Server) findOrProvisionOIDCUser(ctx context.Context, identity *authn.OI
 		return nil, fmt.Errorf("oidc user %q is not provisioned locally", identity.Username)
 	}
 
-	homeDir := filepath.Join(firstNonEmptyString(s.config.OIDC.UserHomeBaseDir, "./data/oidc-users"), identity.Username)
+	safeUsername, err := sanitizeProvisionedUsername(identity.Username)
+	if err != nil {
+		return nil, err
+	}
+	homeDir := filepath.Join(firstNonEmptyString(s.config.OIDC.UserHomeBaseDir, "./data/oidc-users"), safeUsername)
 	email := sql.NullString{}
 	if strings.TrimSpace(identity.Email) != "" {
 		email = sql.NullString{String: identity.Email, Valid: true}
 	}
 	user := &repository.User{
-		Username:    identity.Username,
+		Username:    safeUsername,
 		Email:       email,
 		Status:      "active",
 		HomeDir:     homeDir,
@@ -1199,6 +1266,31 @@ func normalizeReturnTo(returnTo, fallback string) string {
 		return fallback
 	}
 	return returnTo
+}
+
+func buildOIDCRedirectURL(returnTo, token, tokenType, username, role string) string {
+	callbackURL, err := url.Parse(normalizeReturnTo(returnTo, "/client"))
+	if err != nil {
+		callbackURL = &url.URL{Path: "/client"}
+	}
+	fragment := url.Values{}
+	fragment.Set("token", token)
+	fragment.Set("token_type", tokenType)
+	fragment.Set("username", username)
+	fragment.Set("role", role)
+	callbackURL.Fragment = fragment.Encode()
+	return callbackURL.String()
+}
+
+func sanitizeProvisionedUsername(username string) (string, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return "", fmt.Errorf("external identity missing username")
+	}
+	if username == "." || username == ".." || strings.Contains(username, "/") || strings.Contains(username, "\\") {
+		return "", fmt.Errorf("external identity username contains invalid path characters")
+	}
+	return username, nil
 }
 
 func firstNonEmptyString(values ...string) string {
@@ -1838,6 +1930,9 @@ func (s *Server) updateAdmin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if status != "active" {
+		s.invalidateAdminSessions(adminID)
+	}
 	s.writeJSON(w, http.StatusOK, map[string]any{"message": "admin updated"})
 }
 
@@ -1847,6 +1942,7 @@ func (s *Server) deleteAdmin(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "Invalid admin id")
 		return
 	}
+	s.invalidateAdminSessions(adminID)
 	if _, err := s.db.Exec("DELETE FROM admins WHERE id = ?", adminID); err != nil {
 		s.logger.Error("delete admin failed", zap.Error(err))
 		s.writeError(w, http.StatusBadRequest, "Failed to delete admin")
@@ -2257,6 +2353,9 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "Failed to update user")
 		return
 	}
+	if status != "active" {
+		s.invalidateUserSessions(id)
+	}
 
 	s.recordAudit(admin.Username, "admin", "update_user", "http", username, "success", "")
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -2301,16 +2400,7 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := s.db.Query("SELECT session_id FROM sessions WHERE user_id = ? AND is_active = TRUE", id)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var sessionID string
-			if scanErr := rows.Scan(&sessionID); scanErr == nil {
-				s.invalidateSessionByID(sessionID)
-			}
-		}
-	}
+	s.invalidateUserSessions(id)
 
 	if _, err := s.db.Exec("DELETE FROM users WHERE id = ?", id); err != nil {
 		s.logger.Error("delete user failed", zap.Error(err))
@@ -2329,11 +2419,16 @@ func (s *Server) getConnections(w http.ResponseWriter, r *http.Request) {
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		rows, err = s.db.QueryContext(r.Context(), `
-			SELECT s.session_id, u.username, s.protocol, COALESCE(s.client_ip, ''), s.connected_at
+			SELECT s.session_id AS id, u.username, s.protocol, COALESCE(s.client_ip, '') AS remote_addr, s.connected_at, 'user' AS principal_type
 			FROM sessions s
 			JOIN users u ON u.id = s.user_id
 			WHERE s.is_active = TRUE
-			ORDER BY s.connected_at DESC
+			UNION ALL
+			SELECT a.session_id AS id, a2.username, a.protocol, COALESCE(a.client_ip, '') AS remote_addr, a.connected_at, 'admin' AS principal_type
+			FROM admin_sessions a
+			JOIN admins a2 ON a2.id = a.admin_id
+			WHERE a.is_active = TRUE
+			ORDER BY connected_at DESC
 		`)
 		if err == nil {
 			break
@@ -2357,8 +2452,9 @@ func (s *Server) getConnections(w http.ResponseWriter, r *http.Request) {
 			protocol    string
 			remoteAddr  string
 			connectedAt string
+			principal   string
 		)
-		if err := rows.Scan(&id, &username, &protocol, &remoteAddr, &connectedAt); err != nil {
+		if err := rows.Scan(&id, &username, &protocol, &remoteAddr, &connectedAt, &principal); err != nil {
 			s.logger.Error("scan connection failed", zap.Error(err))
 			s.writeError(w, http.StatusInternalServerError, "Failed to load connections")
 			return
@@ -2374,6 +2470,7 @@ func (s *Server) getConnections(w http.ResponseWriter, r *http.Request) {
 			"connected_at": connectedAt,
 			"bytes_sent":   0,
 			"bytes_recv":   0,
+			"principal":    principal,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -2393,13 +2490,23 @@ func (s *Server) disconnectConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var targetUsername string
-	if err := s.db.QueryRow(
-		`SELECT COALESCE(u.username, '')
-		FROM sessions s
-		LEFT JOIN users u ON u.id = s.user_id
-		WHERE s.session_id = ? LIMIT 1`,
+	var principalType string
+	var err error
+	if err = s.db.QueryRow(
+		`SELECT username, principal_type FROM (
+			SELECT COALESCE(u.username, '') AS username, 'user' AS principal_type
+			FROM sessions s
+			LEFT JOIN users u ON u.id = s.user_id
+			WHERE s.session_id = ?
+			UNION ALL
+			SELECT COALESCE(a.username, '') AS username, 'admin' AS principal_type
+			FROM admin_sessions s
+			LEFT JOIN admins a ON a.id = s.admin_id
+			WHERE s.session_id = ?
+		) LIMIT 1`,
 		sessionID,
-	).Scan(&targetUsername); err != nil {
+		sessionID,
+	).Scan(&targetUsername, &principalType); err != nil {
 		if err == sql.ErrNoRows {
 			s.writeError(w, http.StatusNotFound, "Connection not found")
 			return
@@ -2414,14 +2521,18 @@ func (s *Server) disconnectConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.db.Exec("UPDATE sessions SET is_active = FALSE WHERE session_id = ?", sessionID)
+	var result sql.Result
+	if principalType == "admin" {
+		result, err = s.db.Exec("UPDATE admin_sessions SET is_active = FALSE WHERE session_id = ?", sessionID)
+	} else {
+		result, err = s.db.Exec("UPDATE sessions SET is_active = FALSE WHERE session_id = ?", sessionID)
+	}
 	if err != nil {
 		s.logger.Error("disconnect connection failed", zap.Error(err))
 		s.writeError(w, http.StatusInternalServerError, "Failed to disconnect connection")
 		return
 	}
-	affected, _ := result.RowsAffected()
-	if affected == 0 {
+	if affected, _ := result.RowsAffected(); affected == 0 {
 		s.writeError(w, http.StatusNotFound, "Connection not found")
 		return
 	}
@@ -3103,7 +3214,7 @@ func (s *Server) isPasswordExpired(passwordChangedAt sql.NullString) bool {
 		return false
 	}
 	if !passwordChangedAt.Valid || strings.TrimSpace(passwordChangedAt.String) == "" {
-		return false
+		return true
 	}
 	changedAt, err := time.Parse(time.RFC3339, passwordChangedAt.String)
 	if err != nil {
@@ -3151,6 +3262,9 @@ func (s *Server) forcedPasswordChange(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+	} else if len(req.NewPassword) < 6 {
+		s.writeError(w, http.StatusBadRequest, "New password must be at least 6 characters")
+		return
 	}
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
@@ -3189,6 +3303,20 @@ func (s *Server) requireRole(requiredRole string) func(http.Handler) http.Handle
 				s.writeError(w, http.StatusUnauthorized, "Session expired")
 				return
 			}
+			active, err := s.isSessionPrincipalActive(session)
+			if err != nil {
+				s.logger.Warn("check session principal status failed", zap.Error(err), zap.String("role", session.Role), zap.Int64("user_id", session.UserID))
+				s.writeError(w, http.StatusInternalServerError, "Failed to validate session")
+				return
+			}
+			if !active {
+				s.invalidateSessionByToken(session.Token)
+				if session.SessionID != "" {
+					s.invalidateSessionByID(session.SessionID)
+				}
+				s.writeError(w, http.StatusUnauthorized, "Account is disabled")
+				return
+			}
 			if requiredRole != "" && session.Role != requiredRole {
 				s.writeError(w, http.StatusForbidden, "Forbidden")
 				return
@@ -3206,11 +3334,7 @@ func (s *Server) requireRole(requiredRole string) func(http.Handler) http.Handle
 			if session.SessionID != "" {
 				if lastTouch, ok := s.sessionLastTouch.Load(session.SessionID); !ok || time.Since(lastTouch.(time.Time)) > 300*time.Second {
 					s.sessionLastTouch.Store(session.SessionID, time.Now())
-					touchCtx, touchCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					if _, err := s.db.ExecContext(touchCtx, "UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?", session.SessionID); err != nil {
-						s.logger.Debug("touch session failed", zap.Error(err), zap.String("session_id", session.SessionID))
-					}
-					touchCancel()
+					s.touchHTTPSessionRecord(session)
 				}
 			}
 			ctx := context.WithValue(r.Context(), sessionContextKey, session)
@@ -3316,6 +3440,53 @@ func (s *Server) storeSession(session *authSession) {
 	s.sessionsMu.Unlock()
 }
 
+func (s *Server) persistHTTPSessionRecord(session *authSession, clientIP string) error {
+	if session == nil || session.SessionID == "" || s.db == nil {
+		return nil
+	}
+	switch session.Role {
+	case "admin":
+		_, err := s.db.Exec(
+			"INSERT INTO admin_sessions (session_id, admin_id, protocol, client_ip, connected_at, last_activity_at, is_active) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, TRUE)",
+			session.SessionID, session.UserID, "http-admin", clientIP,
+		)
+		return err
+	case "user":
+		_, err := s.db.Exec(
+			"INSERT INTO sessions (session_id, user_id, protocol, client_ip, connected_at, last_activity_at, is_active) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, TRUE)",
+			session.SessionID, session.UserID, "http", clientIP,
+		)
+		return err
+	default:
+		return nil
+	}
+}
+
+func (s *Server) touchHTTPSessionRecord(session *authSession) {
+	if session == nil || session.SessionID == "" || s.db == nil {
+		return
+	}
+	touchCtx, touchCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer touchCancel()
+	var err error
+	switch session.Role {
+	case "admin":
+		_, err = s.db.ExecContext(touchCtx, "UPDATE admin_sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?", session.SessionID)
+	case "user":
+		_, err = s.db.ExecContext(touchCtx, "UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE session_id = ?", session.SessionID)
+	}
+	if err != nil {
+		s.logger.Debug("touch session failed", zap.Error(err), zap.String("session_id", session.SessionID))
+	}
+}
+
+func (s *Server) storedSessionByToken(token string) (*authSession, bool) {
+	s.sessionsMu.RLock()
+	session, ok := s.sessions[token]
+	s.sessionsMu.RUnlock()
+	return session, ok
+}
+
 func (s *Server) deleteSession(token string) {
 	s.sessionsMu.Lock()
 	delete(s.sessions, token)
@@ -3338,7 +3509,55 @@ func (s *Server) invalidateSessionByID(sessionID string) {
 		if _, err := s.db.Exec("UPDATE sessions SET is_active = FALSE WHERE session_id = ?", sessionID); err != nil {
 			s.logger.Warn("mark session inactive failed", zap.Error(err), zap.String("session_id", sessionID))
 		}
+		if _, err := s.db.Exec("UPDATE admin_sessions SET is_active = FALSE WHERE session_id = ?", sessionID); err != nil {
+			s.logger.Warn("mark admin session inactive failed", zap.Error(err), zap.String("session_id", sessionID))
+		}
 	}
+}
+
+func (s *Server) invalidateUserSessions(userID int64) {
+	if userID <= 0 || s.db == nil {
+		return
+	}
+	rows, err := s.db.Query("SELECT session_id FROM sessions WHERE user_id = ? AND is_active = TRUE", userID)
+	if err != nil {
+		s.logger.Warn("load user sessions for invalidation failed", zap.Error(err), zap.Int64("user_id", userID))
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var sessionID string
+		if scanErr := rows.Scan(&sessionID); scanErr == nil {
+			s.invalidateSessionByID(sessionID)
+		}
+	}
+}
+
+func (s *Server) invalidateAdminSessions(adminID int64) {
+	if adminID <= 0 {
+		return
+	}
+	if s.db != nil {
+		rows, err := s.db.Query("SELECT session_id FROM admin_sessions WHERE admin_id = ? AND is_active = TRUE", adminID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var sessionID string
+				if scanErr := rows.Scan(&sessionID); scanErr == nil {
+					s.invalidateSessionByID(sessionID)
+				}
+			}
+		} else {
+			s.logger.Warn("load admin sessions for invalidation failed", zap.Error(err), zap.Int64("admin_id", adminID))
+		}
+	}
+	s.sessionsMu.Lock()
+	for token, session := range s.sessions {
+		if session.Role == "admin" && session.UserID == adminID {
+			delete(s.sessions, token)
+		}
+	}
+	s.sessionsMu.Unlock()
 }
 
 func (s *Server) tokenTTL() time.Duration {
@@ -3356,6 +3575,119 @@ func (s *Server) tokenType() string {
 		return "jwt"
 	}
 	return "opaque"
+}
+
+func (s *Server) requireMFA(w http.ResponseWriter, principalType string, principalID int64, enabled bool, secret sql.NullString, code string) bool {
+	if !enabled {
+		return false
+	}
+	if !secret.Valid || strings.TrimSpace(secret.String) == "" {
+		s.logger.Error("MFA is enabled but secret is missing", zap.String("principal_type", principalType), zap.Int64("principal_id", principalID))
+		s.writeError(w, http.StatusInternalServerError, "MFA is not configured correctly")
+		return true
+	}
+	if strings.TrimSpace(code) == "" {
+		s.writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"message":      "MFA code required",
+			"mfa_required": true,
+		})
+		return true
+	}
+	valid, err := s.verifyMFACode(secret.String, code)
+	if err != nil {
+		s.logger.Warn("MFA verification failed", zap.Error(err), zap.String("principal_type", principalType), zap.Int64("principal_id", principalID))
+		s.writeError(w, http.StatusUnauthorized, "Invalid MFA code")
+		return true
+	}
+	if !valid {
+		if principalType == "user" {
+			consumed, consumeErr := s.consumeUserRecoveryCode(principalID, code)
+			if consumeErr != nil {
+				s.logger.Warn("MFA recovery code validation failed", zap.Error(consumeErr), zap.Int64("user_id", principalID))
+				s.writeError(w, http.StatusInternalServerError, "Failed to validate MFA code")
+				return true
+			}
+			if consumed {
+				return false
+			}
+		}
+		s.writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"message":      "Invalid MFA code",
+			"mfa_required": true,
+		})
+		return true
+	}
+	return false
+}
+
+func (s *Server) consumeUserRecoveryCode(userID int64, code string) (bool, error) {
+	if userID <= 0 || s.db == nil {
+		return false, nil
+	}
+	normalizedCode := strings.ToLower(strings.TrimSpace(code))
+	if normalizedCode == "" {
+		return false, nil
+	}
+
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	var recoveryCodesRaw sql.NullString
+	err = tx.QueryRow("SELECT mfa_recovery_codes FROM users WHERE id = ?", userID).Scan(&recoveryCodesRaw)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !recoveryCodesRaw.Valid || strings.TrimSpace(recoveryCodesRaw.String) == "" {
+		return false, nil
+	}
+
+	var recoveryCodes []string
+	if err := json.Unmarshal([]byte(recoveryCodesRaw.String), &recoveryCodes); err != nil {
+		return false, err
+	}
+
+	remainingCodes := make([]string, 0, len(recoveryCodes))
+	consumed := false
+	for _, recoveryCode := range recoveryCodes {
+		if !consumed && strings.EqualFold(strings.TrimSpace(recoveryCode), normalizedCode) {
+			consumed = true
+			continue
+		}
+		remainingCodes = append(remainingCodes, recoveryCode)
+	}
+	if !consumed {
+		return false, nil
+	}
+
+	updatedCodes, err := json.Marshal(remainingCodes)
+	if err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec("UPDATE users SET mfa_recovery_codes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", string(updatedCodes), userID); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *Server) mfaIssuer() string {
+	if s.fullConfig != nil && strings.TrimSpace(s.fullConfig.MFA.Issuer) != "" {
+		return s.fullConfig.MFA.Issuer
+	}
+	return "SFTPxy"
+}
+
+func (s *Server) verifyMFACode(secret, code string) (bool, error) {
+	totpAuth := authn.NewTOTPAuthenticator(s.mfaIssuer())
+	return totpAuth.VerifyCode(strings.TrimSpace(secret), strings.TrimSpace(code))
 }
 
 func (s *Server) initAuthProviders() {
@@ -3404,6 +3736,64 @@ func (s *Server) issueToken(session *authSession) (string, error) {
 	})
 }
 
+func (s *Server) isSessionActive(role, sessionID string) (bool, error) {
+	if sessionID == "" || s.db == nil {
+		return false, nil
+	}
+	var active bool
+	query := "SELECT is_active FROM sessions WHERE session_id = ? LIMIT 1"
+	if role == "admin" {
+		query = "SELECT is_active FROM admin_sessions WHERE session_id = ? LIMIT 1"
+	}
+	err := s.db.QueryRow(query, sessionID).Scan(&active)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return active, nil
+}
+
+func (s *Server) isSessionPrincipalActive(session *authSession) (bool, error) {
+	if session == nil || s.db == nil {
+		return true, nil
+	}
+	if strings.HasPrefix(session.Token, "apikey:") {
+		return true, nil
+	}
+	switch session.Role {
+	case "user":
+		if session.UserID <= 0 {
+			return false, nil
+		}
+		var status string
+		err := s.db.QueryRow("SELECT status FROM users WHERE id = ?", session.UserID).Scan(&status)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return status == "active", nil
+	case "admin":
+		if session.UserID <= 0 {
+			return true, nil
+		}
+		var status string
+		err := s.db.QueryRow("SELECT status FROM admins WHERE id = ?", session.UserID).Scan(&status)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return status == "active", nil
+	default:
+		return true, nil
+	}
+}
+
 func (s *Server) sessionFromJWT(token string) (*authSession, bool) {
 	if s.jwtManager == nil {
 		return nil, false
@@ -3412,7 +3802,7 @@ func (s *Server) sessionFromJWT(token string) (*authSession, bool) {
 	if err != nil {
 		return nil, false
 	}
-	return &authSession{
+	session := &authSession{
 		Token:     token,
 		SessionID: claims.SessionID,
 		UserID:    claims.UserID,
@@ -3421,7 +3811,23 @@ func (s *Server) sessionFromJWT(token string) (*authSession, bool) {
 		Scopes:    append([]string{}, claims.Scopes...),
 		HomeDir:   claims.HomeDir,
 		ExpiresAt: time.Unix(claims.ExpiresAt, 0),
-	}, true
+	}
+	if claims.SessionID == "" {
+		return s.storedSessionByToken(token)
+	}
+	active, err := s.isSessionActive(claims.Role, claims.SessionID)
+	if err != nil {
+		s.logger.Warn("validate session state failed", zap.Error(err), zap.String("session_id", claims.SessionID))
+		return nil, false
+	}
+	if !active {
+		s.deleteSession(token)
+		return nil, false
+	}
+	if storedSession, ok := s.storedSessionByToken(token); ok {
+		return storedSession, true
+	}
+	return session, true
 }
 
 func (s *Server) sessionFromAPIKey(r *http.Request) (*authSession, bool) {

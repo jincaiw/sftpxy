@@ -1490,16 +1490,32 @@ func (s *Server) refreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expiresAt := time.Now().Add(s.tokenTTL())
+	if expiresAt.Unix() <= session.ExpiresAt.Unix() {
+		expiresAt = time.Unix(session.ExpiresAt.Unix()+1, 0)
+	}
+
+	newSessionID := session.SessionID
+	if session.SessionID != "" {
+		var err error
+		newSessionID, err = generateToken()
+		if err != nil {
+			s.logger.Error("generate refreshed session id failed", zap.Error(err))
+			s.writeError(w, http.StatusInternalServerError, "Failed to refresh token")
+			return
+		}
+	}
+
 	// Issue a new token with the same claims but refreshed expiry
 	newSession := &authSession{
-		SessionID: session.SessionID,
+		SessionID: newSessionID,
 		UserID:    session.UserID,
 		Username:  session.Username,
 		Role:      session.Role,
 		Scopes:    session.Scopes,
 		Filters:   session.Filters,
 		HomeDir:   session.HomeDir,
-		ExpiresAt: time.Now().Add(s.tokenTTL()),
+		ExpiresAt: expiresAt,
 	}
 	token, err := s.issueToken(newSession)
 	if err != nil {
@@ -1508,8 +1524,17 @@ func (s *Server) refreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.persistHTTPSessionRecord(newSession, s.clientIP(r)); err != nil {
+		s.logger.Error("create refreshed http session failed", zap.Error(err))
+		s.writeError(w, http.StatusInternalServerError, "Failed to refresh token")
+		return
+	}
+
 	// Invalidate old session token and store new one
 	s.deleteSession(session.Token)
+	if session.SessionID != "" {
+		s.invalidateSessionByID(session.SessionID)
+	}
 	newSession.Token = token
 	s.storeSession(newSession)
 
@@ -1909,19 +1934,21 @@ func (s *Server) disableMFA(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Password string `json:"password"`
+		MFACode  string `json:"mfa_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	if strings.TrimSpace(req.Password) == "" {
-		s.writeError(w, http.StatusBadRequest, "Password is required")
+	if strings.TrimSpace(req.Password) == "" && strings.TrimSpace(req.MFACode) == "" {
+		s.writeError(w, http.StatusBadRequest, "Password or MFA code is required")
 		return
 	}
 
-	var passwordHash string
+	var passwordHash sql.NullString
+	var mfaSecret sql.NullString
 	var mfaEnabled bool
-	if err := s.db.QueryRow("SELECT password_hash, mfa_enabled FROM users WHERE id = ?", session.UserID).Scan(&passwordHash, &mfaEnabled); err != nil {
+	if err := s.db.QueryRow("SELECT password_hash, mfa_secret, mfa_enabled FROM users WHERE id = ?", session.UserID).Scan(&passwordHash, &mfaSecret, &mfaEnabled); err != nil {
 		s.writeError(w, http.StatusInternalServerError, "Failed to disable MFA")
 		return
 	}
@@ -1930,9 +1957,39 @@ func (s *Server) disableMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
-		s.writeError(w, http.StatusUnauthorized, "Invalid password")
-		return
+	confirmed := false
+	if passwordHash.Valid && strings.TrimSpace(passwordHash.String) != "" && strings.TrimSpace(req.Password) != "" {
+		if err := bcrypt.CompareHashAndPassword([]byte(passwordHash.String), []byte(req.Password)); err == nil {
+			confirmed = true
+		}
+	}
+	if !confirmed {
+		code := strings.TrimSpace(req.MFACode)
+		if code == "" {
+			code = strings.TrimSpace(req.Password)
+		}
+		if !mfaSecret.Valid || strings.TrimSpace(mfaSecret.String) == "" {
+			s.writeError(w, http.StatusUnauthorized, "Invalid password or MFA code")
+			return
+		}
+		valid, err := s.verifyMFACode(mfaSecret.String, code)
+		if err != nil {
+			s.logger.Warn("disable MFA verification failed", zap.Error(err), zap.Int64("user_id", session.UserID))
+			s.writeError(w, http.StatusUnauthorized, "Invalid password or MFA code")
+			return
+		}
+		if !valid {
+			consumed, consumeErr := s.consumeUserRecoveryCode(session.UserID, code)
+			if consumeErr != nil {
+				s.logger.Warn("disable MFA recovery code validation failed", zap.Error(consumeErr), zap.Int64("user_id", session.UserID))
+				s.writeError(w, http.StatusInternalServerError, "Failed to disable MFA")
+				return
+			}
+			if !consumed {
+				s.writeError(w, http.StatusUnauthorized, "Invalid password or MFA code")
+				return
+			}
+		}
 	}
 
 	if _, err := s.db.Exec("UPDATE users SET mfa_enabled = FALSE, mfa_secret = NULL, mfa_recovery_codes = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", session.UserID); err != nil {

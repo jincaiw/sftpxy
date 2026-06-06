@@ -66,6 +66,10 @@ func NewEncryptedFileSystem(cfg Config) (*EncryptedFileSystem, error) {
 	}, nil
 }
 
+func (efs *EncryptedFileSystem) sanitizePath(path string) (string, error) {
+	return storage.ResolveLocalPath(efs.basePath, path)
+}
+
 // encryptData encrypts plaintext using AES-GCM
 func (efs *EncryptedFileSystem) encryptData(plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(efs.key)
@@ -115,7 +119,10 @@ func (efs *EncryptedFileSystem) decryptData(ciphertext []byte) ([]byte, error) {
 
 // Open opens a file for reading and decrypts it
 func (efs *EncryptedFileSystem) Open(ctx context.Context, path string) (io.ReadCloser, error) {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	// Read encrypted data
 	encryptedData, err := os.ReadFile(fullPath)
@@ -153,7 +160,10 @@ func (er *encryptedReader) Close() error {
 
 // Create creates a new file, encrypts data before writing
 func (efs *EncryptedFileSystem) Create(ctx context.Context, path string) (io.WriteCloser, error) {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure parent directory exists
 	dir := filepath.Dir(fullPath)
@@ -202,7 +212,10 @@ func (ew *encryptedWriter) Close() error {
 
 // Stat returns file information (size is encrypted size)
 func (efs *EncryptedFileSystem) Stat(ctx context.Context, path string) (*storage.FileInfo, error) {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	info, err := os.Stat(fullPath)
 	if err != nil {
@@ -221,32 +234,50 @@ func (efs *EncryptedFileSystem) Stat(ctx context.Context, path string) (*storage
 
 // Delete removes an encrypted file
 func (efs *EncryptedFileSystem) Delete(ctx context.Context, path string) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Remove(fullPath)
 }
 
 // Rename renames an encrypted file
 func (efs *EncryptedFileSystem) Rename(ctx context.Context, oldPath, newPath string) error {
-	oldFullPath := filepath.Join(efs.basePath, oldPath)
-	newFullPath := filepath.Join(efs.basePath, newPath)
+	oldFullPath, err := efs.sanitizePath(oldPath)
+	if err != nil {
+		return err
+	}
+	newFullPath, err := efs.sanitizePath(newPath)
+	if err != nil {
+		return err
+	}
 	return os.Rename(oldFullPath, newFullPath)
 }
 
 // Mkdir creates a directory
 func (efs *EncryptedFileSystem) Mkdir(ctx context.Context, path string) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.MkdirAll(fullPath, 0755)
 }
 
 // Rmdir removes an empty directory
 func (efs *EncryptedFileSystem) Rmdir(ctx context.Context, path string) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Remove(fullPath)
 }
 
 // ListDir lists directory contents
 func (efs *EncryptedFileSystem) ListDir(ctx context.Context, path string) ([]*storage.FileInfo, error) {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	entries, err := os.ReadDir(fullPath)
 	if err != nil {
@@ -274,39 +305,63 @@ func (efs *EncryptedFileSystem) ListDir(ctx context.Context, path string) ([]*st
 
 // Chmod changes file permissions
 func (efs *EncryptedFileSystem) Chmod(ctx context.Context, path string, mode os.FileMode) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Chmod(fullPath, mode)
 }
 
 // Chown changes file ownership
 func (efs *EncryptedFileSystem) Chown(ctx context.Context, path string, uid, gid int) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Chown(fullPath, uid, gid)
 }
 
 // Chtimes changes file times
 func (efs *EncryptedFileSystem) Chtimes(ctx context.Context, path string, atime, mtime time.Time) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Chtimes(fullPath, atime, mtime)
 }
 
 // Truncate truncates a file
 func (efs *EncryptedFileSystem) Truncate(ctx context.Context, path string, size int64) error {
-	fullPath := filepath.Join(efs.basePath, path)
+	fullPath, err := efs.sanitizePath(path)
+	if err != nil {
+		return err
+	}
 	return os.Truncate(fullPath, size)
 }
 
 // Symlink creates a symbolic link
 func (efs *EncryptedFileSystem) Symlink(ctx context.Context, oldPath, newPath string) error {
-	oldFullPath := filepath.Join(efs.basePath, oldPath)
-	newFullPath := filepath.Join(efs.basePath, newPath)
+	oldFullPath, err := efs.sanitizePath(oldPath)
+	if err != nil {
+		return err
+	}
+	newFullPath, err := efs.sanitizePath(newPath)
+	if err != nil {
+		return err
+	}
 	return os.Symlink(oldFullPath, newFullPath)
 }
 
 // Copy copies an encrypted file
 func (efs *EncryptedFileSystem) Copy(ctx context.Context, src, dst string) error {
-	srcFullPath := filepath.Join(efs.basePath, src)
-	dstFullPath := filepath.Join(efs.basePath, dst)
+	srcFullPath, err := efs.sanitizePath(src)
+	if err != nil {
+		return err
+	}
+	dstFullPath, err := efs.sanitizePath(dst)
+	if err != nil {
+		return err
+	}
 
 	srcData, err := os.ReadFile(srcFullPath)
 	if err != nil {

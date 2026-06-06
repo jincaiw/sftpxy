@@ -268,12 +268,12 @@
       title="禁用 MFA"
       style="width: 400px"
     >
-      <n-form-item label="当前密码">
+      <n-form-item label="密码或 MFA/恢复码">
         <n-input
           v-model:value="disableMfaPassword"
           type="password"
           show-password-on="click"
-          placeholder="请输入当前密码以确认"
+          placeholder="本地账号输入当前密码；LDAP/OIDC 账号输入 MFA 验证码或恢复码"
           :input-props="{ 'data-testid': 'client-mfa-disable-password' }"
         />
       </n-form-item>

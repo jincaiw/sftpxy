@@ -122,9 +122,9 @@ feat: deliver production-ready single-node systemd release for SFTPxy
 
 发布包与清单位于：
 
-- `dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz`
-- `dist/release/sftpxy-linux-amd64-systemd-v0.1.0.manifest.txt`
-- `dist/release/sftpxy-linux-amd64-systemd-v0.1.0/RELEASE.txt`
+- `dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz`
+- `dist/release/sftpxy-linux-amd64-systemd-v0.1.1.manifest.txt`
+- `dist/release/sftpxy-linux-amd64-systemd-v0.1.1/RELEASE.txt`
 
 发布包内包含：
 

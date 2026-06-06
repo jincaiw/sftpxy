@@ -110,14 +110,15 @@ const handleLogin = async () => {
 }
 
 const handleOIDCLogin = () => {
-  const redirect = authStore.getOIDCLoginUrl('admin', '/admin/login')
+  const redirect = authStore.getOIDCLoginUrl('admin', route.fullPath || '/admin/login')
   window.location.href = redirect
 }
 
 onMounted(() => {
-  const token = route.query.token as string | undefined
-  const role = route.query.role as 'admin' | 'user' | undefined
-  const username = route.query.username as string | undefined
+  const fragment = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash)
+  const token = fragment.get('token') || (route.query.token as string | undefined)
+  const role = (fragment.get('role') as 'admin' | 'user' | null) || (route.query.role as 'admin' | 'user' | undefined)
+  const username = fragment.get('username') || (route.query.username as string | undefined)
   if (token && role === 'admin') {
     authStore.completeOIDCLogin('admin', token, username)
     const redirect = (route.query.redirect as string) || '/admin/dashboard'

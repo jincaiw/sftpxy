@@ -44,7 +44,7 @@ make release-bundle
 Linux 发布包输出到：
 
 ```text
-dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz
+dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz
 ```
 
 ## Linux 单文件部署
@@ -52,18 +52,18 @@ dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz
 1. 构建或下载 Linux 二进制：
 
 ```bash
-VERSION=0.1.0 make release-bundle
-tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
+VERSION=0.1.1 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz -C /tmp
 ```
 
 2. 安装二进制和运行资源：
 
 ```bash
-sudo install -m 755 /tmp/sftpxy-linux-amd64-systemd-v0.1.0/sftpxy /usr/local/bin/sftpxy
+sudo install -m 755 /tmp/sftpxy-linux-amd64-systemd-v0.1.1/sftpxy /usr/local/bin/sftpxy
 sudo install -d -m 750 /etc/sftpxy /var/lib/sftpxy /var/log/sftpxy /usr/local/share/sftpxy
-sudo cp /tmp/sftpxy-linux-amd64-systemd-v0.1.0/config.yaml.example /etc/sftpxy/config.yaml
-sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/migrations /usr/local/share/sftpxy/
-sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.0/web /usr/local/share/sftpxy/
+sudo cp /tmp/sftpxy-linux-amd64-systemd-v0.1.1/config.yaml.example /etc/sftpxy/config.yaml
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.1/migrations /usr/local/share/sftpxy/
+sudo cp -R /tmp/sftpxy-linux-amd64-systemd-v0.1.1/web /usr/local/share/sftpxy/
 ```
 
 3. 修改 `/etc/sftpxy/config.yaml`：
@@ -110,9 +110,9 @@ printf 'StrongPasswordHere' | sudo /usr/local/bin/sftpxy \
 1. 构建发布包：
 
 ```bash
-VERSION=0.1.0 make release-bundle
-tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.0.tar.gz -C /tmp
-cd /tmp/sftpxy-linux-amd64-systemd-v0.1.0
+VERSION=0.1.1 make release-bundle
+tar xzf dist/release/sftpxy-linux-amd64-systemd-v0.1.1.tar.gz -C /tmp
+cd /tmp/sftpxy-linux-amd64-systemd-v0.1.1
 ```
 
 2. 使用发布包内安装脚本：

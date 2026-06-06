@@ -203,7 +203,7 @@ if [ -n "$FOLDER_ID" ] && [ "$FOLDER_ID" != "None" ]; then
     UPD_RESP=$(curl -s -m 5 -X PUT http://$HOST:$ADMIN_PORT/api/v1/folders/$FOLDER_ID \
         -H "$AUTH" -H "Content-Type: application/json" \
         -d "{\"name\":\"updated_$FOLDER_ID\",\"mapped_path\":\"/tmp/updated_$FOLDER_ID\",\"filesystem_type\":\"local\",\"filesystem_config\":{}}" 2>&1)
-    if echo "$UPD_RESP" | grep -q "id\|name"; then
+    if echo "$UPD_RESP" | grep -q "id\|name\|virtual folder updated\|updated"; then
         log_pass "PUT /api/v1/folders/$FOLDER_ID works"
     else
         log_warn "PUT /api/v1/folders/$FOLDER_ID: ${UPD_RESP:0:200}"
@@ -307,9 +307,12 @@ fi
 # Create policy
 DR_PAYLOAD='{
     "name": "test_policy_'$(date +%s)'",
-    "resource_type": "audit_logs",
-    "max_age_seconds": 86400,
-    "enabled": true
+    "description": "Test retention policy created by API test",
+    "scope": "global",
+    "retention_days": 1,
+    "action": "delete",
+    "action_config": {},
+    "is_active": true
 }'
 DR_RESP=$(curl -s -m 5 -X POST http://$HOST:$ADMIN_PORT/api/v1/data-retention \
     -H "$AUTH" -H "Content-Type: application/json" \
