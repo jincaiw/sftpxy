@@ -120,7 +120,7 @@ func (s *Share) getACopy() Share {
 // RenderAsJSON implements the renderer interface used within plugins
 func (s *Share) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		share, err := provider.shareExists(s.ShareID, s.Username)
+		share, err := holder.getProvider().shareExists(s.ShareID, s.Username)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload share before rendering as json: %v", err)
 			return nil, err
@@ -155,14 +155,14 @@ func (s *Share) hashPassword() error {
 				return util.NewI18nError(util.NewValidationError(err.Error()), util.I18nErrorPasswordComplexity)
 			}
 		}
-		if config.PasswordHashing.Algo == HashingAlgoBcrypt {
-			hashed, err := bcrypt.GenerateFromPassword([]byte(s.Password), config.PasswordHashing.BcryptOptions.Cost)
+		if holder.getConfig().PasswordHashing.Algo == HashingAlgoBcrypt {
+			hashed, err := bcrypt.GenerateFromPassword([]byte(s.Password), holder.getConfig().PasswordHashing.BcryptOptions.Cost)
 			if err != nil {
 				return err
 			}
 			s.Password = string(hashed)
 		} else {
-			hashed, err := argon2id.CreateHash(s.Password, argon2Params)
+			hashed, err := argon2id.CreateHash(s.Password, holder.getArgon2Params())
 			if err != nil {
 				return err
 			}

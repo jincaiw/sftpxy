@@ -212,8 +212,8 @@ func init() {
 func initializeSQLiteProvider(basePath string) error {
 	var connectionString string
 
-	if config.ConnectionString == "" {
-		dbPath := config.Name
+	if holder.getConfig().ConnectionString == "" {
+		dbPath := holder.getConfig().Name
 		if !util.IsFileInputValid(dbPath) {
 			return fmt.Errorf("invalid database path: %q", dbPath)
 		}
@@ -224,7 +224,7 @@ func initializeSQLiteProvider(basePath string) error {
 			"file:%s?_foreign_keys=1&_journal_mode=WAL&_busy_timeout=5000",
 			dbPath)
 	} else {
-		connectionString = config.ConnectionString
+		connectionString = holder.getConfig().ConnectionString
 	}
 	dbHandle, err := sql.Open("sqlite3", connectionString)
 	if err != nil {
@@ -234,7 +234,7 @@ func initializeSQLiteProvider(basePath string) error {
 	}
 	providerLog(logger.LevelDebug, "sqlite database handle created, connection string: %q", connectionString)
 	dbHandle.SetMaxOpenConns(1)
-	provider = &SQLiteProvider{dbHandle: dbHandle}
+	holder.setProvider(&SQLiteProvider{dbHandle: dbHandle})
 	return executePragmaOptimize(dbHandle)
 }
 
@@ -825,7 +825,7 @@ func updateSQLiteDatabaseFrom33To34(dbHandle *sql.DB) error {
 	logger.InfoToConsole("updating database schema version: 33 -> 34")
 	providerLog(logger.LevelInfo, "updating database schema version: 33 -> 34")
 
-	sql := strings.ReplaceAll(sqliteV34SQL, "{{prefix}}", config.SQLTablesPrefix)
+	sql := strings.ReplaceAll(sqliteV34SQL, "{{prefix}}", holder.getConfig().SQLTablesPrefix)
 	sql = strings.ReplaceAll(sql, "{{shares}}", sqlTableShares)
 	sql = strings.ReplaceAll(sql, "{{shares_groups_mapping}}", sqlTableSharesGroupsMapping)
 	sql = strings.ReplaceAll(sql, "{{groups}}", sqlTableGroups)

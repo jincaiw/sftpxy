@@ -94,7 +94,7 @@ func (k *APIKey) getACopy() APIKey {
 // RenderAsJSON implements the renderer interface used within plugins
 func (k *APIKey) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		apiKey, err := provider.apiKeyExists(k.KeyID)
+		apiKey, err := holder.getProvider().apiKeyExists(k.KeyID)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload api key before rendering as json: %v", err)
 			return nil, err
@@ -113,14 +113,14 @@ func (k *APIKey) HideConfidentialData() {
 
 func (k *APIKey) hashKey() error {
 	if k.Key != "" && !util.IsStringPrefixInSlice(k.Key, internalHashPwdPrefixes) {
-		if config.PasswordHashing.Algo == HashingAlgoBcrypt {
-			hashed, err := bcrypt.GenerateFromPassword([]byte(k.Key), config.PasswordHashing.BcryptOptions.Cost)
+		if holder.getConfig().PasswordHashing.Algo == HashingAlgoBcrypt {
+			hashed, err := bcrypt.GenerateFromPassword([]byte(k.Key), holder.getConfig().PasswordHashing.BcryptOptions.Cost)
 			if err != nil {
 				return err
 			}
 			k.Key = string(hashed)
 		} else {
-			hashed, err := argon2id.CreateHash(k.Key, argon2Params)
+			hashed, err := argon2id.CreateHash(k.Key, holder.getArgon2Params())
 			if err != nil {
 				return err
 			}
@@ -168,13 +168,13 @@ func (k *APIKey) validate() error {
 		k.Admin = ""
 	}
 	if k.User != "" {
-		_, err := provider.userExists(k.User, "")
+		_, err := holder.getProvider().userExists(k.User, "")
 		if err != nil {
 			return util.NewValidationError(fmt.Sprintf("unable to check API key user %v: %v", k.User, err))
 		}
 	}
 	if k.Admin != "" {
-		_, err := provider.adminExists(k.Admin)
+		_, err := holder.getProvider().adminExists(k.Admin)
 		if err != nil {
 			return util.NewValidationError(fmt.Sprintf("unable to check API key admin %v: %v", k.Admin, err))
 		}
@@ -188,7 +188,7 @@ func (k *APIKey) Authenticate(plainKey string) error {
 		return fmt.Errorf("API key %q is expired, expiration timestamp: %v current timestamp: %v", k.KeyID,
 			k.ExpiresAt, util.GetTimeAsMsSinceEpoch(time.Now()))
 	}
-	if config.PasswordCaching {
+	if holder.getConfig().PasswordCaching {
 		found, match := cachedAPIKeys.Check(k.KeyID, plainKey, k.Key)
 		if found {
 			if !match {

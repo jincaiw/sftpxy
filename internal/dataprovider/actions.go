@@ -76,11 +76,11 @@ func executeAction(operation, executor, ip, objectType, objectName, role string,
 	if fnHandleRuleForProviderEvent != nil {
 		fnHandleRuleForProviderEvent(operation, executor, ip, objectType, objectName, role, object)
 	}
-	if config.Actions.Hook == "" {
+	if holder.getConfig().Actions.Hook == "" {
 		return
 	}
-	if !slices.Contains(config.Actions.ExecuteOn, operation) ||
-		!slices.Contains(config.Actions.ExecuteFor, objectType) {
+	if !slices.Contains(holder.getConfig().Actions.ExecuteOn, operation) ||
+		!slices.Contains(holder.getConfig().Actions.ExecuteFor, objectType) {
 		return
 	}
 
@@ -95,12 +95,12 @@ func executeAction(operation, executor, ip, objectType, objectName, role string,
 			providerLog(logger.LevelError, "unable to serialize user as JSON for operation %q: %v", operation, err)
 			return
 		}
-		if strings.HasPrefix(config.Actions.Hook, "http") {
+		if strings.HasPrefix(holder.getConfig().Actions.Hook, "http") {
 			var url *url.URL
-			url, err := url.Parse(config.Actions.Hook)
+			url, err := url.Parse(holder.getConfig().Actions.Hook)
 			if err != nil {
 				providerLog(logger.LevelError, "Invalid http_notification_url %q for operation %q: %v",
-					config.Actions.Hook, operation, err)
+					holder.getConfig().Actions.Hook, operation, err)
 				return
 			}
 			q := url.Query()
@@ -130,17 +130,17 @@ func executeAction(operation, executor, ip, objectType, objectName, role string,
 }
 
 func executeNotificationCommand(operation, executor, ip, objectType, objectName, role string, objectAsJSON []byte) error {
-	if !filepath.IsAbs(config.Actions.Hook) {
-		err := fmt.Errorf("invalid notification command %q", config.Actions.Hook)
+	if !filepath.IsAbs(holder.getConfig().Actions.Hook) {
+		err := fmt.Errorf("invalid notification command %q", holder.getConfig().Actions.Hook)
 		logger.Warn(logSender, "", "unable to execute notification command: %v", err)
 		return err
 	}
 
-	timeout, env, args := command.GetConfig(config.Actions.Hook, command.HookProviderActions)
+	timeout, env, args := command.GetConfig(holder.getConfig().Actions.Hook, command.HookProviderActions)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, config.Actions.Hook, args...)
+	cmd := exec.CommandContext(ctx, holder.getConfig().Actions.Hook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPGO_PROVIDER_ACTION=%s", operation),
 		fmt.Sprintf("SFTPGO_PROVIDER_OBJECT_TYPE=%s", objectType),
@@ -153,7 +153,7 @@ func executeNotificationCommand(operation, executor, ip, objectType, objectName,
 
 	startTime := time.Now()
 	err := cmd.Run()
-	providerLog(logger.LevelDebug, "executed command %q, elapsed: %s, error: %v", config.Actions.Hook,
+	providerLog(logger.LevelDebug, "executed command %q, elapsed: %s, error: %v", holder.getConfig().Actions.Hook,
 		time.Since(startTime), err)
 	return err
 }

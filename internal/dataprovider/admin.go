@@ -131,7 +131,7 @@ func (p *AdminPreferences) HideGroups() bool {
 
 // HideFilesystem returns true if the filesystem section should be hidden
 func (p *AdminPreferences) HideFilesystem() bool {
-	return config.UsersBaseDir != "" && p.HideUserPageSections&2 != 0
+	return holder.getConfig().UsersBaseDir != "" && p.HideUserPageSections&2 != 0
 }
 
 // HideVirtualFolders returns true if the virtual folder section should be hidden
@@ -273,19 +273,19 @@ func (a *Admin) CountUnusedRecoveryCodes() int {
 
 func (a *Admin) hashPassword() error {
 	if a.Password != "" && !util.IsStringPrefixInSlice(a.Password, internalHashPwdPrefixes) {
-		if config.PasswordValidation.Admins.MinEntropy > 0 {
-			if err := passwordvalidator.Validate(a.Password, config.PasswordValidation.Admins.MinEntropy); err != nil {
+		if holder.getConfig().PasswordValidation.Admins.MinEntropy > 0 {
+			if err := passwordvalidator.Validate(a.Password, holder.getConfig().PasswordValidation.Admins.MinEntropy); err != nil {
 				return util.NewI18nError(util.NewValidationError(err.Error()), util.I18nErrorPasswordComplexity)
 			}
 		}
-		if config.PasswordHashing.Algo == HashingAlgoBcrypt {
-			pwd, err := bcrypt.GenerateFromPassword([]byte(a.Password), config.PasswordHashing.BcryptOptions.Cost)
+		if holder.getConfig().PasswordHashing.Algo == HashingAlgoBcrypt {
+			pwd, err := bcrypt.GenerateFromPassword([]byte(a.Password), holder.getConfig().PasswordHashing.BcryptOptions.Cost)
 			if err != nil {
 				return err
 			}
 			a.Password = string(pwd)
 		} else {
-			pwd, err := argon2id.CreateHash(a.Password, argon2Params)
+			pwd, err := argon2id.CreateHash(a.Password, holder.getArgon2Params())
 			if err != nil {
 				return err
 			}
@@ -365,10 +365,10 @@ func (a *Admin) validateGroups() error {
 }
 
 func (a *Admin) applyNamingRules() {
-	a.Username = config.convertName(a.Username)
-	a.Role = config.convertName(a.Role)
+	a.Username = holder.getConfig().convertName(a.Username)
+	a.Role = holder.getConfig().convertName(a.Role)
 	for idx := range a.Groups {
-		a.Groups[idx].Name = config.convertName(a.Groups[idx].Name)
+		a.Groups[idx].Name = holder.getConfig().convertName(a.Groups[idx].Name)
 	}
 }
 
@@ -397,7 +397,7 @@ func (a *Admin) validate() error { //nolint:gocyclo
 	if err := a.validateRecoveryCodes(); err != nil {
 		return util.NewI18nError(err, util.I18nErrorRecoveryCodesInvalid)
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(a.Username) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(a.Username) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("username %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", a.Username)),
 			util.I18nErrorInvalidUser,
@@ -431,7 +431,7 @@ func (a *Admin) validate() error { //nolint:gocyclo
 
 // CheckPassword verifies the admin password
 func (a *Admin) CheckPassword(password string) (bool, error) {
-	if config.PasswordCaching {
+	if holder.getConfig().PasswordCaching {
 		found, match := cachedAdminPasswords.Check(a.Username, password, a.Password)
 		if found {
 			if !match {
@@ -510,7 +510,7 @@ func (a *Admin) checkUserAndPass(password, ip string) error {
 // RenderAsJSON implements the renderer interface used within plugins
 func (a *Admin) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		admin, err := provider.adminExists(a.Username)
+		admin, err := holder.getProvider().adminExists(a.Username)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload admin before rendering as json: %v", err)
 			return nil, err

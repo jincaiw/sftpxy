@@ -43,7 +43,7 @@ const (
 func getSQLPlaceholders() []string {
 	var placeholders []string
 	for i := 1; i <= 100; i++ {
-		if config.Driver == PGSQLDataProviderName || config.Driver == CockroachDataProviderName {
+		if holder.getConfig().Driver == PGSQLDataProviderName || holder.getConfig().Driver == CockroachDataProviderName {
 			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
 		} else {
 			placeholders = append(placeholders, "?")
@@ -53,7 +53,7 @@ func getSQLPlaceholders() []string {
 }
 
 func getSQLQuotedName(name string) string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("`%s`", name)
 	}
 
@@ -61,7 +61,7 @@ func getSQLQuotedName(name string) string {
 }
 
 func getSelectEventRuleFields() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return "id,name,description,created_at,updated_at,`trigger`,conditions,deleted_at,status"
 	}
 
@@ -76,7 +76,7 @@ func getCoalesceDefaultForRole(role string) string {
 }
 
 func getAddSessionQuery() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("INSERT INTO %s (`key`,`data`,`type`,`timestamp`) VALUES (%s,%s,%s,%s) "+
 			"ON DUPLICATE KEY UPDATE `data`=VALUES(`data`), `timestamp`=VALUES(`timestamp`)",
 			sqlTableSharedSessions, sqlPlaceholders[0], sqlPlaceholders[1], sqlPlaceholders[2], sqlPlaceholders[3])
@@ -87,7 +87,7 @@ func getAddSessionQuery() string {
 }
 
 func getDeleteSessionQuery() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("DELETE FROM %s WHERE `key` = %s AND `type` = %s",
 			sqlTableSharedSessions, sqlPlaceholders[0], sqlPlaceholders[1])
 	}
@@ -96,7 +96,7 @@ func getDeleteSessionQuery() string {
 }
 
 func getSessionQuery() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("SELECT `key`,`data`,`type`,`timestamp` FROM %s WHERE `key` = %s AND `type` = %s",
 			sqlTableSharedSessions, sqlPlaceholders[0], sqlPlaceholders[1])
 	}
@@ -110,7 +110,7 @@ func getCleanupSessionsQuery() string {
 }
 
 func getAddDefenderHostQuery() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("INSERT INTO %s (`ip`,`updated_at`,`ban_time`) VALUES (%s,%s,0) ON DUPLICATE KEY UPDATE `updated_at`=VALUES(`updated_at`)",
 			sqlTableDefenderHosts, sqlPlaceholders[0], sqlPlaceholders[1])
 	}
@@ -1162,7 +1162,7 @@ func getDeleteTaskQuery() string {
 }
 
 func getAddNodeQuery() string {
-	if config.Driver == MySQLDataProviderName {
+	if holder.getConfig().Driver == MySQLDataProviderName {
 		return fmt.Sprintf("INSERT INTO %s (`name`,`data`,created_at,`updated_at`) VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE "+
 			"`data`=VALUES(`data`), `created_at`=VALUES(`created_at`), `updated_at`=VALUES(`updated_at`)",
 			sqlTableNodes, sqlPlaceholders[0], sqlPlaceholders[1], sqlPlaceholders[2], sqlPlaceholders[3])

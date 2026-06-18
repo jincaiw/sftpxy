@@ -68,7 +68,7 @@ type credentialsCache struct {
 }
 
 func (c *credentialsCache) Add(username, password, hash string) {
-	if !config.PasswordCaching || username == "" || password == "" || hash == "" {
+	if !holder.getConfig().PasswordCaching || username == "" || password == "" || hash == "" {
 		return
 	}
 
@@ -87,7 +87,7 @@ func (c *credentialsCache) Add(username, password, hash string) {
 }
 
 func (c *credentialsCache) Remove(username string) {
-	if !config.PasswordCaching {
+	if !holder.getConfig().PasswordCaching {
 		return
 	}
 
@@ -129,7 +129,7 @@ func (c *credentialsCache) count() int {
 }
 
 func (c *credentialsCache) cleanup() {
-	if !config.PasswordCaching {
+	if !holder.getConfig().PasswordCaching {
 		return
 	}
 	if c.count() <= c.sizeLimit {

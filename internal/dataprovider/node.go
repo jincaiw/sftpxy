@@ -66,7 +66,7 @@ type NodeConfig struct {
 
 func (n *NodeConfig) validate() error {
 	currentNode = nil
-	if config.IsShared != 1 {
+	if holder.getConfig().IsShared != 1 {
 		return nil
 	}
 	if n.Host == "" {
@@ -79,7 +79,7 @@ func (n *NodeConfig) validate() error {
 			Proto: n.Proto,
 		},
 	}
-	return provider.addNode()
+	return holder.getProvider().addNode()
 }
 
 // NodeData defines the details to connect to a cluster node

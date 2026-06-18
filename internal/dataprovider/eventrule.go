@@ -1237,7 +1237,7 @@ func (a *BaseEventAction) PrepareForRendering() {
 // RenderAsJSON implements the renderer interface used within plugins
 func (a *BaseEventAction) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		action, err := provider.eventActionExists(a.Name)
+		action, err := holder.getProvider().eventActionExists(a.Name)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload event action before rendering as json: %v", err)
 			return nil, err
@@ -1256,7 +1256,7 @@ func (a *BaseEventAction) validate() error {
 	if !util.IsNameValid(a.Name) {
 		return util.NewI18nError(errInvalidInput, util.I18nErrorInvalidInput)
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(a.Name) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(a.Name) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("name %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", a.Name)),
 			util.I18nErrorInvalidUser,
@@ -1425,7 +1425,7 @@ func (f *ConditionOptions) validate() error {
 	if err := f.validateStatuses(); err != nil {
 		return err
 	}
-	if config.IsShared == 0 {
+	if holder.getConfig().IsShared == 0 {
 		f.ConcurrentExecution = false
 	}
 	return nil
@@ -1657,7 +1657,7 @@ func (r *EventRule) getACopy() EventRule {
 // GuardFromConcurrentExecution returns true if the rule cannot be executed concurrently
 // from multiple instances
 func (r *EventRule) GuardFromConcurrentExecution() bool {
-	if config.IsShared == 0 {
+	if holder.getConfig().IsShared == 0 {
 		return false
 	}
 	return !r.Conditions.Options.ConcurrentExecution
@@ -1688,7 +1688,7 @@ func (r *EventRule) validate() error { //nolint:gocyclo
 	if !util.IsNameValid(r.Name) {
 		return util.NewI18nError(errInvalidInput, util.I18nErrorInvalidInput)
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(r.Name) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(r.Name) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("name %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", r.Name)),
 			util.I18nErrorInvalidUser,
@@ -1883,7 +1883,7 @@ func (r *EventRule) PrepareForRendering() {
 // RenderAsJSON implements the renderer interface used within plugins
 func (r *EventRule) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		rule, err := provider.eventRuleExists(r.Name)
+		rule, err := holder.getProvider().eventRuleExists(r.Name)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload event rule before rendering as json: %v", err)
 			return nil, err

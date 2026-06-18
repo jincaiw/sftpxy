@@ -254,7 +254,7 @@ func (u *User) CheckFsRoot(connectionID string) error {
 	}
 	if isLastActivityRecent(u.LastLogin, delay) {
 		if u.LastLogin > u.UpdatedAt {
-			if config.IsShared == 1 {
+			if holder.getConfig().IsShared == 1 {
 				u.checkLocalHomeDir(connectionID)
 			}
 			return nil
@@ -449,7 +449,7 @@ func (u *User) setAnonymousSettings() {
 // RenderAsJSON implements the renderer interface used within plugins
 func (u *User) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		user, err := provider.userExists(u.Username, "")
+		user, err := holder.getProvider().userExists(u.Username, "")
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload user before rendering as json: %v", err)
 			return nil, err
@@ -1053,7 +1053,7 @@ func (u *User) getMinPasswordEntropy() float64 {
 	if u.Filters.PasswordStrength > 0 {
 		return float64(u.Filters.PasswordStrength)
 	}
-	return config.PasswordValidation.Users.MinEntropy
+	return holder.getConfig().PasswordValidation.Users.MinEntropy
 }
 
 // IsFileAllowed returns true if the specified file is allowed by the file restrictions filters.
@@ -1402,7 +1402,7 @@ func (u *User) HasExternalAuth() bool {
 	if u.Filters.Hooks.ExternalAuthDisabled {
 		return false
 	}
-	if config.ExternalAuthHook != "" {
+	if holder.getConfig().ExternalAuthHook != "" {
 		return true
 	}
 	return plugin.Handler.HasAuthenticators()
@@ -1523,7 +1523,7 @@ func (u *User) LoadAndApplyGroupSettings() error {
 			names = append(names, g.Name)
 		}
 	}
-	groups, err := provider.getGroupsWithNames(names)
+	groups, err := holder.getProvider().getGroupsWithNames(names)
 	if err != nil {
 		return fmt.Errorf("unable to get groups: %w", err)
 	}
@@ -1766,13 +1766,13 @@ func (u *User) hasRole(role string) bool {
 }
 
 func (u *User) applyNamingRules() {
-	u.Username = config.convertName(u.Username)
-	u.Role = config.convertName(u.Role)
+	u.Username = holder.getConfig().convertName(u.Username)
+	u.Role = holder.getConfig().convertName(u.Role)
 	for idx := range u.Groups {
-		u.Groups[idx].Name = config.convertName(u.Groups[idx].Name)
+		u.Groups[idx].Name = holder.getConfig().convertName(u.Groups[idx].Name)
 	}
 	for idx := range u.VirtualFolders {
-		u.VirtualFolders[idx].Name = config.convertName(u.VirtualFolders[idx].Name)
+		u.VirtualFolders[idx].Name = holder.getConfig().convertName(u.VirtualFolders[idx].Name)
 	}
 }
 

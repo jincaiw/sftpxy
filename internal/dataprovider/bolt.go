@@ -73,7 +73,7 @@ func init() {
 func initializeBoltProvider(basePath string) error {
 	var err error
 
-	dbPath := config.Name
+	dbPath := holder.getConfig().Name
 	if !util.IsFileInputValid(dbPath) {
 		return fmt.Errorf("invalid database path: %q", dbPath)
 	}
@@ -96,7 +96,7 @@ func initializeBoltProvider(basePath string) error {
 			}
 		}
 
-		provider = &BoltProvider{dbHandle: dbHandle}
+		holder.setProvider(&BoltProvider{dbHandle: dbHandle})
 	} else {
 		providerLog(logger.LevelError, "error creating bolt key/value store handler: %v", err)
 	}

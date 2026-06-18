@@ -84,7 +84,7 @@ func sqlReplaceAll(sql string) string {
 	sql = strings.ReplaceAll(sql, "{{roles}}", sqlTableRoles)
 	sql = strings.ReplaceAll(sql, "{{ip_lists}}", sqlTableIPLists)
 	sql = strings.ReplaceAll(sql, "{{configs}}", sqlTableConfigs)
-	sql = strings.ReplaceAll(sql, "{{prefix}}", config.SQLTablesPrefix)
+	sql = strings.ReplaceAll(sql, "{{prefix}}", holder.getConfig().SQLTablesPrefix)
 	return sql
 }
 
@@ -111,7 +111,7 @@ func sqlCommonAddShare(share *Share, dbHandle *sql.DB) error {
 		return err
 	}
 
-	user, err := provider.userExists(share.Username, "")
+	user, err := holder.getProvider().userExists(share.Username, "")
 	if err != nil {
 		return util.NewGenericError(fmt.Sprintf("unable to validate user %q", share.Username))
 	}
@@ -171,7 +171,7 @@ func sqlCommonUpdateShare(share *Share, dbHandle *sql.DB) error {
 		}
 	}
 
-	user, err := provider.userExists(share.Username, "")
+	user, err := holder.getProvider().userExists(share.Username, "")
 	if err != nil {
 		return util.NewGenericError(fmt.Sprintf("unable to validate user %q", share.Username))
 	}
@@ -669,7 +669,7 @@ func sqlCommonGetListEntriesForIP(ip string, listType IPListType, dbHandle sqlQu
 	var err error
 
 	entries := make([]IPListEntry, 0, 2)
-	if config.Driver == PGSQLDataProviderName || config.Driver == CockroachDataProviderName {
+	if holder.getConfig().Driver == PGSQLDataProviderName || holder.getConfig().Driver == CockroachDataProviderName {
 		rows, err = dbHandle.QueryContext(ctx, getIPListEntriesForIPQueryPg(), listType, ip)
 		if err != nil {
 			return entries, err
@@ -724,13 +724,13 @@ func sqlCommonAddIPListEntry(entry *IPListEntry, dbHandle *sql.DB) error {
 	} else {
 		netType = ipTypeV6
 	}
-	if config.IsShared == 1 {
+	if holder.getConfig().IsShared == 1 {
 		return sqlCommonExecuteTx(ctx, dbHandle, func(tx *sql.Tx) error {
 			_, err := tx.ExecContext(ctx, getRemoveSoftDeletedIPListEntryQuery(), entry.Type, entry.IPOrNet)
 			if err != nil {
 				return err
 			}
-			if config.Driver == PGSQLDataProviderName || config.Driver == CockroachDataProviderName {
+			if holder.getConfig().Driver == PGSQLDataProviderName || holder.getConfig().Driver == CockroachDataProviderName {
 				_, err = tx.ExecContext(ctx, q, entry.Type, entry.IPOrNet, first.String(), last.String(),
 					netType, entry.Protocols, entry.Description, entry.Mode, util.GetTimeAsMsSinceEpoch(time.Now()),
 					util.GetTimeAsMsSinceEpoch(time.Now()))
@@ -742,7 +742,7 @@ func sqlCommonAddIPListEntry(entry *IPListEntry, dbHandle *sql.DB) error {
 			return err
 		})
 	}
-	if config.Driver == PGSQLDataProviderName || config.Driver == CockroachDataProviderName {
+	if holder.getConfig().Driver == PGSQLDataProviderName || holder.getConfig().Driver == CockroachDataProviderName {
 		_, err = dbHandle.ExecContext(ctx, q, entry.Type, entry.IPOrNet, first.String(), last.String(),
 			netType, entry.Protocols, entry.Description, entry.Mode, util.GetTimeAsMsSinceEpoch(time.Now()),
 			util.GetTimeAsMsSinceEpoch(time.Now()))
@@ -1427,7 +1427,7 @@ func sqlCommonAddUser(user *User, dbHandle *sql.DB) error {
 	defer cancel()
 
 	return sqlCommonExecuteTx(ctx, dbHandle, func(tx *sql.Tx) error {
-		if config.IsShared == 1 {
+		if holder.getConfig().IsShared == 1 {
 			_, err := tx.ExecContext(ctx, getRemoveSoftDeletedUserQuery(), user.Username)
 			if err != nil {
 				return err
@@ -3251,7 +3251,7 @@ func getRelatedValuesForAPIKeys(ctx context.Context, apiKeys []APIKey, dbHandle 
 func sqlCommonGetAPIKeyRelatedIDs(apiKey *APIKey) (sql.NullInt64, sql.NullInt64, error) {
 	var userID, adminID sql.NullInt64
 	if apiKey.User != "" {
-		u, err := provider.userExists(apiKey.User, "")
+		u, err := holder.getProvider().userExists(apiKey.User, "")
 		if err != nil {
 			return userID, adminID, util.NewGenericError(fmt.Sprintf("unable to validate user %v", apiKey.User))
 		}
@@ -3259,7 +3259,7 @@ func sqlCommonGetAPIKeyRelatedIDs(apiKey *APIKey) (sql.NullInt64, sql.NullInt64,
 		userID.Int64 = u.ID
 	}
 	if apiKey.Admin != "" {
-		a, err := provider.adminExists(apiKey.Admin)
+		a, err := holder.getProvider().adminExists(apiKey.Admin)
 		if err != nil {
 			return userID, adminID, util.NewValidationError(fmt.Sprintf("unable to validate admin %v", apiKey.Admin))
 		}
@@ -3689,7 +3689,7 @@ func sqlCommonAddEventRule(rule *EventRule, dbHandle *sql.DB) error {
 	defer cancel()
 
 	return sqlCommonExecuteTx(ctx, dbHandle, func(tx *sql.Tx) error {
-		if config.IsShared == 1 {
+		if holder.getConfig().IsShared == 1 {
 			_, err := tx.ExecContext(ctx, getRemoveSoftDeletedRuleQuery(), rule.Name)
 			if err != nil {
 				return err
@@ -4029,7 +4029,7 @@ func sqlAcquireLock(dbHandle *sql.Conn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), longSQLQueryTimeout)
 	defer cancel()
 
-	switch config.Driver {
+	switch holder.getConfig().Driver {
 	case PGSQLDataProviderName:
 		_, err := dbHandle.ExecContext(ctx, `SELECT pg_advisory_lock(101,1)`)
 		if err != nil {
@@ -4058,7 +4058,7 @@ func sqlReleaseLock(dbHandle *sql.Conn) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSQLQueryTimeout)
 	defer cancel()
 
-	switch config.Driver {
+	switch holder.getConfig().Driver {
 	case PGSQLDataProviderName:
 		_, err := dbHandle.ExecContext(ctx, `SELECT pg_advisory_unlock(101,1)`)
 		if err != nil {
@@ -4091,7 +4091,7 @@ func sqlCommonExecuteTxOnConn(ctx context.Context, conn *sql.Conn, txFn func(*sq
 }
 
 func sqlCommonExecuteTx(ctx context.Context, dbHandle *sql.DB, txFn func(*sql.Tx) error) error {
-	if config.Driver == CockroachDataProviderName {
+	if holder.getConfig().Driver == CockroachDataProviderName {
 		return crdb.ExecuteTx(ctx, dbHandle, nil, txFn)
 	}
 

@@ -194,8 +194,6 @@ var (
 	tz                      = ""
 	isAdminCreated          atomic.Bool
 	validTLSUsernames       = []string{string(sdk.TLSUsernameNone), string(sdk.TLSUsernameCN)}
-	config                  Config
-	provider                Provider
 	sqlPlaceholders         []string
 	internalHashPwdPrefixes = []string{argonPwdPrefix, bcryptPwdPrefix}
 	hashPwdPrefixes         = []string{argonPwdPrefix, bcryptPwdPrefix, pbkdf2SHA1Prefix, pbkdf2SHA256Prefix,
@@ -232,7 +230,6 @@ var (
 	sqlTableIPLists              string
 	sqlTableConfigs              string
 	sqlTableSchemaVersion        string
-	argon2Params                 *argon2id.Params
 	lastLoginMinDelay            = 10 * time.Minute
 	usernameRegex                = regexp.MustCompile("^[a-zA-Z0-9-_.~]+$")
 	tempPath                     string
@@ -332,7 +329,7 @@ type wrappedFolder struct {
 
 func (w *wrappedFolder) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		folder, err := provider.getFolderByName(w.Folder.Name)
+		folder, err := holder.getProvider().getFolderByName(w.Folder.Name)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload folder before rendering as json: %v", err)
 			return nil, err
@@ -560,15 +557,15 @@ func (c *Config) IsDefenderSupported() bool {
 }
 
 func (c *Config) requireCustomTLSForMySQL() bool {
-	if config.DisableSNI {
-		return config.SSLMode != 0
+	if holder.getConfig().DisableSNI {
+		return holder.getConfig().SSLMode != 0
 	}
-	if config.RootCert != "" && util.IsFileInputValid(config.RootCert) {
-		return config.SSLMode != 0
+	if holder.getConfig().RootCert != "" && util.IsFileInputValid(holder.getConfig().RootCert) {
+		return holder.getConfig().SSLMode != 0
 	}
-	if config.ClientCert != "" && config.ClientKey != "" && util.IsFileInputValid(config.ClientCert) &&
-		util.IsFileInputValid(config.ClientKey) {
-		return config.SSLMode != 0
+	if holder.getConfig().ClientCert != "" && holder.getConfig().ClientKey != "" && util.IsFileInputValid(holder.getConfig().ClientCert) &&
+		util.IsFileInputValid(holder.getConfig().ClientKey) {
+		return holder.getConfig().SSLMode != 0
 	}
 	return false
 }
@@ -613,17 +610,17 @@ func UseLocalTime() bool {
 
 // ExecuteBackup executes a backup
 func ExecuteBackup() (string, error) {
-	return config.doBackup()
+	return holder.getConfig().doBackup()
 }
 
 // ConvertName converts the given name based on the configured rules
 func ConvertName(name string) string {
-	return config.convertName(name)
+	return holder.getConfig().convertName(name)
 }
 
 // IsSharedMode returns true if the data provider is configured as shared (cluster mode).
 func IsSharedMode() bool {
-	return config.IsShared == 1
+	return holder.getConfig().IsShared == 1
 }
 
 // ActiveTransfer defines an active protocol transfer
@@ -757,12 +754,12 @@ type checkPasswordResponse struct {
 
 // GetQuotaTracking returns the configured mode for user's quota tracking
 func GetQuotaTracking() int {
-	return config.TrackQuota
+	return holder.getConfig().TrackQuota
 }
 
 // HasUsersBaseDir returns true if users base dir is set
 func HasUsersBaseDir() bool {
-	return config.UsersBaseDir != ""
+	return holder.getConfig().UsersBaseDir != ""
 }
 
 // Provider is the composed contract every data backend must satisfy.
@@ -782,18 +779,18 @@ func SetTempPath(fsPath string) {
 }
 
 func checkSharedMode() {
-	if !slices.Contains(sharedProviders, config.Driver) {
-		config.IsShared = 0
+	if !slices.Contains(sharedProviders, holder.getConfig().Driver) {
+		holder.getConfig().IsShared = 0
 	}
 }
 
 // Initialize the data provider.
 // An error is returned if the configured driver is invalid or if the data provider cannot be initialized
 func Initialize(cnf Config, basePath string, checkAdmins bool) error {
-	config = cnf
+	holder.setConfig(cnf)
 	checkSharedMode()
-	config.Actions.ExecuteOn = util.RemoveDuplicates(config.Actions.ExecuteOn, true)
-	config.Actions.ExecuteFor = util.RemoveDuplicates(config.Actions.ExecuteFor, true)
+	holder.getConfig().Actions.ExecuteOn = util.RemoveDuplicates(holder.getConfig().Actions.ExecuteOn, true)
+	holder.getConfig().Actions.ExecuteFor = util.RemoveDuplicates(holder.getConfig().Actions.ExecuteFor, true)
 
 	cnf.BackupsPath = getConfigPath(cnf.BackupsPath, basePath)
 	if cnf.BackupsPath == "" {
@@ -803,7 +800,7 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to get absolute backup path: %w", err)
 	}
-	config.BackupsPath = absoluteBackupPath
+	holder.getConfig().BackupsPath = absoluteBackupPath
 
 	if err := initializeHashingAlgo(&cnf); err != nil {
 		return err
@@ -815,32 +812,32 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to read password from file %q: %w", cnf.PasswordFile, err)
 	}
-	config.Password = password
+	holder.getConfig().Password = password
 	if err := createProvider(basePath); err != nil {
 		return err
 	}
 	if err := checkDatabase(checkAdmins); err != nil {
 		return err
 	}
-	admins, err := provider.getAdmins(1, 0, OrderASC)
+	admins, err := holder.getProvider().getAdmins(1, 0, OrderASC)
 	if err != nil {
 		return err
 	}
 	isAdminCreated.Store(len(admins) > 0)
-	if err := config.Node.validate(); err != nil {
+	if err := holder.getConfig().Node.validate(); err != nil {
 		return err
 	}
 	delayedQuotaUpdater.start()
 	if currentNode != nil {
-		config.BackupsPath = filepath.Join(config.BackupsPath, currentNode.Name)
+		holder.getConfig().BackupsPath = filepath.Join(holder.getConfig().BackupsPath, currentNode.Name)
 	}
-	providerLog(logger.LevelDebug, "absolute backup path %q", config.BackupsPath)
+	providerLog(logger.LevelDebug, "absolute backup path %q", holder.getConfig().BackupsPath)
 	return startScheduler()
 }
 
 func checkDatabase(checkAdmins bool) error {
-	if config.UpdateMode == 0 {
-		err := provider.initializeDatabase()
+	if holder.getConfig().UpdateMode == 0 {
+		err := holder.getProvider().initializeDatabase()
 		if err != nil && err != ErrNoInitRequired {
 			logger.WarnToConsole("unable to initialize data provider: %v", err)
 			providerLog(logger.LevelError, "unable to initialize data provider: %v", err)
@@ -850,12 +847,12 @@ func checkDatabase(checkAdmins bool) error {
 			logger.DebugToConsole("data provider successfully initialized")
 			providerLog(logger.LevelInfo, "data provider successfully initialized")
 		}
-		err = provider.migrateDatabase()
+		err = holder.getProvider().migrateDatabase()
 		if err != nil && err != ErrNoInitRequired {
 			providerLog(logger.LevelError, "database migration error: %v", err)
 			return err
 		}
-		if checkAdmins && config.CreateDefaultAdmin {
+		if checkAdmins && holder.getConfig().CreateDefaultAdmin {
 			err = checkDefaultAdmin()
 			if err != nil {
 				providerLog(logger.LevelError, "erro checking the default admin: %v", err)
@@ -870,17 +867,17 @@ func checkDatabase(checkAdmins bool) error {
 
 func validateHooks() error {
 	var hooks []string
-	if config.PreLoginHook != "" && !strings.HasPrefix(config.PreLoginHook, "http") {
-		hooks = append(hooks, config.PreLoginHook)
+	if holder.getConfig().PreLoginHook != "" && !strings.HasPrefix(holder.getConfig().PreLoginHook, "http") {
+		hooks = append(hooks, holder.getConfig().PreLoginHook)
 	}
-	if config.ExternalAuthHook != "" && !strings.HasPrefix(config.ExternalAuthHook, "http") {
-		hooks = append(hooks, config.ExternalAuthHook)
+	if holder.getConfig().ExternalAuthHook != "" && !strings.HasPrefix(holder.getConfig().ExternalAuthHook, "http") {
+		hooks = append(hooks, holder.getConfig().ExternalAuthHook)
 	}
-	if config.PostLoginHook != "" && !strings.HasPrefix(config.PostLoginHook, "http") {
-		hooks = append(hooks, config.PostLoginHook)
+	if holder.getConfig().PostLoginHook != "" && !strings.HasPrefix(holder.getConfig().PostLoginHook, "http") {
+		hooks = append(hooks, holder.getConfig().PostLoginHook)
 	}
-	if config.CheckPasswordHook != "" && !strings.HasPrefix(config.CheckPasswordHook, "http") {
-		hooks = append(hooks, config.CheckPasswordHook)
+	if holder.getConfig().CheckPasswordHook != "" && !strings.HasPrefix(holder.getConfig().CheckPasswordHook, "http") {
+		hooks = append(hooks, holder.getConfig().CheckPasswordHook)
 	}
 
 	for _, hook := range hooks {
@@ -899,7 +896,7 @@ func validateHooks() error {
 
 // GetBackupsPath returns the normalized backups path
 func GetBackupsPath() string {
-	return config.BackupsPath
+	return holder.getConfig().BackupsPath
 }
 
 // GetProviderFromValue returns the FilesystemProvider matching the specified value.
@@ -921,17 +918,17 @@ func initializeHashingAlgo(cnf *Config) error {
 	if parallelism == 0 {
 		parallelism = uint8(runtime.NumCPU())
 	}
-	argon2Params = &argon2id.Params{
+	holder.setArgon2Params(&argon2id.Params{
 		Memory:      cnf.PasswordHashing.Argon2Options.Memory,
 		Iterations:  cnf.PasswordHashing.Argon2Options.Iterations,
 		Parallelism: parallelism,
 		SaltLength:  16,
 		KeyLength:   32,
-	}
+	})
 
-	if config.PasswordHashing.Algo == HashingAlgoBcrypt {
-		if config.PasswordHashing.BcryptOptions.Cost > bcrypt.MaxCost {
-			err := fmt.Errorf("invalid bcrypt cost %v, max allowed %v", config.PasswordHashing.BcryptOptions.Cost, bcrypt.MaxCost)
+	if holder.getConfig().PasswordHashing.Algo == HashingAlgoBcrypt {
+		if holder.getConfig().PasswordHashing.BcryptOptions.Cost > bcrypt.MaxCost {
+			err := fmt.Errorf("invalid bcrypt cost %v, max allowed %v", holder.getConfig().PasswordHashing.BcryptOptions.Cost, bcrypt.MaxCost)
 			logger.WarnToConsole("Unable to initialize data provider: %v", err)
 			providerLog(logger.LevelError, "Unable to initialize data provider: %v", err)
 			return err
@@ -942,36 +939,36 @@ func initializeHashingAlgo(cnf *Config) error {
 
 func validateSQLTablesPrefix() error {
 	initSQLTables()
-	if config.SQLTablesPrefix != "" {
-		for _, char := range config.SQLTablesPrefix {
+	if holder.getConfig().SQLTablesPrefix != "" {
+		for _, char := range holder.getConfig().SQLTablesPrefix {
 			if !strings.Contains(sqlPrefixValidChars, strings.ToLower(string(char))) {
 				return errors.New("invalid sql_tables_prefix only chars in range 'a..z', 'A..Z', '0-9' and '_' are allowed")
 			}
 		}
-		sqlTableUsers = config.SQLTablesPrefix + sqlTableUsers
-		sqlTableFolders = config.SQLTablesPrefix + sqlTableFolders
-		sqlTableUsersFoldersMapping = config.SQLTablesPrefix + sqlTableUsersFoldersMapping
-		sqlTableAdmins = config.SQLTablesPrefix + sqlTableAdmins
-		sqlTableAPIKeys = config.SQLTablesPrefix + sqlTableAPIKeys
-		sqlTableShares = config.SQLTablesPrefix + sqlTableShares
-		sqlTableSharesGroupsMapping = config.SQLTablesPrefix + sqlTableSharesGroupsMapping
-		sqlTableDefenderEvents = config.SQLTablesPrefix + sqlTableDefenderEvents
-		sqlTableDefenderHosts = config.SQLTablesPrefix + sqlTableDefenderHosts
-		sqlTableActiveTransfers = config.SQLTablesPrefix + sqlTableActiveTransfers
-		sqlTableGroups = config.SQLTablesPrefix + sqlTableGroups
-		sqlTableUsersGroupsMapping = config.SQLTablesPrefix + sqlTableUsersGroupsMapping
-		sqlTableAdminsGroupsMapping = config.SQLTablesPrefix + sqlTableAdminsGroupsMapping
-		sqlTableGroupsFoldersMapping = config.SQLTablesPrefix + sqlTableGroupsFoldersMapping
-		sqlTableSharedSessions = config.SQLTablesPrefix + sqlTableSharedSessions
-		sqlTableEventsActions = config.SQLTablesPrefix + sqlTableEventsActions
-		sqlTableEventsRules = config.SQLTablesPrefix + sqlTableEventsRules
-		sqlTableRulesActionsMapping = config.SQLTablesPrefix + sqlTableRulesActionsMapping
-		sqlTableTasks = config.SQLTablesPrefix + sqlTableTasks
-		sqlTableNodes = config.SQLTablesPrefix + sqlTableNodes
-		sqlTableRoles = config.SQLTablesPrefix + sqlTableRoles
-		sqlTableIPLists = config.SQLTablesPrefix + sqlTableIPLists
-		sqlTableConfigs = config.SQLTablesPrefix + sqlTableConfigs
-		sqlTableSchemaVersion = config.SQLTablesPrefix + sqlTableSchemaVersion
+		sqlTableUsers = holder.getConfig().SQLTablesPrefix + sqlTableUsers
+		sqlTableFolders = holder.getConfig().SQLTablesPrefix + sqlTableFolders
+		sqlTableUsersFoldersMapping = holder.getConfig().SQLTablesPrefix + sqlTableUsersFoldersMapping
+		sqlTableAdmins = holder.getConfig().SQLTablesPrefix + sqlTableAdmins
+		sqlTableAPIKeys = holder.getConfig().SQLTablesPrefix + sqlTableAPIKeys
+		sqlTableShares = holder.getConfig().SQLTablesPrefix + sqlTableShares
+		sqlTableSharesGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableSharesGroupsMapping
+		sqlTableDefenderEvents = holder.getConfig().SQLTablesPrefix + sqlTableDefenderEvents
+		sqlTableDefenderHosts = holder.getConfig().SQLTablesPrefix + sqlTableDefenderHosts
+		sqlTableActiveTransfers = holder.getConfig().SQLTablesPrefix + sqlTableActiveTransfers
+		sqlTableGroups = holder.getConfig().SQLTablesPrefix + sqlTableGroups
+		sqlTableUsersGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableUsersGroupsMapping
+		sqlTableAdminsGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableAdminsGroupsMapping
+		sqlTableGroupsFoldersMapping = holder.getConfig().SQLTablesPrefix + sqlTableGroupsFoldersMapping
+		sqlTableSharedSessions = holder.getConfig().SQLTablesPrefix + sqlTableSharedSessions
+		sqlTableEventsActions = holder.getConfig().SQLTablesPrefix + sqlTableEventsActions
+		sqlTableEventsRules = holder.getConfig().SQLTablesPrefix + sqlTableEventsRules
+		sqlTableRulesActionsMapping = holder.getConfig().SQLTablesPrefix + sqlTableRulesActionsMapping
+		sqlTableTasks = holder.getConfig().SQLTablesPrefix + sqlTableTasks
+		sqlTableNodes = holder.getConfig().SQLTablesPrefix + sqlTableNodes
+		sqlTableRoles = holder.getConfig().SQLTablesPrefix + sqlTableRoles
+		sqlTableIPLists = holder.getConfig().SQLTablesPrefix + sqlTableIPLists
+		sqlTableConfigs = holder.getConfig().SQLTablesPrefix + sqlTableConfigs
+		sqlTableSchemaVersion = holder.getConfig().SQLTablesPrefix + sqlTableSchemaVersion
 		providerLog(logger.LevelDebug, "sql table for users %q, folders %q users folders mapping %q admins %q "+
 			"api keys %q shares %q defender hosts %q defender events %q transfers %q  groups %q "+
 			"users groups mapping %q admins groups mapping %q groups folders mapping %q shared sessions %q "+
@@ -987,7 +984,7 @@ func validateSQLTablesPrefix() error {
 }
 
 func checkDefaultAdmin() error {
-	admins, err := provider.getAdmins(1, 0, OrderASC)
+	admins, err := holder.getProvider().getAdmins(1, 0, OrderASC)
 	if err != nil {
 		return err
 	}
@@ -1000,12 +997,12 @@ func checkDefaultAdmin() error {
 	if err := admin.setFromEnv(); err != nil {
 		return err
 	}
-	return provider.addAdmin(admin)
+	return holder.getProvider().addAdmin(admin)
 }
 
 // InitializeDatabase creates the initial database structure
 func InitializeDatabase(cnf Config, basePath string) error {
-	config = cnf
+	holder.setConfig(cnf)
 
 	if err := initializeHashingAlgo(&cnf); err != nil {
 		return err
@@ -1015,42 +1012,42 @@ func InitializeDatabase(cnf Config, basePath string) error {
 	if err != nil {
 		return err
 	}
-	err = provider.initializeDatabase()
+	err = holder.getProvider().initializeDatabase()
 	if err != nil && err != ErrNoInitRequired {
 		return err
 	}
-	return provider.migrateDatabase()
+	return holder.getProvider().migrateDatabase()
 }
 
 // RevertDatabase restores schema and/or data to a previous version
 func RevertDatabase(cnf Config, basePath string, targetVersion int) error {
-	config = cnf
+	holder.setConfig(cnf)
 
 	err := createProvider(basePath)
 	if err != nil {
 		return err
 	}
-	err = provider.initializeDatabase()
+	err = holder.getProvider().initializeDatabase()
 	if err != nil && err != ErrNoInitRequired {
 		return err
 	}
-	return provider.revertDatabase(targetVersion)
+	return holder.getProvider().revertDatabase(targetVersion)
 }
 
 // ResetDatabase restores schema and/or data to a previous version
 func ResetDatabase(cnf Config, basePath string) error {
-	config = cnf
+	holder.setConfig(cnf)
 
 	if err := createProvider(basePath); err != nil {
 		return err
 	}
-	return provider.resetDatabase()
+	return holder.getProvider().resetDatabase()
 }
 
 // CheckAdminAndPass validates the given admin and password connecting from ip
 func CheckAdminAndPass(username, password, ip string) (Admin, error) {
-	username = config.convertName(username)
-	return provider.validateAdminAndPass(username, password, ip)
+	username = holder.getConfig().convertName(username)
+	return holder.getProvider().validateAdminAndPass(username, password, ip)
 }
 
 // CheckCachedUserCredentials checks the credentials for a cached user
@@ -1100,7 +1097,7 @@ func CheckCachedUserCredentials(user *CachedUser, password, ip, loginMethod, pro
 // CheckCompositeCredentials checks multiple credentials.
 // WebDAV users can send both a password and a TLS certificate within the same request
 func CheckCompositeCredentials(username, password, ip, loginMethod, protocol string, tlsCert *x509.Certificate) (User, string, error) {
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if loginMethod == LoginMethodPassword {
 		user, err := CheckUserAndPass(username, password, ip, protocol)
 		return user, loginMethod, err
@@ -1125,9 +1122,9 @@ func CheckCompositeCredentials(username, password, ip, loginMethod, protocol str
 	if loginMethod == LoginMethodTLSCertificateAndPwd {
 		if plugin.Handler.HasAuthScope(plugin.AuthScopePassword) {
 			user, err = doPluginAuth(username, password, nil, ip, protocol, nil, plugin.AuthScopePassword)
-		} else if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&1 != 0) {
+		} else if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&1 != 0) {
 			user, err = doExternalAuth(username, password, nil, "", ip, protocol, nil)
-		} else if config.PreLoginHook != "" {
+		} else if holder.getConfig().PreLoginHook != "" {
 			user, err = executePreLoginHook(username, LoginMethodPassword, ip, protocol, nil)
 		}
 		if err != nil {
@@ -1140,7 +1137,7 @@ func CheckCompositeCredentials(username, password, ip, loginMethod, protocol str
 
 // CheckUserBeforeTLSAuth checks if a user exits before trying mutual TLS
 func CheckUserBeforeTLSAuth(username, ip, protocol string, tlsCert *x509.Certificate) (User, error) {
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopeTLSCertificate) {
 		user, err := doPluginAuth(username, "", nil, ip, protocol, tlsCert, plugin.AuthScopeTLSCertificate)
 		if err != nil {
@@ -1149,7 +1146,7 @@ func CheckUserBeforeTLSAuth(username, ip, protocol string, tlsCert *x509.Certifi
 		err = user.LoadAndApplyGroupSettings()
 		return user, err
 	}
-	if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&8 != 0) {
+	if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&8 != 0) {
 		user, err := doExternalAuth(username, "", nil, "", ip, protocol, tlsCert)
 		if err != nil {
 			return user, err
@@ -1157,7 +1154,7 @@ func CheckUserBeforeTLSAuth(username, ip, protocol string, tlsCert *x509.Certifi
 		err = user.LoadAndApplyGroupSettings()
 		return user, err
 	}
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err := executePreLoginHook(username, LoginMethodTLSCertificate, ip, protocol, nil)
 		if err != nil {
 			return user, err
@@ -1176,7 +1173,7 @@ func CheckUserBeforeTLSAuth(username, ip, protocol string, tlsCert *x509.Certifi
 // CheckUserAndTLSCert returns the SFTPGo user with the given username and check if the
 // given TLS certificate allow authentication without password
 func CheckUserAndTLSCert(username, ip, protocol string, tlsCert *x509.Certificate) (User, error) {
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopeTLSCertificate) {
 		user, err := doPluginAuth(username, "", nil, ip, protocol, tlsCert, plugin.AuthScopeTLSCertificate)
 		if err != nil {
@@ -1184,26 +1181,26 @@ func CheckUserAndTLSCert(username, ip, protocol string, tlsCert *x509.Certificat
 		}
 		return checkUserAndTLSCertificate(&user, protocol, tlsCert)
 	}
-	if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&8 != 0) {
+	if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&8 != 0) {
 		user, err := doExternalAuth(username, "", nil, "", ip, protocol, tlsCert)
 		if err != nil {
 			return user, err
 		}
 		return checkUserAndTLSCertificate(&user, protocol, tlsCert)
 	}
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err := executePreLoginHook(username, LoginMethodTLSCertificate, ip, protocol, nil)
 		if err != nil {
 			return user, err
 		}
 		return checkUserAndTLSCertificate(&user, protocol, tlsCert)
 	}
-	return provider.validateUserAndTLSCert(username, protocol, tlsCert)
+	return holder.getProvider().validateUserAndTLSCert(username, protocol, tlsCert)
 }
 
 // CheckUserAndPass retrieves the SFTPGo user with the given username and password if a match is found or an error
 func CheckUserAndPass(username, password, ip, protocol string) (User, error) {
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopePassword) {
 		user, err := doPluginAuth(username, password, nil, ip, protocol, nil, plugin.AuthScopePassword)
 		if err != nil {
@@ -1211,26 +1208,26 @@ func CheckUserAndPass(username, password, ip, protocol string) (User, error) {
 		}
 		return checkUserAndPass(&user, password, ip, protocol)
 	}
-	if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&1 != 0) {
+	if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&1 != 0) {
 		user, err := doExternalAuth(username, password, nil, "", ip, protocol, nil)
 		if err != nil {
 			return user, err
 		}
 		return checkUserAndPass(&user, password, ip, protocol)
 	}
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err := executePreLoginHook(username, LoginMethodPassword, ip, protocol, nil)
 		if err != nil {
 			return user, err
 		}
 		return checkUserAndPass(&user, password, ip, protocol)
 	}
-	return provider.validateUserAndPass(username, password, ip, protocol)
+	return holder.getProvider().validateUserAndPass(username, password, ip, protocol)
 }
 
 // CheckUserAndPubKey retrieves the SFTP user with the given username and public key if a match is found or an error
 func CheckUserAndPubKey(username string, pubKey []byte, ip, protocol string, isSSHCert bool) (User, string, error) {
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopePublicKey) {
 		user, err := doPluginAuth(username, "", pubKey, ip, protocol, nil, plugin.AuthScopePublicKey)
 		if err != nil {
@@ -1238,21 +1235,21 @@ func CheckUserAndPubKey(username string, pubKey []byte, ip, protocol string, isS
 		}
 		return checkUserAndPubKey(&user, pubKey, isSSHCert)
 	}
-	if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&2 != 0) {
+	if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&2 != 0) {
 		user, err := doExternalAuth(username, "", pubKey, "", ip, protocol, nil)
 		if err != nil {
 			return user, "", err
 		}
 		return checkUserAndPubKey(&user, pubKey, isSSHCert)
 	}
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err := executePreLoginHook(username, SSHLoginMethodPublicKey, ip, protocol, nil)
 		if err != nil {
 			return user, "", err
 		}
 		return checkUserAndPubKey(&user, pubKey, isSSHCert)
 	}
-	return provider.validateUserAndPubKey(username, pubKey, isSSHCert)
+	return holder.getProvider().validateUserAndPubKey(username, pubKey, isSSHCert)
 }
 
 // CheckKeyboardInteractiveAuth checks the keyboard interactive authentication and returns
@@ -1262,15 +1259,15 @@ func CheckKeyboardInteractiveAuth(username, authHook string, client ssh.Keyboard
 ) (User, error) {
 	var user User
 	var err error
-	username = config.convertName(username)
+	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopeKeyboardInteractive) {
 		user, err = doPluginAuth(username, "", nil, ip, protocol, nil, plugin.AuthScopeKeyboardInteractive)
-	} else if config.ExternalAuthHook != "" && (config.ExternalAuthScope == 0 || config.ExternalAuthScope&4 != 0) {
+	} else if holder.getConfig().ExternalAuthHook != "" && (holder.getConfig().ExternalAuthScope == 0 || holder.getConfig().ExternalAuthScope&4 != 0) {
 		user, err = doExternalAuth(username, "", nil, "1", ip, protocol, nil)
-	} else if config.PreLoginHook != "" {
+	} else if holder.getConfig().PreLoginHook != "" {
 		user, err = executePreLoginHook(username, SSHLoginMethodKeyboardInteractive, ip, protocol, nil)
 	} else {
-		user, err = provider.userExists(username, "")
+		user, err = holder.getProvider().userExists(username, "")
 	}
 	if err != nil {
 		return user, err
@@ -1285,7 +1282,7 @@ func CheckKeyboardInteractiveAuth(username, authHook string, client ssh.Keyboard
 func GetFTPPreAuthUser(username, ip string) (User, error) {
 	var user User
 	var err error
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err = executePreLoginHook(username, "", ip, protocolFTP, nil)
 	} else {
 		user, err = UserExists(username, "")
@@ -1304,7 +1301,7 @@ func GetFTPPreAuthUser(username, ip string) (User, error) {
 func GetUserAfterIDPAuth(username, ip, protocol string, oidcTokenFields *map[string]any) (User, error) {
 	var user User
 	var err error
-	if config.PreLoginHook != "" {
+	if holder.getConfig().PreLoginHook != "" {
 		user, err = executePreLoginHook(username, LoginMethodIDP, ip, protocol, oidcTokenFields)
 		user.Filters.RequirePasswordChange = false
 	} else {
@@ -1319,46 +1316,46 @@ func GetUserAfterIDPAuth(username, ip, protocol string, oidcTokenFields *map[str
 
 // GetDefenderHosts returns hosts that are banned or for which some violations have been detected
 func GetDefenderHosts(from int64, limit int) ([]DefenderEntry, error) {
-	return provider.getDefenderHosts(from, limit)
+	return holder.getProvider().getDefenderHosts(from, limit)
 }
 
 // GetDefenderHostByIP returns a defender host by ip, if any
 func GetDefenderHostByIP(ip string, from int64) (DefenderEntry, error) {
-	return provider.getDefenderHostByIP(ip, from)
+	return holder.getProvider().getDefenderHostByIP(ip, from)
 }
 
 // IsDefenderHostBanned returns a defender entry and no error if the specified host is banned
 func IsDefenderHostBanned(ip string) (DefenderEntry, error) {
-	return provider.isDefenderHostBanned(ip)
+	return holder.getProvider().isDefenderHostBanned(ip)
 }
 
 // UpdateDefenderBanTime increments ban time for the specified ip
 func UpdateDefenderBanTime(ip string, minutes int) error {
-	return provider.updateDefenderBanTime(ip, minutes)
+	return holder.getProvider().updateDefenderBanTime(ip, minutes)
 }
 
 // DeleteDefenderHost removes the specified IP from the defender lists
 func DeleteDefenderHost(ip string) error {
-	return provider.deleteDefenderHost(ip)
+	return holder.getProvider().deleteDefenderHost(ip)
 }
 
 // AddDefenderEvent adds an event for the given IP with the given score
 // and returns the host with the updated score
 func AddDefenderEvent(ip string, score int, from int64) (DefenderEntry, error) {
-	if err := provider.addDefenderEvent(ip, score); err != nil {
+	if err := holder.getProvider().addDefenderEvent(ip, score); err != nil {
 		return DefenderEntry{}, err
 	}
-	return provider.getDefenderHostByIP(ip, from)
+	return holder.getProvider().getDefenderHostByIP(ip, from)
 }
 
 // SetDefenderBanTime sets the ban time for the specified IP
 func SetDefenderBanTime(ip string, banTime int64) error {
-	return provider.setDefenderBanTime(ip, banTime)
+	return holder.getProvider().setDefenderBanTime(ip, banTime)
 }
 
 // CleanupDefender removes events and hosts older than "from" from the data provider
 func CleanupDefender(from int64) error {
-	return provider.cleanupDefender(from)
+	return holder.getProvider().cleanupDefender(from)
 }
 
 // UpdateShareLastUse updates the LastUseAt and UsedTokens for the given share.
@@ -1367,7 +1364,7 @@ func CleanupDefender(from int64) error {
 // ErrShareUsageExceeded is returned. A non-positive numTokens refunds previously
 // reserved tokens and is always applied.
 func UpdateShareLastUse(share *Share, numTokens int) error {
-	return provider.updateShareLastUse(share.ShareID, numTokens)
+	return holder.getProvider().updateShareLastUse(share.ShareID, numTokens)
 }
 
 // UpdateAPIKeyLastUse updates the LastUseAt field for the given API key
@@ -1375,7 +1372,7 @@ func UpdateAPIKeyLastUse(apiKey *APIKey) error {
 	lastUse := util.GetTimeFromMsecSinceEpoch(apiKey.LastUseAt)
 	diff := -time.Until(lastUse)
 	if diff < 0 || diff > lastLoginMinDelay {
-		return provider.updateAPIKeyLastUse(apiKey.KeyID)
+		return holder.getProvider().updateAPIKeyLastUse(apiKey.KeyID)
 	}
 	return nil
 }
@@ -1387,7 +1384,7 @@ func UpdateLastLogin(user *User) {
 		delay = time.Duration(user.Filters.ExternalAuthCacheTime) * time.Second
 	}
 	if user.LastLogin <= user.UpdatedAt || !isLastActivityRecent(user.LastLogin, delay) {
-		err := provider.updateLastLogin(user.Username)
+		err := holder.getProvider().updateLastLogin(user.Username)
 		if err == nil {
 			webDAVUsersCache.updateLastLogin(user.Username)
 		}
@@ -1397,26 +1394,26 @@ func UpdateLastLogin(user *User) {
 // UpdateAdminLastLogin updates the last login field for the given SFTPGo admin
 func UpdateAdminLastLogin(admin *Admin) {
 	if !isLastActivityRecent(admin.LastLogin, lastLoginMinDelay) {
-		provider.updateAdminLastLogin(admin.Username) //nolint:errcheck
+		holder.getProvider().updateAdminLastLogin(admin.Username) //nolint:errcheck
 	}
 }
 
 // UpdateUserQuota updates the quota for the given SFTPGo user adding filesAdd and sizeAdd.
 // If reset is true filesAdd and sizeAdd indicates the total files and the total size instead of the difference.
 func UpdateUserQuota(user *User, filesAdd int, sizeAdd int64, reset bool) error {
-	if config.TrackQuota == 0 {
+	if holder.getConfig().TrackQuota == 0 {
 		return util.NewMethodDisabledError(trackQuotaDisabledError)
-	} else if config.TrackQuota == 2 && !reset && !user.HasQuotaRestrictions() {
+	} else if holder.getConfig().TrackQuota == 2 && !reset && !user.HasQuotaRestrictions() {
 		return nil
 	}
 	if filesAdd == 0 && sizeAdd == 0 && !reset {
 		return nil
 	}
-	if config.DelayedQuotaUpdate == 0 || reset {
+	if holder.getConfig().DelayedQuotaUpdate == 0 || reset {
 		if reset {
 			delayedQuotaUpdater.resetUserQuota(user.Username)
 		}
-		return provider.updateQuota(user.Username, filesAdd, sizeAdd, reset)
+		return holder.getProvider().updateQuota(user.Username, filesAdd, sizeAdd, reset)
 	}
 	delayedQuotaUpdater.updateUserQuota(user.Username, filesAdd, sizeAdd)
 	return nil
@@ -1434,17 +1431,17 @@ func UpdateUserFolderQuota(folder *vfs.VirtualFolder, user *User, filesAdd int, 
 // UpdateVirtualFolderQuota updates the quota for the given virtual folder adding filesAdd and sizeAdd.
 // If reset is true filesAdd and sizeAdd indicates the total files and the total size instead of the difference.
 func UpdateVirtualFolderQuota(vfolder *vfs.BaseVirtualFolder, filesAdd int, sizeAdd int64, reset bool) error {
-	if config.TrackQuota == 0 {
+	if holder.getConfig().TrackQuota == 0 {
 		return util.NewMethodDisabledError(trackQuotaDisabledError)
 	}
 	if filesAdd == 0 && sizeAdd == 0 && !reset {
 		return nil
 	}
-	if config.DelayedQuotaUpdate == 0 || reset {
+	if holder.getConfig().DelayedQuotaUpdate == 0 || reset {
 		if reset {
 			delayedQuotaUpdater.resetFolderQuota(vfolder.Name)
 		}
-		return provider.updateFolderQuota(vfolder.Name, filesAdd, sizeAdd, reset)
+		return holder.getProvider().updateFolderQuota(vfolder.Name, filesAdd, sizeAdd, reset)
 	}
 	delayedQuotaUpdater.updateFolderQuota(vfolder.Name, filesAdd, sizeAdd)
 	return nil
@@ -1453,19 +1450,19 @@ func UpdateVirtualFolderQuota(vfolder *vfs.BaseVirtualFolder, filesAdd int, size
 // UpdateUserTransferQuota updates the transfer quota for the given SFTPGo user.
 // If reset is true uploadSize and downloadSize indicates the actual sizes instead of the difference.
 func UpdateUserTransferQuota(user *User, uploadSize, downloadSize int64, reset bool) error {
-	if config.TrackQuota == 0 {
+	if holder.getConfig().TrackQuota == 0 {
 		return util.NewMethodDisabledError(trackQuotaDisabledError)
-	} else if config.TrackQuota == 2 && !reset && !user.HasTransferQuotaRestrictions() {
+	} else if holder.getConfig().TrackQuota == 2 && !reset && !user.HasTransferQuotaRestrictions() {
 		return nil
 	}
 	if downloadSize == 0 && uploadSize == 0 && !reset {
 		return nil
 	}
-	if config.DelayedQuotaUpdate == 0 || reset {
+	if holder.getConfig().DelayedQuotaUpdate == 0 || reset {
 		if reset {
 			delayedQuotaUpdater.resetUserTransferQuota(user.Username)
 		}
-		return provider.updateTransferQuota(user.Username, uploadSize, downloadSize, reset)
+		return holder.getProvider().updateTransferQuota(user.Username, uploadSize, downloadSize, reset)
 	}
 	delayedQuotaUpdater.updateUserTransferQuota(user.Username, uploadSize, downloadSize)
 	return nil
@@ -1474,13 +1471,13 @@ func UpdateUserTransferQuota(user *User, uploadSize, downloadSize int64, reset b
 // UpdateUserTransferTimestamps updates the first download/upload fields if unset
 func UpdateUserTransferTimestamps(username string, isUpload bool) error {
 	if isUpload {
-		err := provider.setFirstUploadTimestamp(username)
+		err := holder.getProvider().setFirstUploadTimestamp(username)
 		if err != nil {
 			providerLog(logger.LevelWarn, "unable to set first upload: %v", err)
 		}
 		return err
 	}
-	err := provider.setFirstDownloadTimestamp(username)
+	err := holder.getProvider().setFirstDownloadTimestamp(username)
 	if err != nil {
 		providerLog(logger.LevelWarn, "unable to set first download: %v", err)
 	}
@@ -1489,10 +1486,10 @@ func UpdateUserTransferTimestamps(username string, isUpload bool) error {
 
 // GetUsedQuota returns the used quota for the given SFTPGo user.
 func GetUsedQuota(username string) (int, int64, int64, int64, error) {
-	if config.TrackQuota == 0 {
+	if holder.getConfig().TrackQuota == 0 {
 		return 0, 0, 0, 0, util.NewMethodDisabledError(trackQuotaDisabledError)
 	}
-	files, size, ulTransferSize, dlTransferSize, err := provider.getUsedQuota(username)
+	files, size, ulTransferSize, dlTransferSize, err := holder.getProvider().getUsedQuota(username)
 	if err != nil {
 		return files, size, ulTransferSize, dlTransferSize, err
 	}
@@ -1505,10 +1502,10 @@ func GetUsedQuota(username string) (int, int64, int64, int64, error) {
 
 // GetUsedVirtualFolderQuota returns the used quota for the given virtual folder.
 func GetUsedVirtualFolderQuota(name string) (int, int64, error) {
-	if config.TrackQuota == 0 {
+	if holder.getConfig().TrackQuota == 0 {
 		return 0, 0, util.NewMethodDisabledError(trackQuotaDisabledError)
 	}
-	files, size, err := provider.getUsedFolderQuota(name)
+	files, size, err := holder.getProvider().getUsedFolderQuota(name)
 	if err != nil {
 		return files, size, err
 	}
@@ -1518,7 +1515,7 @@ func GetUsedVirtualFolderQuota(name string) (int, int64, error) {
 
 // GetConfigs returns the configurations
 func GetConfigs() (Configs, error) {
-	return provider.getConfigs()
+	return holder.getProvider().getConfigs()
 }
 
 // UpdateConfigs updates configurations
@@ -1528,7 +1525,7 @@ func UpdateConfigs(configs *Configs, executor, ipAddress, role string) error {
 	} else {
 		configs.UpdatedAt = util.GetTimeAsMsSinceEpoch(time.Now())
 	}
-	err := provider.setConfigs(configs)
+	err := holder.getProvider().setConfigs(configs)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectConfigs, "configs", role, configs)
 	}
@@ -1537,7 +1534,7 @@ func UpdateConfigs(configs *Configs, executor, ipAddress, role string) error {
 
 // AddShare adds a new share
 func AddShare(share *Share, executor, ipAddress, role string) error {
-	err := provider.addShare(share)
+	err := holder.getProvider().addShare(share)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectShare, share.ShareID, role, share)
 	}
@@ -1546,7 +1543,7 @@ func AddShare(share *Share, executor, ipAddress, role string) error {
 
 // UpdateShare updates an existing share
 func UpdateShare(share *Share, executor, ipAddress, role string) error {
-	err := provider.updateShare(share)
+	err := holder.getProvider().updateShare(share)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectShare, share.ShareID, role, share)
 	}
@@ -1555,11 +1552,11 @@ func UpdateShare(share *Share, executor, ipAddress, role string) error {
 
 // DeleteShare deletes an existing share
 func DeleteShare(shareID string, executor, ipAddress, role string) error {
-	share, err := provider.shareExists(shareID, executor)
+	share, err := holder.getProvider().shareExists(shareID, executor)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteShare(share)
+	err = holder.getProvider().deleteShare(share)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectShare, shareID, role, &share)
 	}
@@ -1571,12 +1568,12 @@ func ShareExists(shareID, username string) (Share, error) {
 	if shareID == "" {
 		return Share{}, util.NewRecordNotFoundError(fmt.Sprintf("Share %q does not exist", shareID))
 	}
-	return provider.shareExists(shareID, username)
+	return holder.getProvider().shareExists(shareID, username)
 }
 
 // AddIPListEntry adds a new IP list entry
 func AddIPListEntry(entry *IPListEntry, executor, ipAddress, executorRole string) error {
-	err := provider.addIPListEntry(entry)
+	err := holder.getProvider().addIPListEntry(entry)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectIPListEntry, entry.getName(), executorRole, entry)
 		for _, l := range inMemoryLists {
@@ -1588,7 +1585,7 @@ func AddIPListEntry(entry *IPListEntry, executor, ipAddress, executorRole string
 
 // UpdateIPListEntry updates an existing IP list entry
 func UpdateIPListEntry(entry *IPListEntry, executor, ipAddress, executorRole string) error {
-	err := provider.updateIPListEntry(entry)
+	err := holder.getProvider().updateIPListEntry(entry)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectIPListEntry, entry.getName(), executorRole, entry)
 		for _, l := range inMemoryLists {
@@ -1600,11 +1597,11 @@ func UpdateIPListEntry(entry *IPListEntry, executor, ipAddress, executorRole str
 
 // DeleteIPListEntry deletes an existing IP list entry
 func DeleteIPListEntry(ipOrNet string, listType IPListType, executor, ipAddress, executorRole string) error {
-	entry, err := provider.ipListEntryExists(ipOrNet, listType)
+	entry, err := holder.getProvider().ipListEntryExists(ipOrNet, listType)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteIPListEntry(entry, config.IsShared == 1)
+	err = holder.getProvider().deleteIPListEntry(entry, holder.getConfig().IsShared == 1)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectIPListEntry, entry.getName(), executorRole, &entry)
 		for _, l := range inMemoryLists {
@@ -1616,7 +1613,7 @@ func DeleteIPListEntry(ipOrNet string, listType IPListType, executor, ipAddress,
 
 // IPListEntryExists returns the IP list entry with the given IP/net and type if it exists
 func IPListEntryExists(ipOrNet string, listType IPListType) (IPListEntry, error) {
-	return provider.ipListEntryExists(ipOrNet, listType)
+	return holder.getProvider().ipListEntryExists(ipOrNet, listType)
 }
 
 // GetIPListEntries returns the IP list entries applying the specified criteria and search limit
@@ -1624,13 +1621,13 @@ func GetIPListEntries(listType IPListType, filter, from, order string, limit int
 	if !slices.Contains(supportedIPListType, listType) {
 		return nil, util.NewValidationError(fmt.Sprintf("invalid list type %d", listType))
 	}
-	return provider.getIPListEntries(listType, filter, from, order, limit)
+	return holder.getProvider().getIPListEntries(listType, filter, from, order, limit)
 }
 
 // AddRole adds a new role
 func AddRole(role *Role, executor, ipAddress, executorRole string) error {
-	role.Name = config.convertName(role.Name)
-	err := provider.addRole(role)
+	role.Name = holder.getConfig().convertName(role.Name)
+	err := holder.getProvider().addRole(role)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectRole, role.Name, executorRole, role)
 	}
@@ -1639,7 +1636,7 @@ func AddRole(role *Role, executor, ipAddress, executorRole string) error {
 
 // UpdateRole updates an existing Role
 func UpdateRole(role *Role, executor, ipAddress, executorRole string) error {
-	err := provider.updateRole(role)
+	err := holder.getProvider().updateRole(role)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectRole, role.Name, executorRole, role)
 	}
@@ -1648,8 +1645,8 @@ func UpdateRole(role *Role, executor, ipAddress, executorRole string) error {
 
 // DeleteRole deletes an existing Role
 func DeleteRole(name string, executor, ipAddress, executorRole string) error {
-	name = config.convertName(name)
-	role, err := provider.roleExists(name)
+	name = holder.getConfig().convertName(name)
+	role, err := holder.getProvider().roleExists(name)
 	if err != nil {
 		return err
 	}
@@ -1657,12 +1654,12 @@ func DeleteRole(name string, executor, ipAddress, executorRole string) error {
 		errorString := fmt.Sprintf("the role %q is referenced, it cannot be removed", role.Name)
 		return util.NewValidationError(errorString)
 	}
-	err = provider.deleteRole(role)
+	err = holder.getProvider().deleteRole(role)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectRole, role.Name, executorRole, &role)
 		for _, user := range role.Users {
-			provider.setUpdatedAt(user)
-			u, err := provider.userExists(user, "")
+			holder.getProvider().setUpdatedAt(user)
+			u, err := holder.getProvider().userExists(user, "")
 			if err == nil {
 				webDAVUsersCache.swap(&u, "")
 				executeAction(operationUpdate, executor, ipAddress, actionObjectUser, u.Username, u.Role, &u)
@@ -1674,14 +1671,14 @@ func DeleteRole(name string, executor, ipAddress, executorRole string) error {
 
 // RoleExists returns the Role with the given name if it exists
 func RoleExists(name string) (Role, error) {
-	name = config.convertName(name)
-	return provider.roleExists(name)
+	name = holder.getConfig().convertName(name)
+	return holder.getProvider().roleExists(name)
 }
 
 // AddGroup adds a new group
 func AddGroup(group *Group, executor, ipAddress, role string) error {
-	group.Name = config.convertName(group.Name)
-	err := provider.addGroup(group)
+	group.Name = holder.getConfig().convertName(group.Name)
+	err := holder.getProvider().addGroup(group)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectGroup, group.Name, role, group)
 	}
@@ -1690,11 +1687,11 @@ func AddGroup(group *Group, executor, ipAddress, role string) error {
 
 // UpdateGroup updates an existing Group
 func UpdateGroup(group *Group, users []string, executor, ipAddress, role string) error {
-	err := provider.updateGroup(group)
+	err := holder.getProvider().updateGroup(group)
 	if err == nil {
 		for _, user := range users {
-			provider.setUpdatedAt(user)
-			u, err := provider.userExists(user, "")
+			holder.getProvider().setUpdatedAt(user)
+			u, err := holder.getProvider().userExists(user, "")
 			if err == nil {
 				webDAVUsersCache.swap(&u, "")
 			} else {
@@ -1708,8 +1705,8 @@ func UpdateGroup(group *Group, users []string, executor, ipAddress, role string)
 
 // DeleteGroup deletes an existing Group
 func DeleteGroup(name string, executor, ipAddress, role string) error {
-	name = config.convertName(name)
-	group, err := provider.groupExists(name)
+	name = holder.getConfig().convertName(name)
+	group, err := holder.getProvider().groupExists(name)
 	if err != nil {
 		return err
 	}
@@ -1717,11 +1714,11 @@ func DeleteGroup(name string, executor, ipAddress, role string) error {
 		errorString := fmt.Sprintf("the group %q is referenced, it cannot be removed", group.Name)
 		return util.NewValidationError(errorString)
 	}
-	err = provider.deleteGroup(group)
+	err = holder.getProvider().deleteGroup(group)
 	if err == nil {
 		for _, user := range group.Users {
-			provider.setUpdatedAt(user)
-			u, err := provider.userExists(user, "")
+			holder.getProvider().setUpdatedAt(user)
+			u, err := holder.getProvider().userExists(user, "")
 			if err == nil {
 				executeAction(operationUpdate, executor, ipAddress, actionObjectUser, u.Username, u.Role, &u)
 			}
@@ -1734,13 +1731,13 @@ func DeleteGroup(name string, executor, ipAddress, role string) error {
 
 // GroupExists returns the Group with the given name if it exists
 func GroupExists(name string) (Group, error) {
-	name = config.convertName(name)
-	return provider.groupExists(name)
+	name = holder.getConfig().convertName(name)
+	return holder.getProvider().groupExists(name)
 }
 
 // AddAPIKey adds a new API key
 func AddAPIKey(apiKey *APIKey, executor, ipAddress, role string) error {
-	err := provider.addAPIKey(apiKey)
+	err := holder.getProvider().addAPIKey(apiKey)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectAPIKey, apiKey.KeyID, role, apiKey)
 	}
@@ -1749,7 +1746,7 @@ func AddAPIKey(apiKey *APIKey, executor, ipAddress, role string) error {
 
 // UpdateAPIKey updates an existing API key
 func UpdateAPIKey(apiKey *APIKey, executor, ipAddress, role string) error {
-	err := provider.updateAPIKey(apiKey)
+	err := holder.getProvider().updateAPIKey(apiKey)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectAPIKey, apiKey.KeyID, role, apiKey)
 	}
@@ -1758,11 +1755,11 @@ func UpdateAPIKey(apiKey *APIKey, executor, ipAddress, role string) error {
 
 // DeleteAPIKey deletes an existing API key
 func DeleteAPIKey(keyID string, executor, ipAddress, role string) error {
-	apiKey, err := provider.apiKeyExists(keyID)
+	apiKey, err := holder.getProvider().apiKeyExists(keyID)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteAPIKey(apiKey)
+	err = holder.getProvider().deleteAPIKey(apiKey)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectAPIKey, apiKey.KeyID, role, &apiKey)
 		cachedAPIKeys.Remove(keyID)
@@ -1775,24 +1772,24 @@ func APIKeyExists(keyID string) (APIKey, error) {
 	if keyID == "" {
 		return APIKey{}, util.NewRecordNotFoundError(fmt.Sprintf("API key %q does not exist", keyID))
 	}
-	return provider.apiKeyExists(keyID)
+	return holder.getProvider().apiKeyExists(keyID)
 }
 
 // GetEventActions returns an array of event actions respecting limit and offset
 func GetEventActions(limit, offset int, order string, minimal bool) ([]BaseEventAction, error) {
-	return provider.getEventActions(limit, offset, order, minimal)
+	return holder.getProvider().getEventActions(limit, offset, order, minimal)
 }
 
 // EventActionExists returns the event action with the given name if it exists
 func EventActionExists(name string) (BaseEventAction, error) {
-	name = config.convertName(name)
-	return provider.eventActionExists(name)
+	name = holder.getConfig().convertName(name)
+	return holder.getProvider().eventActionExists(name)
 }
 
 // AddEventAction adds a new event action
 func AddEventAction(action *BaseEventAction, executor, ipAddress, role string) error {
-	action.Name = config.convertName(action.Name)
-	err := provider.addEventAction(action)
+	action.Name = holder.getConfig().convertName(action.Name)
+	err := holder.getProvider().addEventAction(action)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectEventAction, action.Name, role, action)
 	}
@@ -1801,7 +1798,7 @@ func AddEventAction(action *BaseEventAction, executor, ipAddress, role string) e
 
 // UpdateEventAction updates an existing event action
 func UpdateEventAction(action *BaseEventAction, executor, ipAddress, role string) error {
-	err := provider.updateEventAction(action)
+	err := holder.getProvider().updateEventAction(action)
 	if err == nil {
 		if fnReloadRules != nil {
 			fnReloadRules()
@@ -1813,8 +1810,8 @@ func UpdateEventAction(action *BaseEventAction, executor, ipAddress, role string
 
 // DeleteEventAction deletes an existing event action
 func DeleteEventAction(name string, executor, ipAddress, role string) error {
-	name = config.convertName(name)
-	action, err := provider.eventActionExists(name)
+	name = holder.getConfig().convertName(name)
+	action, err := holder.getProvider().eventActionExists(name)
 	if err != nil {
 		return err
 	}
@@ -1822,7 +1819,7 @@ func DeleteEventAction(name string, executor, ipAddress, role string) error {
 		errorString := fmt.Sprintf("the event action %#q is referenced, it cannot be removed", action.Name)
 		return util.NewValidationError(errorString)
 	}
-	err = provider.deleteEventAction(action)
+	err = holder.getProvider().deleteEventAction(action)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectEventAction, action.Name, role, &action)
 	}
@@ -1831,24 +1828,24 @@ func DeleteEventAction(name string, executor, ipAddress, role string) error {
 
 // GetEventRules returns an array of event rules respecting limit and offset
 func GetEventRules(limit, offset int, order string) ([]EventRule, error) {
-	return provider.getEventRules(limit, offset, order)
+	return holder.getProvider().getEventRules(limit, offset, order)
 }
 
 // GetRecentlyUpdatedRules returns the event rules updated after the specified time
 func GetRecentlyUpdatedRules(after int64) ([]EventRule, error) {
-	return provider.getRecentlyUpdatedRules(after)
+	return holder.getProvider().getRecentlyUpdatedRules(after)
 }
 
 // EventRuleExists returns the event rule with the given name if it exists
 func EventRuleExists(name string) (EventRule, error) {
-	name = config.convertName(name)
-	return provider.eventRuleExists(name)
+	name = holder.getConfig().convertName(name)
+	return holder.getProvider().eventRuleExists(name)
 }
 
 // AddEventRule adds a new event rule
 func AddEventRule(rule *EventRule, executor, ipAddress, role string) error {
-	rule.Name = config.convertName(rule.Name)
-	err := provider.addEventRule(rule)
+	rule.Name = holder.getConfig().convertName(rule.Name)
+	err := holder.getProvider().addEventRule(rule)
 	if err == nil {
 		if fnReloadRules != nil {
 			fnReloadRules()
@@ -1860,7 +1857,7 @@ func AddEventRule(rule *EventRule, executor, ipAddress, role string) error {
 
 // UpdateEventRule updates an existing event rule
 func UpdateEventRule(rule *EventRule, executor, ipAddress, role string) error {
-	err := provider.updateEventRule(rule)
+	err := holder.getProvider().updateEventRule(rule)
 	if err == nil {
 		if fnReloadRules != nil {
 			fnReloadRules()
@@ -1872,12 +1869,12 @@ func UpdateEventRule(rule *EventRule, executor, ipAddress, role string) error {
 
 // DeleteEventRule deletes an existing event rule
 func DeleteEventRule(name string, executor, ipAddress, role string) error {
-	name = config.convertName(name)
-	rule, err := provider.eventRuleExists(name)
+	name = holder.getConfig().convertName(name)
+	rule, err := holder.getProvider().eventRuleExists(name)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteEventRule(rule, config.IsShared == 1)
+	err = holder.getProvider().deleteEventRule(rule, holder.getConfig().IsShared == 1)
 	if err == nil {
 		if fnRemoveRule != nil {
 			fnRemoveRule(rule.Name)
@@ -1889,27 +1886,27 @@ func DeleteEventRule(name string, executor, ipAddress, role string) error {
 
 // RemoveEventRule delets an existing event rule without marking it as deleted
 func RemoveEventRule(rule EventRule) error {
-	return provider.deleteEventRule(rule, false)
+	return holder.getProvider().deleteEventRule(rule, false)
 }
 
 // GetTaskByName returns the task with the specified name
 func GetTaskByName(name string) (Task, error) {
-	return provider.getTaskByName(name)
+	return holder.getProvider().getTaskByName(name)
 }
 
 // AddTask add a task with the specified name
 func AddTask(name string) error {
-	return provider.addTask(name)
+	return holder.getProvider().addTask(name)
 }
 
 // UpdateTask updates the task with the specified name and version
 func UpdateTask(name string, version int64) error {
-	return provider.updateTask(name, version)
+	return holder.getProvider().updateTask(name, version)
 }
 
 // UpdateTaskTimestamp updates the timestamp for the task with the specified name
 func UpdateTaskTimestamp(name string) error {
-	return provider.updateTaskTimestamp(name)
+	return holder.getProvider().updateTaskTimestamp(name)
 }
 
 // GetNodes returns the other cluster nodes
@@ -1917,7 +1914,7 @@ func GetNodes() ([]Node, error) {
 	if currentNode == nil {
 		return nil, nil
 	}
-	nodes, err := provider.getNodes()
+	nodes, err := holder.getProvider().getNodes()
 	if err != nil {
 		providerLog(logger.LevelError, "unable to get other cluster nodes %v", err)
 	}
@@ -1932,7 +1929,7 @@ func GetNodeByName(name string) (Node, error) {
 	if name == currentNode.Name {
 		return Node{}, util.NewValidationError(fmt.Sprintf("%s is the current node, it must refer to other nodes", name))
 	}
-	return provider.getNodeByName(name)
+	return holder.getProvider().getNodeByName(name)
 }
 
 // HasAdmin returns true if the first admin has been created
@@ -1947,8 +1944,8 @@ func AddAdmin(admin *Admin, executor, ipAddress, role string) error {
 	admin.Filters.TOTPConfig = AdminTOTPConfig{
 		Enabled: false,
 	}
-	admin.Username = config.convertName(admin.Username)
-	err := provider.addAdmin(admin)
+	admin.Username = holder.getConfig().convertName(admin.Username)
+	err := holder.getProvider().addAdmin(admin)
 	if err == nil {
 		isAdminCreated.Store(true)
 		executeAction(operationAdd, executor, ipAddress, actionObjectAdmin, admin.Username, role, admin)
@@ -1958,7 +1955,7 @@ func AddAdmin(admin *Admin, executor, ipAddress, role string) error {
 
 // UpdateAdmin updates an existing SFTPGo admin
 func UpdateAdmin(admin *Admin, executor, ipAddress, role string) error {
-	err := provider.updateAdmin(admin)
+	err := holder.getProvider().updateAdmin(admin)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectAdmin, admin.Username, role, admin)
 	}
@@ -1967,12 +1964,12 @@ func UpdateAdmin(admin *Admin, executor, ipAddress, role string) error {
 
 // DeleteAdmin deletes an existing SFTPGo admin
 func DeleteAdmin(username, executor, ipAddress, role string) error {
-	username = config.convertName(username)
-	admin, err := provider.adminExists(username)
+	username = holder.getConfig().convertName(username)
+	admin, err := holder.getProvider().adminExists(username)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteAdmin(admin)
+	err = holder.getProvider().deleteAdmin(admin)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectAdmin, admin.Username, role, &admin)
 		cachedAdminPasswords.Remove(username)
@@ -1982,35 +1979,35 @@ func DeleteAdmin(username, executor, ipAddress, role string) error {
 
 // AdminExists returns the admin with the given username if it exists
 func AdminExists(username string) (Admin, error) {
-	username = config.convertName(username)
-	return provider.adminExists(username)
+	username = holder.getConfig().convertName(username)
+	return holder.getProvider().adminExists(username)
 }
 
 // UserExists checks if the given SFTPGo username exists, returns an error if no match is found
 func UserExists(username, role string) (User, error) {
-	username = config.convertName(username)
-	return provider.userExists(username, role)
+	username = holder.getConfig().convertName(username)
+	return holder.getProvider().userExists(username, role)
 }
 
 // GetAdminSignature returns the signature for the admin with the specified
 // username.
 func GetAdminSignature(username string) (string, error) {
-	username = config.convertName(username)
-	return provider.getAdminSignature(username)
+	username = holder.getConfig().convertName(username)
+	return holder.getProvider().getAdminSignature(username)
 }
 
 // GetUserSignature returns the signature for the user with the specified
 // username.
 func GetUserSignature(username string) (string, error) {
-	username = config.convertName(username)
-	return provider.getUserSignature(username)
+	username = holder.getConfig().convertName(username)
+	return holder.getProvider().getUserSignature(username)
 }
 
 // GetUserWithGroupSettings tries to return the user with the specified username
 // loading also the group settings
 func GetUserWithGroupSettings(username, role string) (User, error) {
-	username = config.convertName(username)
-	user, err := provider.userExists(username, role)
+	username = holder.getConfig().convertName(username)
+	user, err := holder.getProvider().userExists(username, role)
 	if err != nil {
 		return user, err
 	}
@@ -2021,8 +2018,8 @@ func GetUserWithGroupSettings(username, role string) (User, error) {
 // GetUserVariants tries to return the user with the specified username with and without
 // group settings applied
 func GetUserVariants(username, role string) (User, User, error) {
-	username = config.convertName(username)
-	user, err := provider.userExists(username, role)
+	username = holder.getConfig().convertName(username)
+	user, err := holder.getProvider().userExists(username, role)
 	if err != nil {
 		return user, User{}, err
 	}
@@ -2033,8 +2030,8 @@ func GetUserVariants(username, role string) (User, User, error) {
 
 // AddUser adds a new SFTPGo user.
 func AddUser(user *User, executor, ipAddress, role string) error {
-	user.Username = config.convertName(user.Username)
-	err := provider.addUser(user)
+	user.Username = holder.getConfig().convertName(user.Username)
+	err := holder.getProvider().addUser(user)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectUser, user.Username, role, user)
 	}
@@ -2043,7 +2040,7 @@ func AddUser(user *User, executor, ipAddress, role string) error {
 
 // UpdateUserPassword updates the user password
 func UpdateUserPassword(username, plainPwd, executor, ipAddress, role string) error {
-	user, err := provider.userExists(username, role)
+	user, err := holder.getProvider().userExists(username, role)
 	if err != nil {
 		return err
 	}
@@ -2056,7 +2053,7 @@ func UpdateUserPassword(username, plainPwd, executor, ipAddress, role string) er
 	user.Password = userCopy.Password
 	user.Filters.RequirePasswordChange = false
 	// the last password change is set when validating the user
-	if err := provider.updateUser(&user); err != nil {
+	if err := holder.getProvider().updateUser(&user); err != nil {
 		return err
 	}
 	webDAVUsersCache.swap(&user, plainPwd)
@@ -2069,7 +2066,7 @@ func UpdateUser(user *User, executor, ipAddress, role string) error {
 	if user.groupSettingsApplied {
 		return errors.New("cannot save a user with group settings applied")
 	}
-	err := provider.updateUser(user)
+	err := holder.getProvider().updateUser(user)
 	if err == nil {
 		webDAVUsersCache.swap(user, "")
 		executeAction(operationUpdate, executor, ipAddress, actionObjectUser, user.Username, role, user)
@@ -2079,12 +2076,12 @@ func UpdateUser(user *User, executor, ipAddress, role string) error {
 
 // DeleteUser deletes an existing SFTPGo user.
 func DeleteUser(username, executor, ipAddress, role string) error {
-	username = config.convertName(username)
-	user, err := provider.userExists(username, role)
+	username = holder.getConfig().convertName(username)
+	user, err := holder.getProvider().userExists(username, role)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteUser(user, config.IsShared == 1)
+	err = holder.getProvider().deleteUser(user, holder.getConfig().IsShared == 1)
 	if err == nil {
 		RemoveCachedWebDAVUser(user.Username)
 		delayedQuotaUpdater.resetUserQuota(user.Username)
@@ -2096,7 +2093,7 @@ func DeleteUser(username, executor, ipAddress, role string) error {
 
 // AddActiveTransfer stores the specified transfer
 func AddActiveTransfer(transfer ActiveTransfer) {
-	if err := provider.addActiveTransfer(transfer); err != nil {
+	if err := holder.getProvider().addActiveTransfer(transfer); err != nil {
 		providerLog(logger.LevelError, "unable to add transfer id %v, connection id %v: %v",
 			transfer.ID, transfer.ConnID, err)
 	}
@@ -2104,7 +2101,7 @@ func AddActiveTransfer(transfer ActiveTransfer) {
 
 // UpdateActiveTransferSizes updates the current upload and download sizes for the specified transfer
 func UpdateActiveTransferSizes(ulSize, dlSize, transferID int64, connectionID string) {
-	if err := provider.updateActiveTransferSizes(ulSize, dlSize, transferID, connectionID); err != nil {
+	if err := holder.getProvider().updateActiveTransferSizes(ulSize, dlSize, transferID, connectionID); err != nil {
 		providerLog(logger.LevelError, "unable to update sizes for transfer id %v, connection id %v: %v",
 			transferID, connectionID, err)
 	}
@@ -2112,7 +2109,7 @@ func UpdateActiveTransferSizes(ulSize, dlSize, transferID int64, connectionID st
 
 // RemoveActiveTransfer removes the specified transfer
 func RemoveActiveTransfer(transferID int64, connectionID string) {
-	if err := provider.removeActiveTransfer(transferID, connectionID); err != nil {
+	if err := holder.getProvider().removeActiveTransfer(transferID, connectionID); err != nil {
 		providerLog(logger.LevelError, "unable to delete transfer id %v, connection id %v: %v",
 			transferID, connectionID, err)
 	}
@@ -2120,7 +2117,7 @@ func RemoveActiveTransfer(transferID int64, connectionID string) {
 
 // CleanupActiveTransfers removes the transfer before the specified time
 func CleanupActiveTransfers(before time.Time) error {
-	err := provider.cleanupActiveTransfers(before)
+	err := holder.getProvider().cleanupActiveTransfers(before)
 	if err == nil {
 		providerLog(logger.LevelDebug, "deleted active transfers updated before: %v", before)
 	} else {
@@ -2131,12 +2128,12 @@ func CleanupActiveTransfers(before time.Time) error {
 
 // GetActiveTransfers retrieves the active transfers with an update time after the specified value
 func GetActiveTransfers(from time.Time) ([]ActiveTransfer, error) {
-	return provider.getActiveTransfers(from)
+	return holder.getProvider().getActiveTransfers(from)
 }
 
 // AddSharedSession stores a new session within the data provider
 func AddSharedSession(session Session) error {
-	err := provider.addSharedSession(session)
+	err := holder.getProvider().addSharedSession(session)
 	if err != nil {
 		providerLog(logger.LevelError, "unable to add shared session, key %q, type: %v, err: %v",
 			session.Key, session.Type, err)
@@ -2146,7 +2143,7 @@ func AddSharedSession(session Session) error {
 
 // DeleteSharedSession deletes the session with the specified key
 func DeleteSharedSession(key string, sessionType SessionType) error {
-	err := provider.deleteSharedSession(key, sessionType)
+	err := holder.getProvider().deleteSharedSession(key, sessionType)
 	if err != nil {
 		providerLog(logger.LevelError, "unable to add shared session, key %q, err: %v", key, err)
 	}
@@ -2155,13 +2152,13 @@ func DeleteSharedSession(key string, sessionType SessionType) error {
 
 // GetSharedSession retrieves the session with the specified key
 func GetSharedSession(key string, sessionType SessionType) (Session, error) {
-	return provider.getSharedSession(key, sessionType)
+	return holder.getProvider().getSharedSession(key, sessionType)
 }
 
 // CleanupSharedSessions removes the shared session with the specified type and
 // before the specified time
 func CleanupSharedSessions(sessionType SessionType, before time.Time) error {
-	err := provider.cleanupSharedSessions(sessionType, util.GetTimeAsMsSinceEpoch(before))
+	err := holder.getProvider().cleanupSharedSessions(sessionType, util.GetTimeAsMsSinceEpoch(before))
 	if err == nil {
 		providerLog(logger.LevelDebug, "deleted shared sessions before: %v, type: %v", before, sessionType)
 	} else {
@@ -2174,48 +2171,48 @@ func CleanupSharedSessions(sessionType SessionType, before time.Time) error {
 // Currently only implemented for memory provider, allows to reload the users
 // from the configured file, if defined
 func ReloadConfig() error {
-	return provider.reloadConfig()
+	return holder.getProvider().reloadConfig()
 }
 
 // GetShares returns an array of shares respecting limit and offset
 func GetShares(limit, offset int, order, username string) ([]Share, error) {
-	return provider.getShares(limit, offset, order, username)
+	return holder.getProvider().getShares(limit, offset, order, username)
 }
 
 // GetAPIKeys returns an array of API keys respecting limit and offset
 func GetAPIKeys(limit, offset int, order string) ([]APIKey, error) {
-	return provider.getAPIKeys(limit, offset, order)
+	return holder.getProvider().getAPIKeys(limit, offset, order)
 }
 
 // GetAdmins returns an array of admins respecting limit and offset
 func GetAdmins(limit, offset int, order string) ([]Admin, error) {
-	return provider.getAdmins(limit, offset, order)
+	return holder.getProvider().getAdmins(limit, offset, order)
 }
 
 // GetRoles returns an array of roles respecting limit and offset
 func GetRoles(limit, offset int, order string, minimal bool) ([]Role, error) {
-	return provider.getRoles(limit, offset, order, minimal)
+	return holder.getProvider().getRoles(limit, offset, order, minimal)
 }
 
 // GetGroups returns an array of groups respecting limit and offset
 func GetGroups(limit, offset int, order string, minimal bool) ([]Group, error) {
-	return provider.getGroups(limit, offset, order, minimal)
+	return holder.getProvider().getGroups(limit, offset, order, minimal)
 }
 
 // GetUsers returns an array of users respecting limit and offset
 func GetUsers(limit, offset int, order, role string) ([]User, error) {
-	return provider.getUsers(limit, offset, order, role)
+	return holder.getProvider().getUsers(limit, offset, order, role)
 }
 
 // GetUsersForQuotaCheck returns the users with the fields required for a quota check
 func GetUsersForQuotaCheck(toFetch map[string]bool) ([]User, error) {
-	return provider.getUsersForQuotaCheck(toFetch)
+	return holder.getProvider().getUsersForQuotaCheck(toFetch)
 }
 
 // AddFolder adds a new virtual folder.
 func AddFolder(folder *vfs.BaseVirtualFolder, executor, ipAddress, role string) error {
-	folder.Name = config.convertName(folder.Name)
-	err := provider.addFolder(folder)
+	folder.Name = holder.getConfig().convertName(folder.Name)
+	err := holder.getProvider().addFolder(folder)
 	if err == nil {
 		executeAction(operationAdd, executor, ipAddress, actionObjectFolder, folder.Name, role, &wrappedFolder{Folder: *folder})
 	}
@@ -2224,10 +2221,10 @@ func AddFolder(folder *vfs.BaseVirtualFolder, executor, ipAddress, role string) 
 
 // UpdateFolder updates the specified virtual folder
 func UpdateFolder(folder *vfs.BaseVirtualFolder, users []string, groups []string, executor, ipAddress, role string) error {
-	err := provider.updateFolder(folder)
+	err := holder.getProvider().updateFolder(folder)
 	if err == nil {
 		executeAction(operationUpdate, executor, ipAddress, actionObjectFolder, folder.Name, role, &wrappedFolder{Folder: *folder})
-		usersInGroups, errGrp := provider.getUsersInGroups(groups)
+		usersInGroups, errGrp := holder.getProvider().getUsersInGroups(groups)
 		if errGrp == nil {
 			users = append(users, usersInGroups...)
 			users = util.RemoveDuplicates(users, false)
@@ -2235,8 +2232,8 @@ func UpdateFolder(folder *vfs.BaseVirtualFolder, users []string, groups []string
 			providerLog(logger.LevelWarn, "unable to get users in groups %+v: %v", groups, errGrp)
 		}
 		for _, user := range users {
-			provider.setUpdatedAt(user)
-			u, err := provider.userExists(user, "")
+			holder.getProvider().setUpdatedAt(user)
+			u, err := holder.getProvider().userExists(user, "")
 			if err == nil {
 				webDAVUsersCache.swap(&u, "")
 				executeAction(operationUpdate, executor, ipAddress, actionObjectUser, u.Username, u.Role, &u)
@@ -2250,16 +2247,16 @@ func UpdateFolder(folder *vfs.BaseVirtualFolder, users []string, groups []string
 
 // DeleteFolder deletes an existing folder.
 func DeleteFolder(folderName, executor, ipAddress, role string) error {
-	folderName = config.convertName(folderName)
-	folder, err := provider.getFolderByName(folderName)
+	folderName = holder.getConfig().convertName(folderName)
+	folder, err := holder.getProvider().getFolderByName(folderName)
 	if err != nil {
 		return err
 	}
-	err = provider.deleteFolder(folder)
+	err = holder.getProvider().deleteFolder(folder)
 	if err == nil {
 		executeAction(operationDelete, executor, ipAddress, actionObjectFolder, folder.Name, role, &wrappedFolder{Folder: folder})
 		users := folder.Users
-		usersInGroups, errGrp := provider.getUsersInGroups(folder.Groups)
+		usersInGroups, errGrp := holder.getProvider().getUsersInGroups(folder.Groups)
 		if errGrp == nil {
 			users = append(users, usersInGroups...)
 			users = util.RemoveDuplicates(users, false)
@@ -2267,8 +2264,8 @@ func DeleteFolder(folderName, executor, ipAddress, role string) error {
 			providerLog(logger.LevelWarn, "unable to get users in groups %+v: %v", folder.Groups, errGrp)
 		}
 		for _, user := range users {
-			provider.setUpdatedAt(user)
-			u, err := provider.userExists(user, "")
+			holder.getProvider().setUpdatedAt(user)
+			u, err := holder.getProvider().userExists(user, "")
 			if err == nil {
 				executeAction(operationUpdate, executor, ipAddress, actionObjectUser, u.Username, u.Role, &u)
 			}
@@ -2281,18 +2278,18 @@ func DeleteFolder(folderName, executor, ipAddress, role string) error {
 
 // GetFolderByName returns the folder with the specified name if any
 func GetFolderByName(name string) (vfs.BaseVirtualFolder, error) {
-	name = config.convertName(name)
-	return provider.getFolderByName(name)
+	name = holder.getConfig().convertName(name)
+	return holder.getProvider().getFolderByName(name)
 }
 
 // GetFolders returns an array of folders respecting limit and offset
 func GetFolders(limit, offset int, order string, minimal bool) ([]vfs.BaseVirtualFolder, error) {
-	return provider.getFolders(limit, offset, order, minimal)
+	return holder.getProvider().getFolders(limit, offset, order, minimal)
 }
 
 func dumpUsers(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeUsers) {
-		users, err := provider.dumpUsers()
+		users, err := holder.getProvider().dumpUsers()
 		if err != nil {
 			return err
 		}
@@ -2303,7 +2300,7 @@ func dumpUsers(data *BackupData, scopes []string) error {
 
 func dumpFolders(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeFolders) {
-		folders, err := provider.dumpFolders()
+		folders, err := holder.getProvider().dumpFolders()
 		if err != nil {
 			return err
 		}
@@ -2314,7 +2311,7 @@ func dumpFolders(data *BackupData, scopes []string) error {
 
 func dumpGroups(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeGroups) {
-		groups, err := provider.dumpGroups()
+		groups, err := holder.getProvider().dumpGroups()
 		if err != nil {
 			return err
 		}
@@ -2325,7 +2322,7 @@ func dumpGroups(data *BackupData, scopes []string) error {
 
 func dumpAdmins(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeAdmins) {
-		admins, err := provider.dumpAdmins()
+		admins, err := holder.getProvider().dumpAdmins()
 		if err != nil {
 			return err
 		}
@@ -2336,7 +2333,7 @@ func dumpAdmins(data *BackupData, scopes []string) error {
 
 func dumpAPIKeys(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeAPIKeys) {
-		apiKeys, err := provider.dumpAPIKeys()
+		apiKeys, err := holder.getProvider().dumpAPIKeys()
 		if err != nil {
 			return err
 		}
@@ -2347,7 +2344,7 @@ func dumpAPIKeys(data *BackupData, scopes []string) error {
 
 func dumpShares(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeShares) {
-		shares, err := provider.dumpShares()
+		shares, err := holder.getProvider().dumpShares()
 		if err != nil {
 			return err
 		}
@@ -2358,7 +2355,7 @@ func dumpShares(data *BackupData, scopes []string) error {
 
 func dumpActions(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeActions) {
-		actions, err := provider.dumpEventActions()
+		actions, err := holder.getProvider().dumpEventActions()
 		if err != nil {
 			return err
 		}
@@ -2369,7 +2366,7 @@ func dumpActions(data *BackupData, scopes []string) error {
 
 func dumpRules(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeRules) {
-		rules, err := provider.dumpEventRules()
+		rules, err := holder.getProvider().dumpEventRules()
 		if err != nil {
 			return err
 		}
@@ -2380,7 +2377,7 @@ func dumpRules(data *BackupData, scopes []string) error {
 
 func dumpRoles(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeRoles) {
-		roles, err := provider.dumpRoles()
+		roles, err := holder.getProvider().dumpRoles()
 		if err != nil {
 			return err
 		}
@@ -2391,7 +2388,7 @@ func dumpRoles(data *BackupData, scopes []string) error {
 
 func dumpIPLists(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeIPLists) {
-		ipLists, err := provider.dumpIPListEntries()
+		ipLists, err := holder.getProvider().dumpIPListEntries()
 		if err != nil {
 			return err
 		}
@@ -2402,7 +2399,7 @@ func dumpIPLists(data *BackupData, scopes []string) error {
 
 func dumpConfigs(data *BackupData, scopes []string) error {
 	if len(scopes) == 0 || slices.Contains(scopes, DumpScopeConfigs) {
-		configs, err := provider.getConfigs()
+		configs, err := holder.getProvider().getConfigs()
 		if err != nil {
 			return err
 		}
@@ -2474,14 +2471,14 @@ func ParseDumpData(data []byte) (BackupData, error) {
 
 // GetProviderConfig returns the current provider configuration
 func GetProviderConfig() Config {
-	return config
+	return *holder.getConfig()
 }
 
 // GetProviderStatus returns an error if the provider is not available
 func GetProviderStatus() ProviderStatus {
-	err := provider.checkAvailability()
+	err := holder.getProvider().checkAvailability()
 	status := ProviderStatus{
-		Driver: config.Driver,
+		Driver: holder.getConfig().Driver,
 	}
 	if err == nil {
 		status.IsActive = true
@@ -2497,7 +2494,7 @@ func GetProviderStatus() ProviderStatus {
 // Closing an uninitialized provider is not supported
 func Close() error {
 	stopScheduler()
-	return provider.close()
+	return holder.getProvider().close()
 }
 
 func createProvider(basePath string) error {
@@ -2505,9 +2502,9 @@ func createProvider(basePath string) error {
 	if err := validateSQLTablesPrefix(); err != nil {
 		return err
 	}
-	logSender = fmt.Sprintf("dataprovider_%v", config.Driver)
+	logSender = fmt.Sprintf("dataprovider_%v", holder.getConfig().Driver)
 
-	switch config.Driver {
+	switch holder.getConfig().Driver {
 	case SQLiteDataProviderName:
 		return initializeSQLiteProvider(basePath)
 	case PGSQLDataProviderName, CockroachDataProviderName:
@@ -2523,7 +2520,7 @@ func createProvider(basePath string) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("unsupported data provider: %v", config.Driver)
+		return fmt.Errorf("unsupported data provider: %v", holder.getConfig().Driver)
 	}
 }
 
@@ -2585,8 +2582,8 @@ func copyBaseUserFilters(in sdk.BaseUserFilters) sdk.BaseUserFilters {
 
 func buildUserHomeDir(user *User) {
 	if user.HomeDir == "" {
-		if config.UsersBaseDir != "" {
-			user.HomeDir = filepath.Join(config.UsersBaseDir, user.Username)
+		if holder.getConfig().UsersBaseDir != "" {
+			user.HomeDir = filepath.Join(holder.getConfig().UsersBaseDir, user.Username)
 			return
 		}
 		switch user.FsConfig.Provider {
@@ -2664,7 +2661,7 @@ func validateAssociatedVirtualFolders(vfolders []vfs.VirtualFolder) ([]vfs.Virtu
 	folderNames := make(map[string]bool)
 
 	for _, v := range vfolders {
-		v.Name = config.convertName(v.Name)
+		v.Name = holder.getConfig().convertName(v.Name)
 		if v.VirtualPath == "" {
 			return nil, util.NewI18nError(
 				util.NewValidationError("mount/virtual path is mandatory"),
@@ -3181,7 +3178,7 @@ func validateBaseParams(user *User) error {
 	if err := validateEmails(user); err != nil {
 		return err
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(user.Username) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(user.Username) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("username %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", user.Username)),
 			util.I18nErrorInvalidUser,
@@ -3225,14 +3222,14 @@ func validateBaseParams(user *User) error {
 }
 
 func hashPlainPassword(plainPwd string) (string, error) {
-	if config.PasswordHashing.Algo == HashingAlgoBcrypt {
-		pwd, err := bcrypt.GenerateFromPassword([]byte(plainPwd), config.PasswordHashing.BcryptOptions.Cost)
+	if holder.getConfig().PasswordHashing.Algo == HashingAlgoBcrypt {
+		pwd, err := bcrypt.GenerateFromPassword([]byte(plainPwd), holder.getConfig().PasswordHashing.BcryptOptions.Cost)
 		if err != nil {
 			return "", fmt.Errorf("bcrypt hashing error: %w", err)
 		}
 		return string(pwd), nil
 	}
-	pwd, err := argon2id.CreateHash(plainPwd, argon2Params)
+	pwd, err := argon2id.CreateHash(plainPwd, holder.getArgon2Params())
 	if err != nil {
 		return "", fmt.Errorf("argon2ID hashing error: %w", err)
 	}
@@ -3279,7 +3276,7 @@ func ValidateFolder(folder *vfs.BaseVirtualFolder) error {
 	if !util.IsNameValid(folder.Name) {
 		return util.NewI18nError(errInvalidInput, util.I18nErrorInvalidInput)
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(folder.Name) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(folder.Name) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("folder name %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", folder.Name)),
 			util.I18nErrorInvalidName,
@@ -3349,7 +3346,7 @@ func ValidateUser(user *User) error {
 }
 
 func isPasswordOK(user *User, password string) (bool, error) {
-	if config.PasswordCaching {
+	if holder.getConfig().PasswordCaching {
 		found, match := cachedUserPasswords.Check(user.Username, password, user.Password)
 		if found {
 			return match, nil
@@ -3366,14 +3363,14 @@ func isPasswordOK(user *User, password string) (bool, error) {
 			return match, ErrInvalidCredentials
 		}
 		match = true
-		updatePwd = config.PasswordHashing.Algo != HashingAlgoBcrypt
+		updatePwd = holder.getConfig().PasswordHashing.Algo != HashingAlgoBcrypt
 	case strings.HasPrefix(user.Password, argonPwdPrefix):
 		match, err = argon2id.ComparePasswordAndHash(password, user.Password)
 		if err != nil {
 			providerLog(logger.LevelError, "error comparing password with argon hash: %v", err)
 			return match, err
 		}
-		updatePwd = config.PasswordHashing.Algo != HashingAlgoArgon2ID
+		updatePwd = holder.getConfig().PasswordHashing.Algo != HashingAlgoArgon2ID
 	case util.IsStringPrefixInSlice(user.Password, unixPwdPrefixes):
 		match, err = compareUnixPasswordAndHash(user, password)
 		if err != nil {
@@ -3400,7 +3397,7 @@ func isPasswordOK(user *User, password string) (bool, error) {
 func convertUserPassword(username, plainPwd string) {
 	hashedPwd, err := hashPlainPassword(plainPwd)
 	if err == nil {
-		err = provider.updateUserPassword(username, hashedPwd)
+		err = holder.getProvider().updateUserPassword(username, hashedPwd)
 	}
 	if err != nil {
 		providerLog(logger.LevelWarn, "unable to convert password for user %s: %v", username, err)
@@ -3633,9 +3630,9 @@ func comparePbkdf2PasswordAndHash(password, hashedPassword string) (bool, error)
 }
 
 func getSSLMode() string {
-	switch config.Driver {
+	switch holder.getConfig().Driver {
 	case PGSQLDataProviderName, CockroachDataProviderName:
-		switch config.SSLMode {
+		switch holder.getConfig().SSLMode {
 		case 0:
 			return "disable"
 		case 1:
@@ -3650,10 +3647,10 @@ func getSSLMode() string {
 			return "allow"
 		}
 	case MySQLDataProviderName:
-		if config.requireCustomTLSForMySQL() {
+		if holder.getConfig().requireCustomTLSForMySQL() {
 			return "custom"
 		}
-		switch config.SSLMode {
+		switch holder.getConfig().SSLMode {
 		case 0:
 			return "false"
 		case 1:
@@ -4002,26 +3999,26 @@ func doKeyboardInteractiveAuth(user *User, authHook string, client ssh.KeyboardI
 }
 
 func isCheckPasswordHookDefined(protocol string) bool {
-	if config.CheckPasswordHook == "" {
+	if holder.getConfig().CheckPasswordHook == "" {
 		return false
 	}
-	if config.CheckPasswordScope == 0 {
+	if holder.getConfig().CheckPasswordScope == 0 {
 		return true
 	}
 	switch protocol {
 	case protocolSSH:
-		return config.CheckPasswordScope&1 != 0
+		return holder.getConfig().CheckPasswordScope&1 != 0
 	case protocolFTP:
-		return config.CheckPasswordScope&2 != 0
+		return holder.getConfig().CheckPasswordScope&2 != 0
 	case protocolWebDAV:
-		return config.CheckPasswordScope&4 != 0
+		return holder.getConfig().CheckPasswordScope&4 != 0
 	default:
 		return false
 	}
 }
 
 func getPasswordHookResponse(username, password, ip, protocol string) ([]byte, error) {
-	if strings.HasPrefix(config.CheckPasswordHook, "http") {
+	if strings.HasPrefix(holder.getConfig().CheckPasswordHook, "http") {
 		var result []byte
 		req := checkPasswordRequest{
 			Username: username,
@@ -4033,7 +4030,7 @@ func getPasswordHookResponse(username, password, ip, protocol string) ([]byte, e
 		if err != nil {
 			return result, err
 		}
-		resp, err := httpclient.Post(config.CheckPasswordHook, "application/json", bytes.NewBuffer(reqAsJSON))
+		resp, err := httpclient.Post(holder.getConfig().CheckPasswordHook, "application/json", bytes.NewBuffer(reqAsJSON))
 		if err != nil {
 			providerLog(logger.LevelError, "error getting check password hook response: %v", err)
 			return result, err
@@ -4044,11 +4041,11 @@ func getPasswordHookResponse(username, password, ip, protocol string) ([]byte, e
 		}
 		return io.ReadAll(io.LimitReader(resp.Body, maxHookResponseSize))
 	}
-	timeout, env, args := command.GetConfig(config.CheckPasswordHook, command.HookCheckPassword)
+	timeout, env, args := command.GetConfig(holder.getConfig().CheckPasswordHook, command.HookCheckPassword)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, config.CheckPasswordHook, args...)
+	cmd := exec.CommandContext(ctx, holder.getConfig().CheckPasswordHook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPGO_AUTHD_USERNAME=%s", username),
 		fmt.Sprintf("SFTPGO_AUTHD_PASSWORD=%s", password),
@@ -4077,12 +4074,12 @@ func executeCheckPasswordHook(username, password, ip, protocol string) (checkPas
 }
 
 func getPreLoginHookResponse(loginMethod, ip, protocol string, userAsJSON []byte) ([]byte, error) {
-	if strings.HasPrefix(config.PreLoginHook, "http") {
+	if strings.HasPrefix(holder.getConfig().PreLoginHook, "http") {
 		var url *url.URL
 		var result []byte
-		url, err := url.Parse(config.PreLoginHook)
+		url, err := url.Parse(holder.getConfig().PreLoginHook)
 		if err != nil {
-			providerLog(logger.LevelError, "invalid url for pre-login hook %q, error: %v", config.PreLoginHook, err)
+			providerLog(logger.LevelError, "invalid url for pre-login hook %q, error: %v", holder.getConfig().PreLoginHook, err)
 			return result, err
 		}
 		q := url.Query()
@@ -4105,11 +4102,11 @@ func getPreLoginHookResponse(loginMethod, ip, protocol string, userAsJSON []byte
 		}
 		return io.ReadAll(io.LimitReader(resp.Body, maxHookResponseSize))
 	}
-	timeout, env, args := command.GetConfig(config.PreLoginHook, command.HookPreLogin)
+	timeout, env, args := command.GetConfig(holder.getConfig().PreLoginHook, command.HookPreLogin)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, config.PreLoginHook, args...)
+	cmd := exec.CommandContext(ctx, holder.getConfig().PreLoginHook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPGO_LOGIND_USER=%s", userAsJSON),
 		fmt.Sprintf("SFTPGO_LOGIND_METHOD=%s", loginMethod),
@@ -4162,15 +4159,15 @@ func executePreLoginHook(username, loginMethod, ip, protocol string, oidcTokenFi
 		// preserve TOTP config and recovery codes
 		user.Filters.TOTPConfig = u.Filters.TOTPConfig
 		user.Filters.RecoveryCodes = u.Filters.RecoveryCodes
-		if err := provider.updateUser(&user); err != nil {
+		if err := holder.getProvider().updateUser(&user); err != nil {
 			return u, err
 		}
 	} else {
-		if err := provider.addUser(&user); err != nil {
+		if err := holder.getProvider().addUser(&user); err != nil {
 			return u, err
 		}
 	}
-	user, err = provider.userExists(user.Username, "")
+	user, err = holder.getProvider().userExists(user.Username, "")
 	if err != nil {
 		return u, err
 	}
@@ -4183,13 +4180,13 @@ func executePreLoginHook(username, loginMethod, ip, protocol string, oidcTokenFi
 
 // ExecutePostLoginHook executes the post login hook if defined
 func ExecutePostLoginHook(user *User, loginMethod, ip, protocol string, err error) {
-	if config.PostLoginHook == "" {
+	if holder.getConfig().PostLoginHook == "" {
 		return
 	}
-	if config.PostLoginScope == 1 && err == nil {
+	if holder.getConfig().PostLoginScope == 1 && err == nil {
 		return
 	}
-	if config.PostLoginScope == 2 && err != nil {
+	if holder.getConfig().PostLoginScope == 2 && err != nil {
 		return
 	}
 
@@ -4210,11 +4207,11 @@ func ExecutePostLoginHook(user *User, loginMethod, ip, protocol string, err erro
 			providerLog(logger.LevelError, "error serializing user in post login hook: %v", err)
 			return
 		}
-		if strings.HasPrefix(config.PostLoginHook, "http") {
+		if strings.HasPrefix(holder.getConfig().PostLoginHook, "http") {
 			var url *url.URL
-			url, err := url.Parse(config.PostLoginHook)
+			url, err := url.Parse(holder.getConfig().PostLoginHook)
 			if err != nil {
-				providerLog(logger.LevelDebug, "Invalid post-login hook %q", config.PostLoginHook)
+				providerLog(logger.LevelDebug, "Invalid post-login hook %q", holder.getConfig().PostLoginHook)
 				return
 			}
 			q := url.Query()
@@ -4235,11 +4232,11 @@ func ExecutePostLoginHook(user *User, loginMethod, ip, protocol string, err erro
 				user.Username, ip, protocol, respCode, time.Since(startTime), err)
 			return
 		}
-		timeout, env, args := command.GetConfig(config.PostLoginHook, command.HookPostLogin)
+		timeout, env, args := command.GetConfig(holder.getConfig().PostLoginHook, command.HookPostLogin)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, config.PostLoginHook, args...)
+		cmd := exec.CommandContext(ctx, holder.getConfig().PostLoginHook, args...)
 		cmd.Env = append(env,
 			fmt.Sprintf("SFTPGO_LOGIND_USER=%s", userAsJSON),
 			fmt.Sprintf("SFTPGO_LOGIND_IP=%s", ip),
@@ -4264,7 +4261,7 @@ func getExternalAuthResponse(username, password, pkey, keyboardInteractive, ip, 
 			return nil, err
 		}
 	}
-	if strings.HasPrefix(config.ExternalAuthHook, "http") {
+	if strings.HasPrefix(holder.getConfig().ExternalAuthHook, "http") {
 		var result []byte
 		authRequest := make(map[string]any)
 		authRequest["username"] = username
@@ -4282,7 +4279,7 @@ func getExternalAuthResponse(username, password, pkey, keyboardInteractive, ip, 
 			providerLog(logger.LevelError, "error serializing external auth request: %v", err)
 			return result, err
 		}
-		resp, err := httpclient.Post(config.ExternalAuthHook, "application/json", bytes.NewBuffer(authRequestAsJSON))
+		resp, err := httpclient.Post(holder.getConfig().ExternalAuthHook, "application/json", bytes.NewBuffer(authRequestAsJSON))
 		if err != nil {
 			providerLog(logger.LevelWarn, "error getting external auth hook HTTP response: %v", err)
 			return result, err
@@ -4303,11 +4300,11 @@ func getExternalAuthResponse(username, password, pkey, keyboardInteractive, ip, 
 			return nil, fmt.Errorf("unable to serialize user as JSON: %w", err)
 		}
 	}
-	timeout, env, args := command.GetConfig(config.ExternalAuthHook, command.HookExternalAuth)
+	timeout, env, args := command.GetConfig(holder.getConfig().ExternalAuthHook, command.HookExternalAuth)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, config.ExternalAuthHook, args...)
+	cmd := exec.CommandContext(ctx, holder.getConfig().ExternalAuthHook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPGO_AUTHD_USERNAME=%s", username),
 		fmt.Sprintf("SFTPGO_AUTHD_USER=%s", userAsJSON),
@@ -4346,7 +4343,7 @@ func checkPasswordAfterEmptyExtAuthResponse(user *User, plainPwd, protocol strin
 			user.Username, err)
 		return err
 	}
-	err = provider.updateUserPassword(user.Username, hashedPwd)
+	err = holder.getProvider().updateUserPassword(user.Username, hashedPwd)
 	if err != nil {
 		providerLog(logger.LevelError, "unable to update password for user %q after empty external response: %v",
 			user.Username, err)
@@ -4408,7 +4405,7 @@ func doExternalAuth(username, password string, pubKey []byte, keyboardInteractiv
 	// returns "user" in both cases, so we use the username returned from
 	// external auth and not the one used to login
 	if user.Username != username {
-		u, err = provider.userExists(user.Username, "")
+		u, err = holder.getProvider().userExists(user.Username, "")
 	}
 	if u.ID > 0 && err == nil {
 		user.ID = u.ID
@@ -4435,11 +4432,11 @@ func doExternalAuth(username, password string, pubKey []byte, keyboardInteractiv
 		}
 		return user, err
 	}
-	err = provider.addUser(&user)
+	err = holder.getProvider().addUser(&user)
 	if err != nil {
 		return user, err
 	}
-	return provider.userExists(user.Username, "")
+	return holder.getProvider().userExists(user.Username, "")
 }
 
 func doPluginAuth(username, password string, pubKey []byte, ip, protocol string,
@@ -4507,22 +4504,22 @@ func doPluginAuth(username, password string, pubKey []byte, ip, protocol string,
 		}
 		return user, err
 	}
-	err = provider.addUser(&user)
+	err = holder.getProvider().addUser(&user)
 	if err != nil {
 		return user, err
 	}
-	return provider.userExists(user.Username, "")
+	return holder.getProvider().userExists(user.Username, "")
 }
 
 func updateUserAfterExternalAuth(user *User) (User, error) {
-	if err := provider.updateUser(user); err != nil {
+	if err := holder.getProvider().updateUser(user); err != nil {
 		return *user, err
 	}
-	return provider.userExists(user.Username, "")
+	return holder.getProvider().userExists(user.Username, "")
 }
 
 func getUserForHook(username string, oidcTokenFields *map[string]any) (User, User, error) {
-	u, err := provider.userExists(username, "")
+	u, err := holder.getProvider().userExists(username, "")
 	if err != nil {
 		if !errors.Is(err, util.ErrNotFound) {
 			return u, u, err
@@ -4566,17 +4563,17 @@ func isLastActivityRecent(lastActivity int64, minDelay time.Duration) bool {
 }
 
 func isExternalAuthConfigured(loginMethod string) bool {
-	if config.ExternalAuthHook != "" {
-		if config.ExternalAuthScope == 0 {
+	if holder.getConfig().ExternalAuthHook != "" {
+		if holder.getConfig().ExternalAuthScope == 0 {
 			return true
 		}
 		switch loginMethod {
 		case LoginMethodPassword:
-			return config.ExternalAuthScope&1 != 0
+			return holder.getConfig().ExternalAuthScope&1 != 0
 		case LoginMethodTLSCertificate:
-			return config.ExternalAuthScope&8 != 0
+			return holder.getConfig().ExternalAuthScope&8 != 0
 		case LoginMethodTLSCertificateAndPwd:
-			return config.ExternalAuthScope&1 != 0 || config.ExternalAuthScope&8 != 0
+			return holder.getConfig().ExternalAuthScope&1 != 0 || holder.getConfig().ExternalAuthScope&8 != 0
 		}
 	}
 	switch loginMethod {

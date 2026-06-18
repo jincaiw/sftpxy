@@ -57,7 +57,7 @@ func startScheduler() error {
 	}
 	if currentNode != nil {
 		_, err = scheduler.AddFunc("@every 30m", func() {
-			err := provider.cleanupNodes()
+			err := holder.getProvider().cleanupNodes()
 			if err != nil {
 				providerLog(logger.LevelError, "unable to cleanup nodes: %v", err)
 			} else {
@@ -84,7 +84,7 @@ func addScheduledCacheUpdates() error {
 
 func checkDataprovider() {
 	if currentNode != nil {
-		err := provider.updateNodeTimestamp()
+		err := holder.getProvider().updateNodeTimestamp()
 		if err != nil {
 			providerLog(logger.LevelError, "unable to update node timestamp: %v", err)
 		} else {
@@ -93,7 +93,7 @@ func checkDataprovider() {
 		metric.UpdateDataProviderAvailability(err)
 		return
 	}
-	err := provider.checkAvailability()
+	err := holder.getProvider().checkAvailability()
 	if err != nil {
 		providerLog(logger.LevelError, "check availability error: %v", err)
 	}
@@ -112,10 +112,10 @@ func checkUserCache() {
 	lastCheck := lastUserCacheUpdate.Load()
 	providerLog(logger.LevelDebug, "start user cache check, update time %v", util.GetTimeFromMsecSinceEpoch(lastCheck))
 	checkTime := util.GetTimeAsMsSinceEpoch(time.Now())
-	if config.IsShared == 1 {
+	if holder.getConfig().IsShared == 1 {
 		lastCheck -= 5000
 	}
-	users, err := provider.getRecentlyUpdatedUsers(lastCheck)
+	users, err := holder.getProvider().getRecentlyUpdatedUsers(lastCheck)
 	if err != nil {
 		providerLog(logger.LevelError, "unable to get recently updated users: %v", err)
 		return
@@ -127,7 +127,7 @@ func checkUserCache() {
 			deletedAt := util.GetTimeFromMsecSinceEpoch(user.DeletedAt)
 			if deletedAt.Add(30 * time.Minute).Before(time.Now()) {
 				providerLog(logger.LevelDebug, "removing user %q deleted at %s", user.Username, deletedAt)
-				go provider.deleteUser(user, false) //nolint:errcheck
+				go holder.getProvider().deleteUser(user, false) //nolint:errcheck
 			}
 			webDAVUsersCache.remove(user.Username)
 			cachedUserPasswords.Remove(user.Username)
@@ -141,7 +141,7 @@ func checkUserCache() {
 }
 
 func checkIPListEntryCache() {
-	if config.IsShared != 1 {
+	if holder.getConfig().IsShared != 1 {
 		return
 	}
 	hasMemoryLists := false
@@ -156,7 +156,7 @@ func checkIPListEntryCache() {
 	}
 	providerLog(logger.LevelDebug, "start IP list cache check, update time %v", util.GetTimeFromMsecSinceEpoch(lastIPListsCacheUpdate.Load()))
 	checkTime := util.GetTimeAsMsSinceEpoch(time.Now())
-	entries, err := provider.getRecentlyUpdatedIPListEntries(lastIPListsCacheUpdate.Load() - 5000)
+	entries, err := holder.getProvider().getRecentlyUpdatedIPListEntries(lastIPListsCacheUpdate.Load() - 5000)
 	if err != nil {
 		providerLog(logger.LevelError, "unable to get recently updated IP list entries: %v", err)
 		return
@@ -168,7 +168,7 @@ func checkIPListEntryCache() {
 			deletedAt := util.GetTimeFromMsecSinceEpoch(e.DeletedAt)
 			if deletedAt.Add(30 * time.Minute).Before(time.Now()) {
 				providerLog(logger.LevelDebug, "removing IP list entry %q deleted at %s", e.getName(), deletedAt)
-				go provider.deleteIPListEntry(e, false) //nolint:errcheck
+				go holder.getProvider().deleteIPListEntry(e, false) //nolint:errcheck
 			}
 			for _, l := range inMemoryLists {
 				l.removeEntry(&e)

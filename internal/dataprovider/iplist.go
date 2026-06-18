@@ -145,7 +145,7 @@ func (e *IPListEntry) HasProtocol(proto string) bool {
 // RenderAsJSON implements the renderer interface used within plugins
 func (e *IPListEntry) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		entry, err := provider.ipListEntryExists(e.IPOrNet, e.Type)
+		entry, err := holder.getProvider().ipListEntryExists(e.IPOrNet, e.Type)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload IP list entry before rendering as json: %v", err)
 			return nil, err
@@ -454,7 +454,7 @@ func (l *IPList) IsListed(ip, protocol string) (bool, int, error) { //nolint:goc
 		return matched, mode, nil
 	}
 
-	entries, err := provider.getListEntriesForIP(ip, l.listType)
+	entries, err := holder.getProvider().getListEntriesForIP(ip, l.listType)
 	if err != nil {
 		return false, 0, err
 	}
@@ -486,13 +486,13 @@ func (l *IPList) IsListed(ip, protocol string) (bool, int, error) { //nolint:goc
 // NewIPList returns a new IP list for the specified type
 func NewIPList(listType IPListType) (*IPList, error) {
 	delete(inMemoryLists, listType)
-	count, err := provider.countIPListEntries(listType)
+	count, err := holder.getProvider().countIPListEntries(listType)
 	if err != nil {
 		return nil, err
 	}
 	if count < ipListMemoryLimit {
 		providerLog(logger.LevelInfo, "using in-memory matching for list type %d, num entries: %d", listType, count)
-		entries, err := provider.getIPListEntries(listType, "", "", OrderASC, 0)
+		entries, err := holder.getProvider().getIPListEntries(listType, "", "", OrderASC, 0)
 		if err != nil {
 			return nil, err
 		}

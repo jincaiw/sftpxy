@@ -234,16 +234,16 @@ func initializeMySQLProvider() error {
 		return err
 	}
 	providerLog(logger.LevelDebug, "mysql database handle created, connection string: %q, pool size: %v",
-		redactedConnString, config.PoolSize)
-	dbHandle.SetMaxOpenConns(config.PoolSize)
-	if config.PoolSize > 0 {
-		dbHandle.SetMaxIdleConns(config.PoolSize)
+		redactedConnString, holder.getConfig().PoolSize)
+	dbHandle.SetMaxOpenConns(holder.getConfig().PoolSize)
+	if holder.getConfig().PoolSize > 0 {
+		dbHandle.SetMaxIdleConns(holder.getConfig().PoolSize)
 	} else {
 		dbHandle.SetMaxIdleConns(2)
 	}
 	dbHandle.SetConnMaxLifetime(240 * time.Second)
 	dbHandle.SetConnMaxIdleTime(120 * time.Second)
-	provider = &MySQLProvider{dbHandle: dbHandle}
+	holder.setProvider(&MySQLProvider{dbHandle: dbHandle})
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSQLQueryTimeout)
 	defer cancel()
@@ -252,8 +252,8 @@ func initializeMySQLProvider() error {
 }
 func getMySQLConnectionString(redactedPwd bool) (string, error) {
 	var connectionString string
-	if config.ConnectionString == "" {
-		password := config.Password
+	if holder.getConfig().ConnectionString == "" {
+		password := holder.getConfig().Password
 		if redactedPwd && password != "" {
 			password = "[redacted]"
 		}
@@ -264,46 +264,46 @@ func getMySQLConnectionString(redactedPwd bool) (string, error) {
 			}
 		}
 		connectionString = fmt.Sprintf("%s:%s@tcp([%s]:%d)/%s?collation=utf8mb4_unicode_ci&interpolateParams=true&timeout=10s&parseTime=true&clientFoundRows=true&tls=%s&writeTimeout=60s&readTimeout=60s",
-			config.Username, password, config.Host, config.Port, config.Name, sslMode)
+			holder.getConfig().Username, password, holder.getConfig().Host, holder.getConfig().Port, holder.getConfig().Name, sslMode)
 	} else {
-		connectionString = config.ConnectionString
+		connectionString = holder.getConfig().ConnectionString
 	}
 	return connectionString, nil
 }
 
 func registerMySQLCustomTLSConfig() error {
 	tlsConfig := &tls.Config{}
-	if config.RootCert != "" {
+	if holder.getConfig().RootCert != "" {
 		rootCAs, err := x509.SystemCertPool()
 		if err != nil {
 			rootCAs = x509.NewCertPool()
 		}
-		rootCrt, err := os.ReadFile(config.RootCert)
+		rootCrt, err := os.ReadFile(holder.getConfig().RootCert)
 		if err != nil {
-			return fmt.Errorf("unable to load root certificate %q: %v", config.RootCert, err)
+			return fmt.Errorf("unable to load root certificate %q: %v", holder.getConfig().RootCert, err)
 		}
 		if !rootCAs.AppendCertsFromPEM(rootCrt) {
-			return fmt.Errorf("unable to parse root certificate %q", config.RootCert)
+			return fmt.Errorf("unable to parse root certificate %q", holder.getConfig().RootCert)
 		}
 		tlsConfig.RootCAs = rootCAs
 	}
-	if config.ClientCert != "" && config.ClientKey != "" {
+	if holder.getConfig().ClientCert != "" && holder.getConfig().ClientKey != "" {
 		clientCert := make([]tls.Certificate, 0, 1)
-		tlsCert, err := tls.LoadX509KeyPair(config.ClientCert, config.ClientKey)
+		tlsCert, err := tls.LoadX509KeyPair(holder.getConfig().ClientCert, holder.getConfig().ClientKey)
 		if err != nil {
-			return fmt.Errorf("unable to load key pair %q, %q: %v", config.ClientCert, config.ClientKey, err)
+			return fmt.Errorf("unable to load key pair %q, %q: %v", holder.getConfig().ClientCert, holder.getConfig().ClientKey, err)
 		}
 		clientCert = append(clientCert, tlsCert)
 		tlsConfig.Certificates = clientCert
 	}
-	if config.SSLMode == 2 || config.SSLMode == 3 {
+	if holder.getConfig().SSLMode == 2 || holder.getConfig().SSLMode == 3 {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	if !filepath.IsAbs(config.Host) && !config.DisableSNI {
-		tlsConfig.ServerName = config.Host
+	if !filepath.IsAbs(holder.getConfig().Host) && !holder.getConfig().DisableSNI {
+		tlsConfig.ServerName = holder.getConfig().Host
 	}
 	providerLog(logger.LevelInfo, "registering custom TLS config, root cert %q, client cert %q, client key %q, disable SNI? %v",
-		config.RootCert, config.ClientCert, config.ClientKey, config.DisableSNI)
+		holder.getConfig().RootCert, holder.getConfig().ClientCert, holder.getConfig().ClientKey, holder.getConfig().DisableSNI)
 	if err := mysql.RegisterTLSConfig("custom", tlsConfig); err != nil {
 		return fmt.Errorf("unable to register tls config: %v", err)
 	}
@@ -891,7 +891,7 @@ func updateMySQLDatabaseFrom33To34(dbHandle *sql.DB) error {
 	logger.InfoToConsole("updating database schema version: 33 -> 34")
 	providerLog(logger.LevelInfo, "updating database schema version: 33 -> 34")
 
-	sql := strings.ReplaceAll(mysqlV34SQL, "{{prefix}}", config.SQLTablesPrefix)
+	sql := strings.ReplaceAll(mysqlV34SQL, "{{prefix}}", holder.getConfig().SQLTablesPrefix)
 	sql = strings.ReplaceAll(sql, "{{shares}}", sqlTableShares)
 	sql = strings.ReplaceAll(sql, "{{shares_groups_mapping}}", sqlTableSharesGroupsMapping)
 	sql = strings.ReplaceAll(sql, "{{groups}}", sqlTableGroups)

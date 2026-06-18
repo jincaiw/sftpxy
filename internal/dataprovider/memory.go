@@ -93,13 +93,13 @@ type MemoryProvider struct {
 
 func initializeMemoryProvider(basePath string) error {
 	configFile := ""
-	if util.IsFileInputValid(config.Name) {
-		configFile = config.Name
+	if util.IsFileInputValid(holder.getConfig().Name) {
+		configFile = holder.getConfig().Name
 		if !filepath.IsAbs(configFile) {
 			configFile = filepath.Join(basePath, configFile)
 		}
 	}
-	provider = &MemoryProvider{
+	holder.setProvider(&MemoryProvider{
 		dbHandle: &memoryProviderHandle{
 			isClosed:          false,
 			usernames:         []string{},
@@ -125,8 +125,8 @@ func initializeMemoryProvider(basePath string) error {
 			configs:           Configs{},
 			configFile:        configFile,
 		},
-	}
-	return provider.reloadConfig()
+	})
+	return holder.getProvider().reloadConfig()
 }
 
 func (p *MemoryProvider) checkAvailability() error {
@@ -3186,7 +3186,7 @@ func (p *MemoryProvider) restoreAPIKeys(dump *BackupData) error {
 func (p *MemoryProvider) restoreAdmins(dump *BackupData) error {
 	for idx := range dump.Admins {
 		admin := dump.Admins[idx]
-		admin.Username = config.convertName(admin.Username)
+		admin.Username = holder.getConfig().convertName(admin.Username)
 		a, err := p.adminExists(admin.Username)
 		if err == nil {
 			admin.ID = a.ID
@@ -3237,7 +3237,7 @@ func (p *MemoryProvider) restoreIPListEntries(dump *BackupData) error {
 func (p *MemoryProvider) restoreRoles(dump *BackupData) error {
 	for idx := range dump.Roles {
 		role := dump.Roles[idx]
-		role.Name = config.convertName(role.Name)
+		role.Name = holder.getConfig().convertName(role.Name)
 		r, err := p.roleExists(role.Name)
 		if err == nil {
 			role.ID = r.ID
@@ -3262,7 +3262,7 @@ func (p *MemoryProvider) restoreRoles(dump *BackupData) error {
 func (p *MemoryProvider) restoreGroups(dump *BackupData) error {
 	for idx := range dump.Groups {
 		group := dump.Groups[idx]
-		group.Name = config.convertName(group.Name)
+		group.Name = holder.getConfig().convertName(group.Name)
 		g, err := p.groupExists(group.Name)
 		if err == nil {
 			group.ID = g.ID
@@ -3286,7 +3286,7 @@ func (p *MemoryProvider) restoreGroups(dump *BackupData) error {
 func (p *MemoryProvider) restoreFolders(dump *BackupData) error {
 	for idx := range dump.Folders {
 		folder := dump.Folders[idx]
-		folder.Name = config.convertName(folder.Name)
+		folder.Name = holder.getConfig().convertName(folder.Name)
 		f, err := p.getFolderByName(folder.Name)
 		if err == nil {
 			folder.ID = f.ID
@@ -3310,7 +3310,7 @@ func (p *MemoryProvider) restoreFolders(dump *BackupData) error {
 func (p *MemoryProvider) restoreUsers(dump *BackupData) error {
 	for idx := range dump.Users {
 		user := dump.Users[idx]
-		user.Username = config.convertName(user.Username)
+		user.Username = holder.getConfig().convertName(user.Username)
 		u, err := p.userExists(user.Username, "")
 		if err == nil {
 			user.ID = u.ID

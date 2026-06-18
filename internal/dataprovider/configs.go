@@ -621,7 +621,7 @@ func (c *Configs) SetNilsToEmpty() {
 // RenderAsJSON implements the renderer interface used within plugins
 func (c *Configs) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		config, err := provider.getConfigs()
+		config, err := holder.getProvider().getConfigs()
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload config overrides before rendering as json: %v", err)
 			return nil, err

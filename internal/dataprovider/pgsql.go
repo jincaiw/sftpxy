@@ -244,7 +244,7 @@ func init() {
 
 func initializePGSQLProvider() error {
 	var dbHandle *sql.DB
-	if config.TargetSessionAttrs == "any" {
+	if holder.getConfig().TargetSessionAttrs == "any" {
 		pgxConfig, err := pgx.ParseConfig(getPGSQLConnectionString(false))
 		if err != nil {
 			providerLog(logger.LevelError, "error parsing postgres configuration, connection string: %q, error: %v",
@@ -262,16 +262,16 @@ func initializePGSQLProvider() error {
 		}
 	}
 	providerLog(logger.LevelDebug, "postgres database handle created, connection string: %q, pool size: %d",
-		getPGSQLConnectionString(true), config.PoolSize)
-	dbHandle.SetMaxOpenConns(config.PoolSize)
-	if config.PoolSize > 0 {
-		dbHandle.SetMaxIdleConns(config.PoolSize)
+		getPGSQLConnectionString(true), holder.getConfig().PoolSize)
+	dbHandle.SetMaxOpenConns(holder.getConfig().PoolSize)
+	if holder.getConfig().PoolSize > 0 {
+		dbHandle.SetMaxIdleConns(holder.getConfig().PoolSize)
 	} else {
 		dbHandle.SetMaxIdleConns(2)
 	}
 	dbHandle.SetConnMaxLifetime(240 * time.Second)
 	dbHandle.SetConnMaxIdleTime(120 * time.Second)
-	provider = &PGSQLProvider{dbHandle: dbHandle}
+	holder.setProvider(&PGSQLProvider{dbHandle: dbHandle})
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSQLQueryTimeout)
 	defer cancel()
@@ -306,28 +306,28 @@ func getPGSQLHostsAndPorts(configHost string, configPort int) (string, string) {
 
 func getPGSQLConnectionString(redactedPwd bool) string {
 	var connectionString string
-	if config.ConnectionString == "" {
-		password := config.Password
+	if holder.getConfig().ConnectionString == "" {
+		password := holder.getConfig().Password
 		if redactedPwd && password != "" {
 			password = "[redacted]"
 		}
-		host, port := getPGSQLHostsAndPorts(config.Host, config.Port)
+		host, port := getPGSQLHostsAndPorts(holder.getConfig().Host, holder.getConfig().Port)
 		connectionString = fmt.Sprintf("host='%s' port='%s' dbname='%s' user='%s' password='%s' sslmode=%s connect_timeout=10",
-			host, port, config.Name, config.Username, password, getSSLMode())
-		if config.RootCert != "" {
-			connectionString += fmt.Sprintf(" sslrootcert='%s'", config.RootCert)
+			host, port, holder.getConfig().Name, holder.getConfig().Username, password, getSSLMode())
+		if holder.getConfig().RootCert != "" {
+			connectionString += fmt.Sprintf(" sslrootcert='%s'", holder.getConfig().RootCert)
 		}
-		if config.ClientCert != "" && config.ClientKey != "" {
-			connectionString += fmt.Sprintf(" sslcert='%s' sslkey='%s'", config.ClientCert, config.ClientKey)
+		if holder.getConfig().ClientCert != "" && holder.getConfig().ClientKey != "" {
+			connectionString += fmt.Sprintf(" sslcert='%s' sslkey='%s'", holder.getConfig().ClientCert, holder.getConfig().ClientKey)
 		}
-		if config.DisableSNI {
+		if holder.getConfig().DisableSNI {
 			connectionString += " sslsni=0"
 		}
-		if slices.Contains(pgSQLTargetSessionAttrs, config.TargetSessionAttrs) {
-			connectionString += fmt.Sprintf(" target_session_attrs='%s'", config.TargetSessionAttrs)
+		if slices.Contains(pgSQLTargetSessionAttrs, holder.getConfig().TargetSessionAttrs) {
+			connectionString += fmt.Sprintf(" target_session_attrs='%s'", holder.getConfig().TargetSessionAttrs)
 		}
 	} else {
-		connectionString = config.ConnectionString
+		connectionString = holder.getConfig().ConnectionString
 	}
 	return connectionString
 }
@@ -818,7 +818,7 @@ func (p *PGSQLProvider) initializeDatabase() error {
 	logger.InfoToConsole("creating initial database schema, version 33")
 	providerLog(logger.LevelInfo, "creating initial database schema, version 33")
 	var initialSQL string
-	if config.Driver == CockroachDataProviderName {
+	if holder.getConfig().Driver == CockroachDataProviderName {
 		initialSQL = sqlReplaceAll(pgsqlInitial)
 		initialSQL = strings.ReplaceAll(initialSQL, "GENERATED ALWAYS AS IDENTITY", "DEFAULT unordered_unique_rowid()")
 	} else {
@@ -919,7 +919,7 @@ func updatePGSQLDatabaseFrom33To34(dbHandle *sql.DB) error {
 	logger.InfoToConsole("updating database schema version: 33 -> 34")
 	providerLog(logger.LevelInfo, "updating database schema version: 33 -> 34")
 
-	sql := strings.ReplaceAll(pgsqlV34SQL, "{{prefix}}", config.SQLTablesPrefix)
+	sql := strings.ReplaceAll(pgsqlV34SQL, "{{prefix}}", holder.getConfig().SQLTablesPrefix)
 	sql = strings.ReplaceAll(sql, "{{shares}}", sqlTableShares)
 	sql = strings.ReplaceAll(sql, "{{shares_groups_mapping}}", sqlTableSharesGroupsMapping)
 	sql = strings.ReplaceAll(sql, "{{groups}}", sqlTableGroups)

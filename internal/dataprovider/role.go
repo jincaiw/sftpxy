@@ -43,7 +43,7 @@ type Role struct {
 // RenderAsJSON implements the renderer interface used within plugins
 func (r *Role) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		role, err := provider.roleExists(r.Name)
+		role, err := holder.getProvider().roleExists(r.Name)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload role before rendering as json: %v", err)
 			return nil, err
@@ -63,7 +63,7 @@ func (r *Role) validate() error {
 	if len(r.Name) > 255 {
 		return util.NewValidationError("name is too long, 255 is the maximum length allowed")
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(r.Name) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(r.Name) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("name %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", r.Name)),
 			util.I18nErrorInvalidName,

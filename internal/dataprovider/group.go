@@ -73,7 +73,7 @@ func (g *Group) HasExternalAuth() bool {
 	if g.UserSettings.Filters.Hooks.ExternalAuthDisabled {
 		return false
 	}
-	if config.ExternalAuthHook != "" {
+	if holder.getConfig().ExternalAuthHook != "" {
 		return true
 	}
 	return plugin.Handler.HasAuthenticators()
@@ -103,7 +103,7 @@ func (g *Group) PrepareForRendering() {
 // RenderAsJSON implements the renderer interface used within plugins
 func (g *Group) RenderAsJSON(reload bool) ([]byte, error) {
 	if reload {
-		group, err := provider.groupExists(g.Name)
+		group, err := holder.getProvider().groupExists(g.Name)
 		if err != nil {
 			providerLog(logger.LevelError, "unable to reload group before rendering as json: %v", err)
 			return nil, err
@@ -133,9 +133,9 @@ func (g *Group) hasRedactedSecret() bool {
 }
 
 func (g *Group) applyNamingRules() {
-	g.Name = config.convertName(g.Name)
+	g.Name = holder.getConfig().convertName(g.Name)
 	for idx := range g.VirtualFolders {
-		g.VirtualFolders[idx].Name = config.convertName(g.VirtualFolders[idx].Name)
+		g.VirtualFolders[idx].Name = holder.getConfig().convertName(g.VirtualFolders[idx].Name)
 	}
 }
 
@@ -148,7 +148,7 @@ func (g *Group) validate() error {
 	if !util.IsNameValid(g.Name) {
 		return util.NewI18nError(errInvalidInput, util.I18nErrorInvalidInput)
 	}
-	if config.NamingRules&1 == 0 && !usernameRegex.MatchString(g.Name) {
+	if holder.getConfig().NamingRules&1 == 0 && !usernameRegex.MatchString(g.Name) {
 		return util.NewI18nError(
 			util.NewValidationError(fmt.Sprintf("name %q is not valid, the following characters are allowed: a-zA-Z0-9-_.~", g.Name)),
 			util.I18nErrorInvalidName,
