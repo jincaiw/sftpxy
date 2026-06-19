@@ -56,6 +56,29 @@ type pwdChange struct {
 	NewPassword     string `json:"new_password"`
 }
 
+// validatePasswordChange checks the common password-change preconditions shared by
+// admins and users: required fields, that the two new-password entries match, and
+// that the new password differs from the current one. Returns an I18nError-wrapped
+// validation error on failure, nil on success.
+func validatePasswordChange(currentPassword, newPassword, confirmNewPassword string) error {
+	if currentPassword == "" || newPassword == "" || confirmNewPassword == "" {
+		return util.NewI18nError(
+			util.NewValidationError("please provide the current password and the new one two times"),
+			util.I18nErrorChangePwdRequiredFields,
+		)
+	}
+	if newPassword != confirmNewPassword {
+		return util.NewI18nError(util.NewValidationError("the two password fields do not match"), util.I18nErrorChangePwdNoMatch)
+	}
+	if currentPassword == newPassword {
+		return util.NewI18nError(
+			util.NewValidationError("the new password must be different from the current one"),
+			util.I18nErrorChangePwdNoDifferent,
+		)
+	}
+	return nil
+}
+
 type pwdReset struct {
 	Code     string `json:"code"`
 	Password string `json:"password"`

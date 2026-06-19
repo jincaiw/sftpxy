@@ -302,20 +302,8 @@ func changeAdminPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func doChangeAdminPassword(r *http.Request, currentPassword, newPassword, confirmNewPassword string) error {
-	if currentPassword == "" || newPassword == "" || confirmNewPassword == "" {
-		return util.NewI18nError(
-			util.NewValidationError("please provide the current password and the new one two times"),
-			util.I18nErrorChangePwdRequiredFields,
-		)
-	}
-	if newPassword != confirmNewPassword {
-		return util.NewI18nError(util.NewValidationError("the two password fields do not match"), util.I18nErrorChangePwdNoMatch)
-	}
-	if currentPassword == newPassword {
-		return util.NewI18nError(
-			util.NewValidationError("the new password must be different from the current one"),
-			util.I18nErrorChangePwdNoDifferent,
-		)
+	if err := validatePasswordChange(currentPassword, newPassword, confirmNewPassword); err != nil {
+		return err
 	}
 	claims, err := jwt.FromContext(r.Context())
 	if err != nil {
