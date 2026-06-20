@@ -20,8 +20,8 @@ package httpd
 import (
 	"fmt"
 	"os"
-	"strings"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +32,8 @@ import (
 	"github.com/drakkan/sftpgo/v2/internal/logger"
 	"github.com/drakkan/sftpgo/v2/internal/mfa"
 	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/webdavd"
 	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/drakkan/sftpgo/v2/internal/webdavd"
 )
 
 const (

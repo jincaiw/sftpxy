@@ -27,7 +27,6 @@ import (
 	"github.com/drakkan/sftpgo/v2/internal/vfs"
 )
 
-
 type userPageMode int
 
 const (
@@ -701,4 +700,3 @@ func (s *httpdServer) renderNotFoundPage(w http.ResponseWriter, r *http.Request,
 	s.renderMessagePage(w, r, util.I18nError404Title, http.StatusNotFound,
 		util.NewI18nError(err, util.I18nError404Message), "")
 }
-

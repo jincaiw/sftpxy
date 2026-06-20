@@ -83,7 +83,7 @@ type SecurityConf struct {
 	CacheControl string `json:"cache_control" mapstructure:"cache_control"`
 	// ReferrerPolicy allows to set the Referrer-Policy header values.
 	ReferrerPolicy string `json:"referrer_policy" mapstructure:"referrer_policy"`
-	proxyHeaders []string
+	proxyHeaders   []string
 }
 
 func (s *SecurityConf) updateProxyHeaders() {

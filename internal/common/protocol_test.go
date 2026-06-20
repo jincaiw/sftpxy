@@ -7335,6 +7335,20 @@ func TestEventRuleIDPLogin(t *testing.T) {
 	_, err = httpdtest.RemoveEventAction(action2, http.StatusOK)
 	assert.NoError(t, err)
 
+	// some IDP login invocations above (e.g. with rule2 active) send emails
+	// asynchronously. Drain any in-flight email so it does not leak into the
+	// next test, which shares the single lastReceivedEmail mailbox.
+	lastReceivedEmail.reset()
+	deadline := time.Now().Add(3000 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if lastReceivedEmail.get().From != "" {
+			lastReceivedEmail.reset()
+			deadline = time.Now().Add(1000 * time.Millisecond)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	lastReceivedEmail.reset()
+
 	smtpCfg = smtp.Config{}
 	err = smtpCfg.Initialize(configDir, true)
 	require.NoError(t, err)

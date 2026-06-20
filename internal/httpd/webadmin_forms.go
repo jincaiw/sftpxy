@@ -873,4 +873,3 @@ func getBrandingConfigFromPostFields(r *http.Request, config *dataprovider.Brand
 	}
 	return branding, nil
 }
-
