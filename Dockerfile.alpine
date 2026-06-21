@@ -26,7 +26,7 @@ RUN set -xe && \
     export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} && \
     go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${COMMIT_SHA} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -v -o SFTPxy
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 # Set to "true" to install jq
 ARG INSTALL_OPTIONAL_PACKAGES=false
