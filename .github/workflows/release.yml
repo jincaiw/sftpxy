@@ -402,34 +402,12 @@ jobs:
         with:
           name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_x86_64.tar.xz
 
-      - name: Download arm64 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_arm64.tar.xz
-
-      - name: Download ppc64le artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_ppc64le.tar.xz
-
-      - name: Download armv7 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_armv7.tar.xz
-
       - name: Build bundle
         shell: bash
         run: |
-          mkdir -p bundle/{arm64,ppc64le,armv7}
+          mkdir -p bundle
           cd bundle
           tar xvf ../SFTPxy_${SFTPXY_VERSION}_linux_x86_64.tar.xz
-          cd arm64
-          tar xvf ../../SFTPxy_${SFTPXY_VERSION}_linux_arm64.tar.xz SFTPxy
-          cd ../ppc64le
-          tar xvf ../../SFTPxy_${SFTPXY_VERSION}_linux_ppc64le.tar.xz SFTPxy
-          cd ../armv7
-          tar xvf ../../SFTPxy_${SFTPXY_VERSION}_linux_armv7.tar.xz SFTPxy
-          cd ..
           tar cJvf SFTPxy_${SFTPXY_VERSION}_linux_bundle.tar.xz *
           cd ..
         env:
@@ -463,21 +441,6 @@ jobs:
         with:
           name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_x86_64.tar.xz
 
-      - name: Download arm64 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_arm64.tar.xz
-
-      - name: Download ppc64le artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_ppc64le.tar.xz
-
-      - name: Download armv7 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_armv7.tar.xz
-
       - name: Download Linux bundle artifact
         uses: actions/download-artifact@v8
         with:
@@ -488,40 +451,10 @@ jobs:
         with:
           name: SFTPxy_${{ steps.get_version.outputs.PKG_VERSION }}-1_amd64.deb
 
-      - name: Download Deb arm64 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.PKG_VERSION }}-1_arm64.deb
-
-      - name: Download Deb ppc64le artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.PKG_VERSION }}-1_ppc64el.deb
-
-      - name: Download Deb armv7 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy_${{ steps.get_version.outputs.PKG_VERSION }}-1_armhf.deb
-
       - name: Download RPM x86_64 artifact
         uses: actions/download-artifact@v8
         with:
           name: SFTPxy-${{ steps.get_version.outputs.PKG_VERSION }}-1.x86_64.rpm
-
-      - name: Download RPM aarch64 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy-${{ steps.get_version.outputs.PKG_VERSION }}-1.aarch64.rpm
-
-      - name: Download RPM ppc64le artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy-${{ steps.get_version.outputs.PKG_VERSION }}-1.ppc64le.rpm
-
-      - name: Download RPM armv7 artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: SFTPxy-${{ steps.get_version.outputs.PKG_VERSION }}-1.armv7hl.rpm
 
       - name: Download macOS x86_64 artifact
         uses: actions/download-artifact@v8
