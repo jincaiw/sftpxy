@@ -250,24 +250,6 @@ jobs:
             deb-arch: amd64
             rpm-arch: x86_64
             tar-arch: x86_64
-          - arch: aarch64
-            distro: ubuntu18.04
-            go-arch: arm64
-            deb-arch: arm64
-            rpm-arch: aarch64
-            tar-arch: arm64
-          - arch: ppc64le
-            distro: ubuntu18.04
-            go-arch: ppc64le
-            deb-arch: ppc64el
-            rpm-arch: ppc64le
-            tar-arch: ppc64le
-          - arch: armv7
-            distro: ubuntu18.04
-            go-arch: arm7
-            deb-arch: armhf
-            rpm-arch: armv7hl
-            tar-arch: armv7
 
     steps:
       - uses: actions/checkout@v6
