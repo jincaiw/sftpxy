@@ -76,7 +76,7 @@ jobs:
           elif [[ $DOCKER_PKG == debian ]]; then
             FEATURES="${FEATURES},unixcrypt"
           fi
-          DOCKER_IMAGES=("jincaiw/sftpxy" "ghcr.io/jincaiw/sftpxy")
+          DOCKER_IMAGES=("qing1205/sftpxy" "ghcr.io/jincaiw/sftpxy")
           TAGS="${DOCKER_IMAGES[0]}:${VERSION}"
           TAGS_SLIM="${DOCKER_IMAGES[0]}:${VERSION_SLIM}"
 

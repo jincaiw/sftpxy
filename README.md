@@ -105,7 +105,7 @@ sudo systemctl restart SFTPxy
 
 ## Docker Deployment
 
-The Docker image is published as `jincaiw/sftpxy`.
+The Docker image is published as `qing1205/sftpxy`.
 
 ```bash
 docker run -d --name sftpxy \
@@ -119,7 +119,7 @@ docker run -d --name sftpxy \
   -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
   -v sftpxy-config:/etc/SFTPxy \
   -v sftpxy-data:/srv/SFTPxy \
-  jincaiw/sftpxy:v0.2.0
+  qing1205/sftpxy:v0.2.0
 ```
 
 Docker Compose:
@@ -127,7 +127,7 @@ Docker Compose:
 ```yaml
 services:
   sftpxy:
-    image: jincaiw/sftpxy:v0.2.0
+    image: qing1205/sftpxy:v0.2.0
     container_name: sftpxy
     restart: unless-stopped
     ports:
@@ -156,7 +156,7 @@ Release `v0.2.0` provides:
 - Linux packages and portable archives.
 - Windows installers and portable archives.
 - Source archive with vendored dependencies.
-- Docker image `jincaiw/sftpxy:v0.2.0` and `jincaiw/sftpxy:latest`.
+- Docker image `qing1205/sftpxy:v0.2.0` and `qing1205/sftpxy:latest`.
 
 ## Configuration Notes
 
