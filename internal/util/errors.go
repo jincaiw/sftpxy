@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package util
 
@@ -22,7 +10,7 @@ import (
 const (
 	templateLoadErrorHints = "Try setting the absolute templates path in your configuration file " +
 		"or specifying the config directory adding the `-c` flag to the serve options. For example: " +
-		"sftpgo serve -c \"<path to dir containing the default config file and templates directory>\""
+		"SFTPxy serve -c \"<path to dir containing the default config file and templates directory>\""
 )
 
 // MaxRecursion defines the maximum number of allowed recursions

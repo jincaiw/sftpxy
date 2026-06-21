@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package mfa
 
@@ -46,7 +34,7 @@ func TestMFAConfig(t *testing.T) {
 	assert.NoError(t, err)
 	config.TOTP = append(config.TOTP, TOTPConfig{
 		Name:   configName1,
-		Issuer: "SFTPGo",
+		Issuer: "SFTPxy",
 		Algo:   TOTPAlgoSHA512,
 	})
 	err = config.Initialize()
@@ -58,7 +46,7 @@ func TestMFAConfig(t *testing.T) {
 	assert.Len(t, GetAvailableTOTPConfigNames(), 2)
 	config.TOTP = append(config.TOTP, TOTPConfig{
 		Name:   configName3,
-		Issuer: "SFTPGo",
+		Issuer: "SFTPxy",
 		Algo:   TOTPAlgoSHA256,
 	})
 	err = config.Initialize()
@@ -114,7 +102,7 @@ func TestGenerateQRCodeFromURL(t *testing.T) {
 	assert.Error(t, err)
 	config := TOTPConfig{
 		Name:   "config name",
-		Issuer: "SFTPGo",
+		Issuer: "SFTPxy",
 		Algo:   TOTPAlgoSHA256,
 	}
 	key, qrCode, err := config.generate("a", 150, 150)

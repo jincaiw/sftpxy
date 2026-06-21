@@ -1,18 +1,4 @@
-<!--
-Copyright (C) 2023 Nicola Murino
-
-This WebUI uses the KeenThemes Bootstrap Templates:
-
-https://keenthemes.com/bootstrap-templates
-
-KeenThemes HTML/CSS/JS components are allowed for use only within the
-SFTPGo product and restricted to be used in a resealable HTML template
-that can compete with KeenThemes products anyhow.
-
-This WebUI is allowed for use only within the SFTPGo product and
-therefore cannot be used in derivative works/products without an
-explicit grant from the SFTPGo Team (support@sftpgo.com).
--->
+<!-- SPDX-License-Identifier: MIT -->
 {{template "base" .}}
 
 {{- define "page_body"}}
@@ -590,10 +576,10 @@ explicit grant from the SFTPGo Team (support@sftpgo.com).
                 stateSave: true,
                 stateDuration: 0,
                 stateSaveParams: function (settings, data) {
-                    data.sftpgo_dir = '{{.CurrentDir}}';
+                    data.SFTPxy_dir = '{{.CurrentDir}}';
                 },
                 stateLoadParams: function (settings, data) {
-                    if (!data.sftpgo_dir || data.sftpgo_dir != '{{.CurrentDir}}'){
+                    if (!data.SFTPxy_dir || data.SFTPxy_dir != '{{.CurrentDir}}'){
                         data.start = 0;
                         data.search.search = "";
                     }
@@ -2053,7 +2039,7 @@ explicit grant from the SFTPGo Team (support@sftpgo.com).
 
             axios.post(uploadPath, f, {
                 headers: {
-                    'X-SFTPGO-MTIME': lastModified,
+                    'X-SFTPXY-MTIME': lastModified,
                     'X-CSRF-TOKEN': '{{.CSRFToken}}'
                 },
                 onUploadProgress: function (progressEvent) {

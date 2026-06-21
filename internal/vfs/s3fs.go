@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 //go:build !nos3
 
@@ -50,10 +38,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pkg/sftp"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/metric"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/metric"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
 )
 
 const (
@@ -537,7 +525,7 @@ func (*S3Fs) GetAtomicUploadPath(_ string) string {
 }
 
 // GetRelativePath returns the path for a file relative to the user's home dir.
-// This is the path as seen by SFTPGo users
+// This is the path as seen by SFTPxy users
 func (fs *S3Fs) GetRelativePath(name string) string {
 	rel := path.Clean(name)
 	if rel == "." {

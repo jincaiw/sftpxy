@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -28,11 +16,11 @@ import (
 	"time"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -45,7 +33,7 @@ var (
 	errSQLFoldersAssociation = errors.New("unable to associate virtual folders to user")
 	errSQLGroupsAssociation  = errors.New("unable to associate groups to user")
 	errSQLUsersAssociation   = errors.New("unable to associate users to group")
-	errSchemaVersionEmpty    = errors.New("we can't determine schema version because the schema_migration table is empty. The SFTPGo database might be corrupted. Consider using the \"resetprovider\" sub-command")
+	errSchemaVersionEmpty    = errors.New("we can't determine schema version because the schema_migration table is empty. The SFTPxy database might be corrupted. Consider using the \"resetprovider\" sub-command")
 )
 
 type sqlQuerier interface {
@@ -4038,7 +4026,7 @@ func sqlAcquireLock(dbHandle *sql.Conn) error {
 		providerLog(logger.LevelInfo, "acquired database lock")
 	case MySQLDataProviderName:
 		var lockResult sql.NullInt64
-		err := dbHandle.QueryRowContext(ctx, `SELECT GET_LOCK('sftpgo.migration',30)`).Scan(&lockResult)
+		err := dbHandle.QueryRowContext(ctx, `SELECT GET_LOCK('SFTPxy.migration',30)`).Scan(&lockResult)
 		if err != nil {
 			return fmt.Errorf("unable to get lock: %w", err)
 		}
@@ -4067,7 +4055,7 @@ func sqlReleaseLock(dbHandle *sql.Conn) {
 			providerLog(logger.LevelInfo, "released database lock")
 		}
 	case MySQLDataProviderName:
-		_, err := dbHandle.ExecContext(ctx, `SELECT RELEASE_LOCK('sftpgo.migration')`)
+		_, err := dbHandle.ExecContext(ctx, `SELECT RELEASE_LOCK('SFTPxy.migration')`)
 		if err != nil {
 			providerLog(logger.LevelWarn, "unable to release lock: %v", err)
 		} else {

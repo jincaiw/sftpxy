@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/sftpgo/sdk/plugin/eventsearcher"
+	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
 )
 
 var (

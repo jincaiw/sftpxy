@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package util provides some common utility methods
 package util
@@ -54,7 +42,7 @@ import (
 	"github.com/lithammer/shortuuid/v4"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
 const (
@@ -595,11 +583,11 @@ func IsFileInputValid(fileInput string) bool {
 
 // CleanDirInput sanitizes user input for directories.
 // On Windows it removes any trailing `"`.
-// We try to help windows users that set an invalid path such as "C:\ProgramData\SFTPGO\".
+// We try to help windows users that set an invalid path such as "C:\ProgramData\SFTPXY\".
 // This will only help if the invalid path is the last argument, for example in this command:
-// sftpgo.exe serve -c "C:\ProgramData\SFTPGO\" -l "sftpgo.log"
-// the -l flag will be ignored and the -c flag will get the value `C:\ProgramData\SFTPGO" -l sftpgo.log`
-// since the backslash after SFTPGO escape the double quote. This is definitely a bad user input
+// SFTPxy.exe serve -c "C:\ProgramData\SFTPXY\" -l "SFTPxy.log"
+// the -l flag will be ignored and the -c flag will get the value `C:\ProgramData\SFTPXY" -l SFTPxy.log`
+// since the backslash after SFTPXY escape the double quote. This is definitely a bad user input
 func CleanDirInput(dirInput string) string {
 	if runtime.GOOS == osWindows {
 		for strings.HasSuffix(dirInput, "\"") {

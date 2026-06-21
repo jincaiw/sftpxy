@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package cmd
 
@@ -21,18 +9,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/drakkan/sftpgo/v2/internal/service"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/service"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 var (
 	installCmd = &cobra.Command{
 		Use:   "install",
-		Short: "Install SFTPGo as Windows Service",
-		Long: `To install the SFTPGo Windows Service with the default values for the command
+		Short: "Install SFTPxy as Windows Service",
+		Long: `To install the SFTPxy Windows Service with the default values for the command
 line flags simply use:
 
-sftpgo service install
+SFTPxy service install
 
 Please take a look at the usage below to customize the startup options`,
 		Run: func(_ *cobra.Command, _ []string) {

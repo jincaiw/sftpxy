@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package httpd
 
@@ -40,23 +28,23 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jose/go-jose/v4"
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 	"github.com/klauspost/compress/zip"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
-	sdkkms "github.com/sftpgo/sdk/kms"
-	"github.com/sftpgo/sdk/plugin/notifier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 
-	"github.com/drakkan/sftpgo/v2/internal/acme"
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/jwt"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/acme"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -994,7 +982,7 @@ func TestTokenSignatureValidation(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:         "",
-			Port:            8080,
+			Port:            30080,
 			EnableWebAdmin:  true,
 			EnableWebClient: true,
 			EnableRESTAPI:   true,
@@ -1357,7 +1345,7 @@ func TestCSRFToken(t *testing.T) {
 
 	r, err := GetHTTPRouter(Binding{
 		Address:         "",
-		Port:            8080,
+		Port:            30080,
 		EnableWebAdmin:  true,
 		EnableWebClient: true,
 		EnableRESTAPI:   true,
@@ -1743,7 +1731,7 @@ func TestCreateTokenError(t *testing.T) {
 func TestAPIKeyAuthForbidden(t *testing.T) {
 	r, err := GetHTTPRouter(Binding{
 		Address:         "",
-		Port:            8080,
+		Port:            30080,
 		EnableWebAdmin:  true,
 		EnableWebClient: true,
 		EnableRESTAPI:   true,
@@ -1771,7 +1759,7 @@ func TestJWTTokenValidation(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:         "",
-			Port:            8080,
+			Port:            30080,
 			EnableWebAdmin:  true,
 			EnableWebClient: true,
 			EnableRESTAPI:   true,
@@ -2492,7 +2480,7 @@ func TestProxyHeaders(t *testing.T) {
 	validForwardedFor := "172.19.2.6"
 	b := Binding{
 		Address:             "",
-		Port:                8080,
+		Port:                30080,
 		EnableWebAdmin:      true,
 		EnableWebClient:     false,
 		EnableRESTAPI:       true,
@@ -2663,7 +2651,7 @@ func TestRecoverer(t *testing.T) {
 	recoveryPath := "/recovery"
 	b := Binding{
 		Address:         "",
-		Port:            8080,
+		Port:            30080,
 		EnableWebAdmin:  true,
 		EnableWebClient: false,
 		EnableRESTAPI:   true,
@@ -2825,7 +2813,7 @@ func TestZipErrors(t *testing.T) {
 func TestWebAdminRedirect(t *testing.T) {
 	b := Binding{
 		Address:         "",
-		Port:            8080,
+		Port:            30080,
 		EnableWebAdmin:  true,
 		EnableWebClient: false,
 		EnableRESTAPI:   true,
@@ -2852,7 +2840,7 @@ func TestWebAdminRedirect(t *testing.T) {
 }
 
 func TestParseRangeRequests(t *testing.T) {
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-24"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-24"
 	fileSize := int64(169740)
 	rangeHeader := "bytes=24-24"
 	offset, size, err := parseRangeRequest(rangeHeader[6:], fileSize)
@@ -2860,56 +2848,56 @@ func TestParseRangeRequests(t *testing.T) {
 	resp := fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 24-24/169740", resp)
 	require.Equal(t, int64(1), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-"
 	rangeHeader = "bytes=24-"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 24-169739/169740", resp)
 	require.Equal(t, int64(169716), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=-1"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=-1"
 	rangeHeader = "bytes=-1"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 169739-169739/169740", resp)
 	require.Equal(t, int64(1), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=-100"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=-100"
 	rangeHeader = "bytes=-100"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 169640-169739/169740", resp)
 	require.Equal(t, int64(100), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-30"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-30"
 	rangeHeader = "bytes=20-30"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-30/169740", resp)
 	require.Equal(t, int64(11), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169739"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169739"
 	rangeHeader = "bytes=20-169739"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169740"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169740"
 	rangeHeader = "bytes=20-169740"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	// curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169741"
+	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169741"
 	rangeHeader = "bytes=20-169741"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	//curl --verbose  "http://127.0.0.1:8080/static/css/sb-admin-2.min.css" -H "Range: bytes=0-" > /dev/null
+	//curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=0-" > /dev/null
 	rangeHeader = "bytes=0-"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
@@ -3466,7 +3454,7 @@ func TestSecureMiddlewareIntegration(t *testing.T) {
 			ProxyAllowed: []string{"192.168.1.0/24"},
 			Security: SecurityConf{
 				Enabled:              true,
-				AllowedHosts:         []string{"*.sftpgo.com"},
+				AllowedHosts:         []string{"*.sftpxy.example.com"},
 				AllowedHostsAreRegex: true,
 				HostsProxyHeaders:    []string{forwardedHostHeader},
 				HTTPSProxyHeaders: []HTTPSProxyHeader{
@@ -3507,14 +3495,14 @@ func TestSecureMiddlewareIntegration(t *testing.T) {
 	assert.Equal(t, "no-cache, no-store, max-age=0, must-revalidate, private", rr.Header().Get("Cache-Control"))
 
 	rr = httptest.NewRecorder()
-	r.Header.Set(forwardedHostHeader, "www.sftpgo.com")
+	r.Header.Set(forwardedHostHeader, "www.sftpxy.example.com")
 	server.router.ServeHTTP(rr, r)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 	// the header should be removed
 	assert.Empty(t, r.Header.Get(forwardedHostHeader))
 
 	rr = httptest.NewRecorder()
-	r.Host = "test.sftpgo.com"
+	r.Host = "test.sftpxy.example.com"
 	r.Header.Set(forwardedHostHeader, "test.example.com")
 	r.RemoteAddr = "192.168.1.1"
 	server.router.ServeHTTP(rr, r)
@@ -3522,7 +3510,7 @@ func TestSecureMiddlewareIntegration(t *testing.T) {
 	assert.NotEmpty(t, r.Header.Get(forwardedHostHeader))
 
 	rr = httptest.NewRecorder()
-	r.Header.Set(forwardedHostHeader, "www.sftpgo.com")
+	r.Header.Set(forwardedHostHeader, "www.sftpxy.example.com")
 	r.RemoteAddr = "192.168.1.1"
 	server.router.ServeHTTP(rr, r)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -3531,7 +3519,7 @@ func TestSecureMiddlewareIntegration(t *testing.T) {
 	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
 	// now set the X-Forwarded-Proto to https, we should get the Strict-Transport-Security header
 	rr = httptest.NewRecorder()
-	r.Host = "test.sftpgo.com"
+	r.Host = "test.sftpxy.example.com"
 	r.Header.Set(xForwardedProto, "https")
 	r.RemoteAddr = "192.168.1.3"
 	server.router.ServeHTTP(rr, r)
@@ -3586,6 +3574,77 @@ func TestRESTAPIDisabled(t *testing.T) {
 	assert.NoError(t, err)
 	server.router.ServeHTTP(rr, r)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestSeparatedWebAdminAndWebClientBindings(t *testing.T) {
+	testCases := []struct {
+		name              string
+		binding           Binding
+		adminStatus       int
+		clientStatus      int
+		openAPIStatus     int
+		adminCanRedirect  bool
+		clientBodySnippet string
+	}{
+		{
+			name: "web admin binding",
+			binding: Binding{
+				EnableWebAdmin:  true,
+				EnableWebClient: false,
+				EnableRESTAPI:   true,
+				RenderOpenAPI:   true,
+			},
+			adminStatus:      http.StatusOK,
+			clientStatus:     http.StatusNotFound,
+			openAPIStatus:    http.StatusMovedPermanently,
+			adminCanRedirect: true,
+		},
+		{
+			name: "web client binding",
+			binding: Binding{
+				EnableWebAdmin:  false,
+				EnableWebClient: true,
+				EnableRESTAPI:   false,
+				RenderOpenAPI:   false,
+			},
+			adminStatus:       http.StatusNotFound,
+			clientStatus:      http.StatusOK,
+			openAPIStatus:     http.StatusNotFound,
+			clientBodySnippet: `id="sign_in_form" action="/web/client/login"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			router, err := GetHTTPRouter(tc.binding)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
+			require.NoError(t, err)
+			router.ServeHTTP(rr, req)
+			if tc.adminCanRedirect && rr.Code == http.StatusFound {
+				assert.Equal(t, webAdminSetupPath, rr.Header().Get("Location"))
+			} else {
+				assert.Equal(t, tc.adminStatus, rr.Code)
+			}
+
+			rr = httptest.NewRecorder()
+			req, err = http.NewRequest(http.MethodGet, webClientLoginPath, nil)
+			require.NoError(t, err)
+			router.ServeHTTP(rr, req)
+			assert.Equal(t, tc.clientStatus, rr.Code)
+			if tc.clientBodySnippet != "" {
+				assert.Contains(t, rr.Body.String(), tc.clientBodySnippet)
+			}
+
+			rr = httptest.NewRecorder()
+			req, err = http.NewRequest(http.MethodGet, webOpenAPIPath, nil)
+			require.NoError(t, err)
+			router.ServeHTTP(rr, req)
+			assert.Equal(t, tc.openAPIStatus, rr.Code)
+		})
+	}
 }
 
 func TestWebAdminSetupWithInstallCode(t *testing.T) {
@@ -3936,10 +3995,10 @@ func TestHTTPSRedirect(t *testing.T) {
 	r, err = http.NewRequest(http.MethodGet, webAdminLoginPath, nil)
 	assert.NoError(t, err)
 	r.RequestURI = webAdminLoginPath
-	r.Header.Set(forwardedHostHeader, "sftpgo.com")
+	r.Header.Set(forwardedHostHeader, "sftpxy.example.com")
 	server.router.ServeHTTP(rr, r)
 	assert.Equal(t, http.StatusTemporaryRedirect, rr.Code, rr.Body.String())
-	assert.Contains(t, rr.Body.String(), "https://sftpgo.com")
+	assert.Contains(t, rr.Body.String(), "https://sftpxy.example.com")
 
 	server.binding.Security.HTTPSHost = "myhost:1044"
 	rr = httptest.NewRecorder()
@@ -3958,7 +4017,7 @@ func TestDisabledAdminLoginMethods(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:              "",
-			Port:                 8080,
+			Port:                 30080,
 			EnableWebAdmin:       true,
 			EnableWebClient:      true,
 			EnableRESTAPI:        true,
@@ -4014,7 +4073,7 @@ func TestDisabledUserLoginMethods(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:              "",
-			Port:                 8080,
+			Port:                 30080,
 			EnableWebAdmin:       true,
 			EnableWebClient:      true,
 			EnableRESTAPI:        true,
@@ -4287,8 +4346,8 @@ func TestValidateBaseURL(t *testing.T) {
 		},
 		{
 			name:        "Remove multiple trailing slashes",
-			inputURL:    "http://192.168.1.100:8080///",
-			expectedURL: "http://192.168.1.100:8080",
+			inputURL:    "http://192.168.1.100:30080///",
+			expectedURL: "http://192.168.1.100:30080",
 			expectErr:   false,
 		},
 		{

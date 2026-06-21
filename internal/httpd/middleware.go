@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package httpd
 
@@ -25,13 +13,13 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/jwt"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 var (
@@ -411,7 +399,7 @@ func checkNodeToken(tokenAuth *jwt.Signer) func(next http.Handler) http.Handler 
 func checkAPIKeyAuth(tokenAuth *jwt.Signer, scope dataprovider.APIKeyScope) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			apiKey := r.Header.Get("X-SFTPGO-API-KEY")
+			apiKey := r.Header.Get("X-SFTPXY-API-KEY")
 			if apiKey == "" {
 				next.ServeHTTP(w, r)
 				return

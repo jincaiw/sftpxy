@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package ftpd implements the FTP protocol
 package ftpd
@@ -28,10 +16,10 @@ import (
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -270,7 +258,7 @@ type Configuration struct {
 	// CARevocationLists defines a set a revocation lists, one for each root CA, to be used to check
 	// if a client certificate has been revoked
 	CARevocationLists []string `json:"ca_revocation_lists" mapstructure:"ca_revocation_lists"`
-	// Do not impose the port 20 for active data transfer. Enabling this option allows to run SFTPGo with less privilege
+	// Do not impose the port 20 for active data transfer. Enabling this option allows to run SFTPxy with less privilege
 	ActiveTransfersPortNon20 bool `json:"active_transfers_port_non_20" mapstructure:"active_transfers_port_non_20"`
 	// Set to true to disable active FTP
 	DisableActiveMode bool `json:"disable_active_mode" mapstructure:"disable_active_mode"`

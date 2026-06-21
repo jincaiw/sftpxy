@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package service
 
@@ -25,19 +13,19 @@ import (
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/ftpd"
-	"github.com/drakkan/sftpgo/v2/internal/httpd"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/telemetry"
-	"github.com/drakkan/sftpgo/v2/internal/webdavd"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/ftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/httpd"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/telemetry"
+	"github.com/jincaiw/sftpxy/v2/internal/webdavd"
 )
 
 const (
-	serviceName     = "SFTPGo"
+	serviceName     = "SFTPxy"
 	serviceDesc     = "Full-featured and highly configurable file transfer server"
 	rotateLogCmd    = svc.Cmd(128)
 	acceptRotateLog = svc.Accepted(rotateLogCmd)

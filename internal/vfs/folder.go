@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package vfs
 
@@ -20,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 )
 
 // BaseVirtualFolder defines the path for the virtual folder and the used quota limits.
@@ -129,11 +117,11 @@ func (v *BaseVirtualFolder) hasPathPlaceholder() bool {
 	return false
 }
 
-// VirtualFolder defines a mapping between an SFTPGo virtual path and a
+// VirtualFolder defines a mapping between an SFTPxy virtual path and a
 // filesystem path outside the user home directory.
 // The specified paths must be absolute and the virtual path cannot be "/",
 // it must be a sub directory. The parent directory for the specified virtual
-// path must exist. SFTPGo will try to automatically create any missing
+// path must exist. SFTPxy will try to automatically create any missing
 // parent directory for the configured virtual folders at user login.
 type VirtualFolder struct {
 	BaseVirtualFolder

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package common
 
@@ -32,16 +20,16 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zip"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
-	sdkkms "github.com/sftpgo/sdk/kms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 func TestEventRuleMatch(t *testing.T) {
@@ -1671,7 +1659,7 @@ func TestFilesystemActionErrors(t *testing.T) {
 			Provider: sdk.SFTPFilesystemProvider,
 			SFTPConfig: vfs.SFTPFsConfig{
 				BaseSFTPFsConfig: sdk.BaseSFTPFsConfig{
-					Endpoint: "127.0.0.1:4022",
+					Endpoint: "127.0.0.1:30082",
 					Username: username,
 				},
 				Password: kms.NewPlainSecret("pwd"),
@@ -1721,7 +1709,7 @@ func TestFilesystemActionErrors(t *testing.T) {
 	_, err = fn(&b)
 	assert.Error(t, err)
 	err = executeHTTPRuleAction(dataprovider.EventActionHTTPConfig{
-		Endpoint: "http://127.0.0.1:9999/",
+		Endpoint: "http://127.0.0.1:30085/",
 		Method:   http.MethodPost,
 		Parts: []dataprovider.HTTPPart{
 			{
@@ -2297,7 +2285,7 @@ func getErrorString(err error) string {
 
 func TestHTTPEndpointWithPlaceholders(t *testing.T) {
 	c := dataprovider.EventActionHTTPConfig{
-		Endpoint: "http://127.0.0.1:8080/base/url/{{.Name}}/{{.VirtualPath}}/upload",
+		Endpoint: "http://127.0.0.1:30080/base/url/{{.Name}}/{{.VirtualPath}}/upload",
 		QueryParameters: []dataprovider.KeyValue{
 			{
 				Key:   "u",
@@ -2314,7 +2302,7 @@ func TestHTTPEndpointWithPlaceholders(t *testing.T) {
 	replacer := strings.NewReplacer("{{.Name}}", name, "{{.VirtualPath}}", vPath)
 	u, err := getHTTPRuleActionEndpoint(&c, replacer)
 	assert.NoError(t, err)
-	expected := "http://127.0.0.1:8080/base/url/" + url.PathEscape(name) + "/" + url.PathEscape(vPath) +
+	expected := "http://127.0.0.1:30080/base/url/" + url.PathEscape(name) + "/" + url.PathEscape(vPath) +
 		"/upload?" + "p=" + url.QueryEscape(vPath) + "&u=" + url.QueryEscape(name)
 	assert.Equal(t, expected, u)
 

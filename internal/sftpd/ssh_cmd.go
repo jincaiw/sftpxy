@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package sftpd
 
@@ -31,12 +19,12 @@ import (
 	"github.com/google/shlex"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/metric"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/metric"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -114,19 +102,19 @@ func (c *sshCommand) handle() (err error) {
 		// hard coded response to the start directory
 		c.connection.channel.Write([]byte(util.CleanPath(c.connection.User.Filters.StartDirectory) + "\n")) //nolint:errcheck
 		c.sendExitStatus(nil)
-	} else if c.command == "sftpgo-copy" {
-		return c.handleSFTPGoCopy()
-	} else if c.command == "sftpgo-remove" {
-		return c.handleSFTPGoRemove()
+	} else if c.command == "SFTPxy-copy" {
+		return c.handleSFTPxyCopy()
+	} else if c.command == "SFTPxy-remove" {
+		return c.handleSFTPxyRemove()
 	}
 	return
 }
 
-func (c *sshCommand) handleSFTPGoCopy() error {
+func (c *sshCommand) handleSFTPxyCopy() error {
 	sshSourcePath := c.getSourcePath()
 	sshDestPath := c.getDestPath()
 	if sshSourcePath == "" || sshDestPath == "" || len(c.args) != 2 {
-		return c.sendErrorResponse(errors.New("usage sftpgo-copy <source dir path> <destination dir path>"))
+		return c.sendErrorResponse(errors.New("usage SFTPxy-copy <source dir path> <destination dir path>"))
 	}
 	c.connection.Log(logger.LevelDebug, "requested copy %q -> %q", sshSourcePath, sshDestPath)
 	if err := c.connection.Copy(sshSourcePath, sshDestPath); err != nil {
@@ -137,7 +125,7 @@ func (c *sshCommand) handleSFTPGoCopy() error {
 	return nil
 }
 
-func (c *sshCommand) handleSFTPGoRemove() error {
+func (c *sshCommand) handleSFTPxyRemove() error {
 	sshDestPath, err := c.getRemovePath()
 	if err != nil {
 		return c.sendErrorResponse(err)
@@ -227,7 +215,7 @@ func (c *sshCommand) cleanCommandPath(name string) string {
 func (c *sshCommand) getRemovePath() (string, error) {
 	sshDestPath := c.getDestPath()
 	if sshDestPath == "" || len(c.args) != 1 {
-		err := errors.New("usage sftpgo-remove <destination path>")
+		err := errors.New("usage SFTPxy-remove <destination path>")
 		return "", err
 	}
 	if len(sshDestPath) > 1 {
@@ -249,7 +237,7 @@ func (c *sshCommand) sendExitStatus(err error) {
 	cmdPath := ""
 	targetPath := ""
 	vTargetPath := ""
-	if c.command == "sftpgo-copy" {
+	if c.command == "SFTPxy-copy" {
 		vTargetPath = vCmdPath
 		vCmdPath = c.getSourcePath()
 	}

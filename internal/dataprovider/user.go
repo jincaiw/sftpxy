@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -29,17 +17,17 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
-// Available permissions for SFTPGo users
+// Available permissions for SFTPxy users
 const (
 	// All permissions are granted
 	PermAny = "*"
@@ -135,7 +123,7 @@ type UserFilters struct {
 	RecoveryCodes []RecoveryCode `json:"recovery_codes,omitempty"`
 }
 
-// User defines a SFTPGo user
+// User defines a SFTPxy user
 type User struct {
 	sdk.BaseUser
 	// Additional restrictions
@@ -532,7 +520,7 @@ func (u *User) SetEmptySecrets() {
 }
 
 // GetPermissionsForPath returns the permissions for the given path.
-// The path must be a SFTPGo virtual path
+// The path must be a SFTPxy virtual path
 func (u *User) GetPermissionsForPath(p string) []string {
 	permissions := []string{}
 	if perms, ok := u.Permissions["/"]; ok {

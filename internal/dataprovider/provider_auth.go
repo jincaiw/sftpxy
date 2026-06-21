@@ -1,16 +1,4 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -20,7 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
 )
 
 func CheckAdminAndPass(username, password, ip string) (Admin, error) {
@@ -148,7 +136,7 @@ func CheckUserBeforeTLSAuth(username, ip, protocol string, tlsCert *x509.Certifi
 	return user, err
 }
 
-// CheckUserAndTLSCert returns the SFTPGo user with the given username and check if the
+// CheckUserAndTLSCert returns the SFTPxy user with the given username and check if the
 // given TLS certificate allow authentication without password
 func CheckUserAndTLSCert(username, ip, protocol string, tlsCert *x509.Certificate) (User, error) {
 	username = holder.getConfig().convertName(username)
@@ -176,7 +164,7 @@ func CheckUserAndTLSCert(username, ip, protocol string, tlsCert *x509.Certificat
 	return holder.getProvider().validateUserAndTLSCert(username, protocol, tlsCert)
 }
 
-// CheckUserAndPass retrieves the SFTPGo user with the given username and password if a match is found or an error
+// CheckUserAndPass retrieves the SFTPxy user with the given username and password if a match is found or an error
 func CheckUserAndPass(username, password, ip, protocol string) (User, error) {
 	username = holder.getConfig().convertName(username)
 	if plugin.Handler.HasAuthScope(plugin.AuthScopePassword) {
@@ -253,9 +241,9 @@ func CheckKeyboardInteractiveAuth(username, authHook string, client ssh.Keyboard
 	return doKeyboardInteractiveAuth(&user, authHook, client, ip, protocol, isPartialAuth)
 }
 
-// GetFTPPreAuthUser returns the SFTPGo user with the specified username
+// GetFTPPreAuthUser returns the SFTPxy user with the specified username
 // after receiving the FTP "USER" command.
-// If a pre-login hook is defined it will be executed so the SFTPGo user
+// If a pre-login hook is defined it will be executed so the SFTPxy user
 // can be created if it does not exist
 func GetFTPPreAuthUser(username, ip string) (User, error) {
 	var user User
@@ -272,9 +260,9 @@ func GetFTPPreAuthUser(username, ip string) (User, error) {
 	return user, err
 }
 
-// GetUserAfterIDPAuth returns the SFTPGo user with the specified username
+// GetUserAfterIDPAuth returns the SFTPxy user with the specified username
 // after a successful authentication with an external identity provider.
-// If a pre-login hook is defined it will be executed so the SFTPGo user
+// If a pre-login hook is defined it will be executed so the SFTPxy user
 // can be created if it does not exist
 func GetUserAfterIDPAuth(username, ip, protocol string, oidcTokenFields *map[string]any) (User, error) {
 	var user User

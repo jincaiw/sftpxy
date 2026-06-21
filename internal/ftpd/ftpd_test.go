@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package ftpd_test
 
@@ -38,33 +26,33 @@ import (
 	ftpserver "github.com/fclairamb/ftpserverlib"
 	"github.com/jlaffaye/ftp"
 	"github.com/pkg/sftp"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/zerolog"
-	"github.com/sftpgo/sdk"
-	sdkkms "github.com/sftpgo/sdk/kms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/ftpd"
-	"github.com/drakkan/sftpgo/v2/internal/httpdtest"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/ftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/httpdtest"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
 	logSender               = "ftpdTesting"
-	ftpServerAddr           = "127.0.0.1:2121"
-	sftpServerAddr          = "127.0.0.1:2122"
-	ftpSrvAddrTLS           = "127.0.0.1:2124" // ftp server with implicit tls
-	ftpSrvAddrTLSResumption = "127.0.0.1:2126" // ftp server with implicit tls
+	ftpServerAddr           = "127.0.0.1:30081"
+	sftpServerAddr          = "127.0.0.1:30082"
+	ftpSrvAddrTLS           = "127.0.0.1:30083" // ftp server with implicit tls
+	ftpSrvAddrTLSResumption = "127.0.0.1:30084" // ftp server with implicit tls
 	defaultUsername         = "test_user_ftp"
 	defaultPassword         = "test_password"
 	osWindows               = "windows"
@@ -246,7 +234,7 @@ ubwF00Drdvk2+kDZfxIM137nBiy7wgCJi2Ksm5ihN3dUF6Q0oNPl
 	testDLFileName        = "test_download_ftp.dat"
 	tlsClient1Username    = "client1"
 	tlsClient2Username    = "client2"
-	httpFsPort            = 23456
+	httpFsPort            = 30086
 	defaultHTTPFsUsername = "httpfs_ftp_user"
 	emptyPwdPlaceholder   = "empty"
 )
@@ -267,11 +255,11 @@ var (
 )
 
 func TestMain(m *testing.M) { //nolint:gocyclo
-	logFilePath = filepath.Join(configDir, "sftpgo_ftpd_test.log")
+	logFilePath = filepath.Join(configDir, "SFTPxy_ftpd_test.log")
 	bannerFileName := "banner_file"
 	bannerFile := filepath.Join(configDir, bannerFileName)
 	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
-	err := os.WriteFile(bannerFile, []byte("SFTPGo test ready\nsimple banner line\n"), os.ModePerm)
+	err := os.WriteFile(bannerFile, []byte("SFTPxy test ready\nsimple banner line\n"), os.ModePerm)
 	if err != nil {
 		logger.ErrorToConsole("error creating banner file: %v", err)
 		os.Exit(1)
@@ -279,12 +267,12 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	// we run the test cases with UploadMode atomic and resume support. The non atomic code path
 	// simply does not execute some code so if it works in atomic mode will
 	// work in non atomic mode too
-	os.Setenv("SFTPGO_COMMON__UPLOAD_MODE", "2")
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
-	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
-	os.Setenv("SFTPGO_COMMON__SECRET_MIN_ENTROPY", "0")
+	os.Setenv("SFTPXY_COMMON__UPLOAD_MODE", "2")
+	os.Setenv("SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
+	os.Setenv("SFTPXY_COMMON__ALLOW_SELF_CONNECTIONS", "1")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_USERNAME", "admin")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
+	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
 	err = config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -342,13 +330,17 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	}
 
 	httpdConf := config.GetHTTPDConfig()
-	httpdConf.Bindings[0].Port = 8079
-	httpdtest.SetBaseURL("http://127.0.0.1:8079")
+	httpdConf.Bindings = httpdConf.Bindings[:1]
+	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].EnableWebAdmin = true
+	httpdConf.Bindings[0].EnableWebClient = true
+	httpdConf.Bindings[0].EnableRESTAPI = true
+	httpdtest.SetBaseURL("http://127.0.0.1:30080")
 
 	ftpdConf := config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:               2121,
+			Port:               30081,
 			ClientAuthType:     2,
 			CertificateFile:    certPath,
 			CertificateKeyFile: keyPath,
@@ -365,7 +357,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 2122,
+			Port: 30082,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_ed25519")
@@ -414,7 +406,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf = config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:    2124,
+			Port:    30083,
 			TLSMode: 2,
 		},
 	}
@@ -440,7 +432,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf = config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:               2126,
+			Port:               30084,
 			CertificateFile:    certPath,
 			CertificateKeyFile: keyPath,
 			TLSMode:            1,
@@ -492,7 +484,7 @@ func TestInitializationFailure(t *testing.T) {
 			Port: 0,
 		},
 		{
-			Port: 2121,
+			Port: 30081,
 		},
 	}
 	ftpdConf.BannerFile = "a-missing-file"
@@ -1645,7 +1637,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8079/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:30080/healthz"
 
 	client, err = getFTPClient(user, false, nil)
 	if assert.NoError(t, err) {
@@ -1655,7 +1647,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8079/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:30080/notfound"
 
 	client, err = getFTPClient(user, true, nil)
 	if !assert.Error(t, err) {
@@ -4193,7 +4185,7 @@ func getTestUserWithHTTPFs() dataprovider.User {
 
 func getExtAuthScriptContent(user dataprovider.User) []byte {
 	extAuthContent := []byte("#!/bin/sh\n\n")
-	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPGO_AUTHD_USERNAME\" = \"%v\"; then\n", user.Username))...)
+	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPXY_AUTHD_USERNAME\" = \"%v\"; then\n", user.Username))...)
 	u, _ := json.Marshal(user)
 	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("echo '%v'\n", string(u)))...)
 	extAuthContent = append(extAuthContent, []byte("else\n")...)

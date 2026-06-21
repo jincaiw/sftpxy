@@ -16,9 +16,9 @@ import (
 
 const (
 	rootDN       = "dc=example,dc=com"
-	bindUsername = "cn=sftpgo," + rootDN
+	bindUsername = "cn=SFTPxy," + rootDN
 	bindURL      = "ldap:///" // That is, the server on the default port of localhost.
-	passwordFile = "/etc/sftpgo/admin-password.txt" // make this file readable only by the server
+	passwordFile = "/etc/SFTPxy/admin-password.txt" // make this file readable only by the server
 	publicDir    = "/var/www/webdav/public"
 )
 
@@ -26,7 +26,7 @@ type userFilters struct {
 	DeniedLoginMethods []string `json:"denied_login_methods,omitempty"`
 }
 
-type minimalSFTPGoUser struct {
+type minimalSFTPxyUser struct {
 	Status      int                 `json:"status,omitempty"`
 	Username    string              `json:"username"`
 	HomeDir     string              `json:"home_dir,omitempty"`
@@ -38,7 +38,7 @@ type minimalSFTPGoUser struct {
 
 func exitError() {
 	log.Printf("exitError\n")
-	u := minimalSFTPGoUser{
+	u := minimalSFTPxyUser{
 		Username: "",
 	}
 	resp, _ := json.Marshal(u)
@@ -47,7 +47,7 @@ func exitError() {
 }
 
 func printSuccessResponse(username, homeDir string, uid, gid int, permissions []string) {
-	u := minimalSFTPGoUser{
+	u := minimalSFTPxyUser{
 		Username: username,
 		HomeDir:  homeDir,
 		UID:      uid,
@@ -65,14 +65,14 @@ func printSuccessResponse(username, homeDir string, uid, gid int, permissions []
 }
 
 func main() {
-	logWriter, err := syslog.New(syslog.LOG_NOTICE, "sftpgo")
+	logWriter, err := syslog.New(syslog.LOG_NOTICE, "SFTPxy")
 	if err == nil {
 		log.SetOutput(logWriter)
 	}
 	// get credentials from env vars
-	username := os.Getenv("SFTPGO_AUTHD_USERNAME")
-	password := os.Getenv("SFTPGO_AUTHD_PASSWORD")
-	publickey := os.Getenv("SFTPGO_AUTHD_PUBLIC_KEY")
+	username := os.Getenv("SFTPXY_AUTHD_USERNAME")
+	password := os.Getenv("SFTPXY_AUTHD_PASSWORD")
+	publickey := os.Getenv("SFTPXY_AUTHD_PUBLIC_KEY")
 	if strings.ToLower(username) == "anonymous" {
 		printSuccessResponse("anonymous", publicDir, 0, 0, []string{"list", "download"})
 		return

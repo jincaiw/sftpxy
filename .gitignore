@@ -1,11 +1,30 @@
 # compilation output
-sftpgo
-sftpgo.exe
+SFTPxy
+SFTPxy.exe
+/output/
+/dist/
+/build/
+/release/
+/artifacts/
+/coverage/
+/test-results/
+/playwright-report/
 
 # test artifacts: SQLite databases produced by test runs
-sftpgo.db
-sftpgo.db-shm
-sftpgo.db-wal
+SFTPxy.db
+SFTPxy.db-shm
+SFTPxy.db-wal
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.pid
+*.tmp
+*.bak
+*.backup
+backups/
+logs/
+env.d/
 
 # test plugin fixtures (compiled from tests/{ipfilter,eventsearcher})
 tests/ipfilter/ipfilter
@@ -18,3 +37,19 @@ tests/eventsearcher/eventsearcher
 /id_ecdsa.pub
 /id_ed25519
 /id_ed25519.pub
+/*.pem
+/*.key
+/*.crt
+
+# local development caches and private tool state
+.gocache/
+.gopath/
+.trae/
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# release helper outputs
+pkgs/dist/
+windows-installer/output/

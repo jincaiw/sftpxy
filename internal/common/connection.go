@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package common
 
@@ -29,12 +17,12 @@ import (
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
 	"github.com/pkg/sftp"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 // BaseConnection defines common fields for a connection using any supported protocol
@@ -1730,7 +1718,7 @@ func (c *BaseConnection) IsQuotaExceededError(err error) bool {
 	}
 }
 
-func isSFTPGoError(err error) bool {
+func isSFTPxyError(err error) bool {
 	return errors.Is(err, ErrPermissionDenied) || errors.Is(err, ErrNotExist) || errors.Is(err, ErrOpUnsupported) ||
 		errors.Is(err, ErrQuotaExceeded) || errors.Is(err, ErrReadQuotaExceeded) ||
 		errors.Is(err, vfs.ErrStorageSizeUnavailable) || errors.Is(err, ErrShuttingDown)
@@ -1743,7 +1731,7 @@ func (c *BaseConnection) GetGenericError(err error) error {
 		if errors.Is(err, vfs.ErrStorageSizeUnavailable) || errors.Is(err, ErrOpUnsupported) || errors.Is(err, sftp.ErrSSHFxOpUnsupported) {
 			return fmt.Errorf("%w: %w", sftp.ErrSSHFxOpUnsupported, err)
 		}
-		if isSFTPGoError(err) {
+		if isSFTPxyError(err) {
 			return fmt.Errorf("%w: %w", sftp.ErrSSHFxFailure, err)
 		}
 		if err != nil {
@@ -1756,7 +1744,7 @@ func (c *BaseConnection) GetGenericError(err error) error {
 		}
 		return sftp.ErrSSHFxFailure
 	default:
-		if isSFTPGoError(err) {
+		if isSFTPxyError(err) {
 			return err
 		}
 		c.Log(logger.LevelError, "generic error: %+v", err)

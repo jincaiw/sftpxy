@@ -2,104 +2,108 @@
 
 NFPM_VERSION=2.46.3
 NFPM_ARCH=${NFPM_ARCH:-amd64}
-if [ -z ${SFTPGO_VERSION} ]
+if [ -z ${SFTPXY_VERSION} ]
 then
   LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
   NUM_COMMITS_FROM_TAG=$(git rev-list ${LATEST_TAG}.. --count)
   VERSION=$(echo "${LATEST_TAG}" | awk -F. -v OFS=. '{$NF++;print}')-dev.${NUM_COMMITS_FROM_TAG}
 else
-  VERSION=${SFTPGO_VERSION}
+  VERSION=${SFTPXY_VERSION}
 fi
 
+rm -rf dist
 mkdir dist
 echo -n ${VERSION} > dist/version
 cd dist
 BASE_DIR="../.."
 
-if [ -f "${BASE_DIR}/output/bash_completion/sftpgo" ]
+if [ -f "${BASE_DIR}/output/bash_completion/SFTPxy" ]
 then
-  cp ${BASE_DIR}/output/bash_completion/sftpgo sftpgo-completion.bash
+  cp ${BASE_DIR}/output/bash_completion/SFTPxy SFTPxy-completion.bash
 else
-  $BASE_DIR/sftpgo gen completion bash > sftpgo-completion.bash
+  $BASE_DIR/SFTPxy gen completion bash > SFTPxy-completion.bash
 fi
 
 if [ -d "${BASE_DIR}/output/man/man1" ]
 then
   cp -r ${BASE_DIR}/output/man/man1 .
 else
-  $BASE_DIR/sftpgo gen man -d man1
+  $BASE_DIR/SFTPxy gen man -d man1
 fi
 
-if [ ! -f ${BASE_DIR}/sftpgo ]
+if [ ! -f ${BASE_DIR}/SFTPxy ]
 then
-  cp ${BASE_DIR}/output/sftpgo ${BASE_DIR}/sftpgo
-  chmod 755 ${BASE_DIR}/sftpgo
+  cp ${BASE_DIR}/output/SFTPxy ${BASE_DIR}/SFTPxy
+  chmod 755 ${BASE_DIR}/SFTPxy
 fi
 
-cp ${BASE_DIR}/sftpgo.json .
-sed -i "s|sftpgo.db|/var/lib/sftpgo/sftpgo.db|" sftpgo.json
-sed -i "s|\"users_base_dir\": \"\",|\"users_base_dir\": \"/srv/sftpgo/data\",|" sftpgo.json
-sed -i "s|\"backups\"|\"/srv/sftpgo/backups\"|" sftpgo.json
-sed -i "s|\"certs\"|\"/var/lib/sftpgo/certs\"|" sftpgo.json
+cp ${BASE_DIR}/SFTPxy.json .
+sed -i "s|SFTPxy.db|/var/lib/SFTPxy/SFTPxy.db|" SFTPxy.json
+sed -i "s|\"users_base_dir\": \"\",|\"users_base_dir\": \"/srv/SFTPxy/data\",|" SFTPxy.json
+sed -i "s|\"backups\"|\"/srv/SFTPxy/backups\"|" SFTPxy.json
+sed -i "s|\"certs\"|\"/var/lib/SFTPxy/certs\"|" SFTPxy.json
+sed -i "s|\"templates_path\": \"templates\"|\"templates_path\": \"/usr/share/SFTPxy/templates\"|" SFTPxy.json
+sed -i "s|\"static_files_path\": \"static\"|\"static_files_path\": \"/usr/share/SFTPxy/static\"|" SFTPxy.json
+sed -i "s|\"openapi_path\": \"openapi\"|\"openapi_path\": \"/usr/share/SFTPxy/openapi\"|" SFTPxy.json
 
 cat >nfpm.yaml <<EOF
-name: "sftpgo"
+name: "SFTPxy"
 arch: "${NFPM_ARCH}"
 platform: "linux"
 version: ${VERSION}
 release: 1
 section: "net"
 priority: "optional"
-maintainer: "Nicola Murino <nicola.murino@gmail.com>"
+maintainer: "jincaiw <https://github.com/jincaiw>"
 description: |
   Full-featured and highly configurable SFTP server
-  SFTPGo has optional HTTP, FTP/S and WebDAV support.
+  SFTPxy has optional HTTP, FTP/S and WebDAV support.
   It can serve local filesystem, S3 (Compatible) Object Storage,
   Google Cloud Storage, Azure Blob Storage, SFTP.
-vendor: "SFTPGo"
-homepage: "https://github.com/drakkan/sftpgo"
-license: "AGPL-3.0"
+vendor: "SFTPxy"
+homepage: "https://github.com/jincaiw/sftpxy"
+license: "MIT"
 provides:
-  - sftpgo
+  - SFTPxy
 contents:
-  - src: "${BASE_DIR}/sftpgo${BIN_SUFFIX}"
-    dst: "/usr/bin/sftpgo"
+  - src: "${BASE_DIR}/SFTPxy${BIN_SUFFIX}"
+    dst: "/usr/bin/SFTPxy"
 
-  - src: "./sftpgo-completion.bash"
-    dst: "/usr/share/bash-completion/completions/sftpgo"
+  - src: "./SFTPxy-completion.bash"
+    dst: "/usr/share/bash-completion/completions/SFTPxy"
 
   - src: "./man1/*"
     dst: "/usr/share/man/man1/"
 
-  - src: "${BASE_DIR}/init/sftpgo.service"
-    dst: "/lib/systemd/system/sftpgo.service"
+  - src: "${BASE_DIR}/init/SFTPxy.service"
+    dst: "/lib/systemd/system/SFTPxy.service"
 
   - src: "${BASE_DIR}/templates/*"
-    dst: "/usr/share/sftpgo/templates"
+    dst: "/usr/share/SFTPxy/templates"
 
   - src: "${BASE_DIR}/static/*"
-    dst: "/usr/share/sftpgo/static"
+    dst: "/usr/share/SFTPxy/static"
 
   - src: "${BASE_DIR}/openapi/*"
-    dst: "/usr/share/sftpgo/openapi"
+    dst: "/usr/share/SFTPxy/openapi"
 
   - src: "${BASE_DIR}/LICENSE"
-    dst: "/usr/share/licenses/sftpgo/LICENSE"
+    dst: "/usr/share/licenses/SFTPxy/LICENSE"
 
   - src: "${BASE_DIR}/NOTICE"
-    dst: "/usr/share/licenses/sftpgo/NOTICE"
+    dst: "/usr/share/licenses/SFTPxy/NOTICE"
 
-  - src: "./sftpgo.json"
-    dst: "/etc/sftpgo/sftpgo.json"
+  - src: "./SFTPxy.json"
+    dst: "/etc/SFTPxy/SFTPxy.json"
     type: "config|noreplace"
 
-  - dst: "/srv/sftpgo"
+  - dst: "/srv/SFTPxy"
     type: dir
 
-  - dst: "/var/lib/sftpgo"
+  - dst: "/var/lib/SFTPxy"
     type: dir
 
-  - dst: "/etc/sftpgo/env.d"
+  - dst: "/etc/SFTPxy/env.d"
     type: dir
 
 overrides:

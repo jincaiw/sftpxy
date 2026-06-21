@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/sftpgo/sdk/plugin/ipfilter"
+	"github.com/jincaiw/sftpxy/sdk/plugin/ipfilter"
 )
 
 type Filter struct{}

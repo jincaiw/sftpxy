@@ -1,0 +1,8 @@
+SFTPxy usr/bin
+SFTPxy.json etc/SFTPxy
+init/SFTPxy.service lib/systemd/system
+bash_completion/SFTPxy usr/share/bash-completion/completions
+man/man1/* usr/share/man/man1
+templates usr/share/SFTPxy
+static usr/share/SFTPxy
+openapi usr/share/SFTPxy

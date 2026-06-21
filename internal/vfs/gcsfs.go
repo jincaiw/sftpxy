@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 //go:build !nogcs
 
@@ -37,10 +25,10 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/metric"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/metric"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
 )
 
 const (
@@ -540,7 +528,7 @@ func (*GCSFs) GetAtomicUploadPath(_ string) string {
 }
 
 // GetRelativePath returns the path for a file relative to the user's home dir.
-// This is the path as seen by SFTPGo users
+// This is the path as seen by SFTPxy users
 func (fs *GCSFs) GetRelativePath(name string) string {
 	rel := path.Clean(name)
 	if rel == "." {
@@ -942,7 +930,7 @@ func (*GCSFs) GetAvailableDiskSize(_ string) (*sftp.StatVFS, error) {
 func (*GCSFs) getTempObject(name string) string {
 	dir := filepath.Dir(name)
 	guid := xid.New().String()
-	return filepath.Join(dir, ".sftpgo-partial."+guid+"."+filepath.Base(name))
+	return filepath.Join(dir, ".SFTPxy-partial."+guid+"."+filepath.Base(name))
 }
 
 type gcsDirLister struct {

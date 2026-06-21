@@ -1,5 +1,5 @@
 # Checklist for Pull Requests
 
-- [ ] Have you signed the [Contributor License Agreement](https://sftpgo.com/cla.html)?
-
----
+- [ ] Tests or validation steps are included in the PR description.
+- [ ] User-visible configuration, port, or deployment changes are reflected in README or release docs.
+- [ ] No generated binaries, databases, logs, private keys, or local tool state are committed.

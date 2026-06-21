@@ -1,16 +1,4 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -34,15 +22,15 @@ import (
 
 	"github.com/go-chi/render"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/command"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/command"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 func getSSLMode() string {
@@ -319,9 +307,9 @@ func executeKeyboardInteractiveProgram(user *User, authHook string, client ssh.K
 
 	cmd := exec.CommandContext(ctx, authHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_AUTHD_USERNAME=%s", user.Username),
-		fmt.Sprintf("SFTPGO_AUTHD_IP=%s", ip),
-		fmt.Sprintf("SFTPGO_AUTHD_PASSWORD=%s", user.Password))
+		fmt.Sprintf("SFTPXY_AUTHD_USERNAME=%s", user.Username),
+		fmt.Sprintf("SFTPXY_AUTHD_IP=%s", ip),
+		fmt.Sprintf("SFTPXY_AUTHD_PASSWORD=%s", user.Password))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return authResult, err
@@ -463,10 +451,10 @@ func getPasswordHookResponse(username, password, ip, protocol string) ([]byte, e
 
 	cmd := exec.CommandContext(ctx, holder.getConfig().CheckPasswordHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_AUTHD_USERNAME=%s", username),
-		fmt.Sprintf("SFTPGO_AUTHD_PASSWORD=%s", password),
-		fmt.Sprintf("SFTPGO_AUTHD_IP=%s", ip),
-		fmt.Sprintf("SFTPGO_AUTHD_PROTOCOL=%s", protocol),
+		fmt.Sprintf("SFTPXY_AUTHD_USERNAME=%s", username),
+		fmt.Sprintf("SFTPXY_AUTHD_PASSWORD=%s", password),
+		fmt.Sprintf("SFTPXY_AUTHD_IP=%s", ip),
+		fmt.Sprintf("SFTPXY_AUTHD_PROTOCOL=%s", protocol),
 	)
 	return getCmdOutput(cmd, "check_password_hook")
 }
@@ -524,10 +512,10 @@ func getPreLoginHookResponse(loginMethod, ip, protocol string, userAsJSON []byte
 
 	cmd := exec.CommandContext(ctx, holder.getConfig().PreLoginHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_LOGIND_USER=%s", userAsJSON),
-		fmt.Sprintf("SFTPGO_LOGIND_METHOD=%s", loginMethod),
-		fmt.Sprintf("SFTPGO_LOGIND_IP=%s", ip),
-		fmt.Sprintf("SFTPGO_LOGIND_PROTOCOL=%s", protocol),
+		fmt.Sprintf("SFTPXY_LOGIND_USER=%s", userAsJSON),
+		fmt.Sprintf("SFTPXY_LOGIND_METHOD=%s", loginMethod),
+		fmt.Sprintf("SFTPXY_LOGIND_IP=%s", ip),
+		fmt.Sprintf("SFTPXY_LOGIND_PROTOCOL=%s", protocol),
 	)
 	return getCmdOutput(cmd, "pre_login_hook")
 }
@@ -654,11 +642,11 @@ func ExecutePostLoginHook(user *User, loginMethod, ip, protocol string, err erro
 
 		cmd := exec.CommandContext(ctx, holder.getConfig().PostLoginHook, args...)
 		cmd.Env = append(env,
-			fmt.Sprintf("SFTPGO_LOGIND_USER=%s", userAsJSON),
-			fmt.Sprintf("SFTPGO_LOGIND_IP=%s", ip),
-			fmt.Sprintf("SFTPGO_LOGIND_METHOD=%s", loginMethod),
-			fmt.Sprintf("SFTPGO_LOGIND_STATUS=%s", status),
-			fmt.Sprintf("SFTPGO_LOGIND_PROTOCOL=%s", protocol))
+			fmt.Sprintf("SFTPXY_LOGIND_USER=%s", userAsJSON),
+			fmt.Sprintf("SFTPXY_LOGIND_IP=%s", ip),
+			fmt.Sprintf("SFTPXY_LOGIND_METHOD=%s", loginMethod),
+			fmt.Sprintf("SFTPXY_LOGIND_STATUS=%s", status),
+			fmt.Sprintf("SFTPXY_LOGIND_PROTOCOL=%s", protocol))
 		startTime := time.Now()
 		err = cmd.Run()
 		providerLog(logger.LevelDebug, "post login hook executed for user %q, ip %v, protocol %v, elapsed %v err: %v",
@@ -722,14 +710,14 @@ func getExternalAuthResponse(username, password, pkey, keyboardInteractive, ip, 
 
 	cmd := exec.CommandContext(ctx, holder.getConfig().ExternalAuthHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_AUTHD_USERNAME=%s", username),
-		fmt.Sprintf("SFTPGO_AUTHD_USER=%s", userAsJSON),
-		fmt.Sprintf("SFTPGO_AUTHD_IP=%s", ip),
-		fmt.Sprintf("SFTPGO_AUTHD_PASSWORD=%s", password),
-		fmt.Sprintf("SFTPGO_AUTHD_PUBLIC_KEY=%s", pkey),
-		fmt.Sprintf("SFTPGO_AUTHD_PROTOCOL=%s", protocol),
-		fmt.Sprintf("SFTPGO_AUTHD_TLS_CERT=%s", strings.ReplaceAll(tlsCert, "\n", "\\n")),
-		fmt.Sprintf("SFTPGO_AUTHD_KEYBOARD_INTERACTIVE=%v", keyboardInteractive))
+		fmt.Sprintf("SFTPXY_AUTHD_USERNAME=%s", username),
+		fmt.Sprintf("SFTPXY_AUTHD_USER=%s", userAsJSON),
+		fmt.Sprintf("SFTPXY_AUTHD_IP=%s", ip),
+		fmt.Sprintf("SFTPXY_AUTHD_PASSWORD=%s", password),
+		fmt.Sprintf("SFTPXY_AUTHD_PUBLIC_KEY=%s", pkey),
+		fmt.Sprintf("SFTPXY_AUTHD_PROTOCOL=%s", protocol),
+		fmt.Sprintf("SFTPXY_AUTHD_TLS_CERT=%s", strings.ReplaceAll(tlsCert, "\n", "\\n")),
+		fmt.Sprintf("SFTPXY_AUTHD_KEYBOARD_INTERACTIVE=%v", keyboardInteractive))
 
 	return getCmdOutput(cmd, "external_auth_hook")
 }
@@ -816,7 +804,7 @@ func doExternalAuth(username, password string, pubKey []byte, keyboardInteractiv
 		return user, ErrInvalidCredentials
 	}
 	updateUserFromExtAuthResponse(&user, password, pkey)
-	// some users want to map multiple login usernames with a single SFTPGo account
+	// some users want to map multiple login usernames with a single SFTPxy account
 	// for example an SFTP user logins using "user1" or "user2" and the external auth
 	// returns "user" in both cases, so we use the username returned from
 	// external auth and not the one used to login

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package webdavd_test
 
@@ -39,33 +27,33 @@ import (
 
 	"github.com/minio/sio"
 	"github.com/pkg/sftp"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/rs/zerolog"
-	"github.com/sftpgo/sdk"
-	sdkkms "github.com/sftpgo/sdk/kms"
 	"github.com/stretchr/testify/assert"
 	"github.com/studio-b12/gowebdav"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/httpdtest"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
-	"github.com/drakkan/sftpgo/v2/internal/webdavd"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/httpdtest"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/webdavd"
 )
 
 const (
 	logSender           = "webavdTesting"
-	webDavServerAddr    = "localhost:9090"
-	webDavTLSServerAddr = "localhost:9443"
-	webDavServerPort    = 9090
-	webDavTLSServerPort = 9443
-	sftpServerAddr      = "127.0.0.1:9022"
+	webDavServerAddr    = "localhost:30087"
+	webDavTLSServerAddr = "localhost:30088"
+	webDavServerPort    = 30087
+	webDavTLSServerPort = 30088
+	sftpServerAddr      = "127.0.0.1:30085"
 	defaultUsername     = "test_user_dav"
 	defaultPassword     = "test_password"
 	osWindows           = "windows"
@@ -269,15 +257,15 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	logFilePath = filepath.Join(configDir, "sftpgo_webdavd_test.log")
+	logFilePath = filepath.Join(configDir, "SFTPxy_webdavd_test.log")
 	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
-	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
-	os.Setenv("SFTPGO_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__EXT", ".sftpgo")
-	os.Setenv("SFTPGO_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__MIME", "application/sftpgo")
-	os.Setenv("SFTPGO_COMMON__SECRET_MIN_ENTROPY", "0")
+	os.Setenv("SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
+	os.Setenv("SFTPXY_COMMON__ALLOW_SELF_CONNECTIONS", "1")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_USERNAME", "admin")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
+	os.Setenv("SFTPXY_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__EXT", ".SFTPxy")
+	os.Setenv("SFTPXY_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__MIME", "application/SFTPxy")
+	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -345,14 +333,18 @@ func TestMain(m *testing.M) {
 	}
 
 	httpdConf := config.GetHTTPDConfig()
-	httpdConf.Bindings[0].Port = 8078
-	httpdtest.SetBaseURL("http://127.0.0.1:8078")
+	httpdConf.Bindings = httpdConf.Bindings[:1]
+	httpdConf.Bindings[0].Port = 30086
+	httpdConf.Bindings[0].EnableWebAdmin = true
+	httpdConf.Bindings[0].EnableWebClient = true
+	httpdConf.Bindings[0].EnableRESTAPI = true
+	httpdtest.SetBaseURL("http://127.0.0.1:30086")
 
 	// required to test sftpfs
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 9022,
+			Port: 30085,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_ecdsa")
@@ -485,7 +477,7 @@ func TestInitialization(t *testing.T) {
 
 	cfg.Bindings = []webdavd.Binding{
 		{
-			Port:           9022,
+			Port:           30085,
 			ClientAuthType: 1,
 			EnableHTTPS:    true,
 		},
@@ -1602,10 +1594,10 @@ func TestPostConnectHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Error(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8078/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:30086/healthz"
 	assert.NoError(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8078/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:30086/notfound"
 	assert.Error(t, checkBasicFunc(client))
 
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)
@@ -2464,10 +2456,10 @@ func TestContentTypeGET(t *testing.T) {
 	err = createTestFile(testFilePath, testFileSize)
 	assert.NoError(t, err)
 	client := getWebDavClient(user, true, nil)
-	err = uploadFileWithRawClient(testFilePath, testFileName+".sftpgo", user.Username, defaultPassword,
+	err = uploadFileWithRawClient(testFilePath, testFileName+".SFTPxy", user.Username, defaultPassword,
 		true, testFileSize, client)
 	assert.NoError(t, err)
-	remotePath := fmt.Sprintf("http://%v/%v", webDavServerAddr, testFileName+".sftpgo")
+	remotePath := fmt.Sprintf("http://%v/%v", webDavServerAddr, testFileName+".SFTPxy")
 	req, err := http.NewRequest(http.MethodGet, remotePath, nil)
 	if assert.NoError(t, err) {
 		httpClient := httpclient.GetHTTPClient()
@@ -2476,7 +2468,7 @@ func TestContentTypeGET(t *testing.T) {
 		if assert.NoError(t, err) {
 			defer resp.Body.Close()
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
-			assert.Equal(t, "application/sftpgo", resp.Header.Get("Content-Type"))
+			assert.Equal(t, "application/SFTPxy", resp.Header.Get("Content-Type"))
 		}
 	}
 
@@ -3588,9 +3580,9 @@ func getEncryptedFileSize(size int64) (int64, error) {
 func getExtAuthScriptContent(user dataprovider.User, password string) []byte {
 	extAuthContent := []byte("#!/bin/sh\n\n")
 	if password != "" {
-		extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPGO_AUTHD_USERNAME\" = \"%s\" -a \"$SFTPGO_AUTHD_PASSWORD\" = \"%s\"; then\n", user.Username, password))...)
+		extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPXY_AUTHD_USERNAME\" = \"%s\" -a \"$SFTPXY_AUTHD_PASSWORD\" = \"%s\"; then\n", user.Username, password))...)
 	} else {
-		extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPGO_AUTHD_USERNAME\" = \"%s\"; then\n", user.Username))...)
+		extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPXY_AUTHD_USERNAME\" = \"%s\"; then\n", user.Username))...)
 	}
 	u, _ := json.Marshal(user)
 	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("echo '%s'\n", string(u)))...)

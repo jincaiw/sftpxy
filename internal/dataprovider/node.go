@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -30,11 +18,11 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/jwt"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 // Supported protocols for connecting to other nodes
@@ -45,7 +33,7 @@ const (
 
 const (
 	// NodeTokenHeader defines the header to use for the node auth token
-	NodeTokenHeader   = "X-SFTPGO-Node"
+	NodeTokenHeader   = "X-SFTPXY-Node"
 	nodeTokenAudience = "node"
 )
 

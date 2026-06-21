@@ -1,16 +1,4 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -24,9 +12,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 func isExternalAuthConfigured(loginMethod string) bool {
@@ -127,7 +115,7 @@ func checkReservedUsernames(username string) error {
 }
 
 func errSchemaVersionTooOld(version int) error {
-	return fmt.Errorf("database schema version %d is too old, please see the upgrading docs: https://docs.sftpgo.com/latest/data-provider/#upgrading", version)
+	return fmt.Errorf("database schema version %d is too old, please see the upgrading docs: https://github.com/jincaiw/sftpxydata-provider/#upgrading", version)
 }
 
 func getCmdOutput(cmd *exec.Cmd, sender string) ([]byte, error) {

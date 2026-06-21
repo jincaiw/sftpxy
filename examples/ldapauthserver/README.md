@@ -10,4 +10,4 @@ You can build this example using the following command:
 go build -ldflags "-s -w" -o ldapauthserver
 ```
 
-:warning: A plugin for LDAP/Active Directory authentication is also [available](https://github.com/sftpgo/sftpgo-plugin-auth).
+:warning: A plugin for LDAP/Active Directory authentication is also [available](https://github.com/SFTPxy/SFTPxy-plugin-auth).

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package httpdtest provides utilities for testing the supported REST API.
 package httpdtest
@@ -30,15 +18,15 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/httpd"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/version"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/httpd"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -71,12 +59,12 @@ const (
 )
 
 var (
-	httpBaseURL = "http://127.0.0.1:8080"
+	httpBaseURL = "http://127.0.0.1:30080"
 	jwtToken    = ""
 )
 
 // SetBaseURL sets the base url to use for HTTP requests.
-// Default URL is "http://127.0.0.1:8080"
+// Default URL is "http://127.0.0.1:30080"
 func SetBaseURL(url string) {
 	httpBaseURL = url
 }

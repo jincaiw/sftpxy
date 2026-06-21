@@ -1,18 +1,6 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
-// Package command provides command configuration for SFTPGo hooks
+// Package command provides command configuration for SFTPxy hooks
 package command
 
 import (
@@ -54,8 +42,8 @@ type Command struct {
 	Path string `json:"path" mapstructure:"path"`
 	// Timeout specifies a time limit, in seconds, for the command execution.
 	// This value overrides the global timeout if set.
-	// Do not use variables with the SFTPGO_ prefix to avoid conflicts with env
-	// vars that SFTPGo sets
+	// Do not use variables with the SFTPXY_ prefix to avoid conflicts with env
+	// vars that SFTPxy sets
 	Timeout int `json:"timeout" mapstructure:"timeout"`
 	// Env defines environment variable for the command.
 	// Each entry is of the form "key=value".
@@ -74,8 +62,8 @@ type Config struct {
 	Timeout int `json:"timeout" mapstructure:"timeout"`
 	// Env defines environment variable for the commands.
 	// Each entry is of the form "key=value".
-	// Do not use variables with the SFTPGO_ prefix to avoid conflicts with env
-	// vars that SFTPGo sets
+	// Do not use variables with the SFTPXY_ prefix to avoid conflicts with env
+	// vars that SFTPxy sets
 	Env []string `json:"env" mapstructure:"env"`
 	// Commands defines configuration for specific commands
 	Commands []Command `json:"commands" mapstructure:"commands"`

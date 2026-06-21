@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package sftpd
 
@@ -32,16 +20,16 @@ import (
 	"github.com/eikenb/pipeat"
 	"github.com/pkg/sftp"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -541,7 +529,7 @@ func TestSSHCommandErrors(t *testing.T) {
 	assert.NoError(t, err)
 
 	cmd = sshCommand{
-		command:    "sftpgo-remove",
+		command:    "SFTPxy-remove",
 		connection: &connection,
 		args:       []string{"/../../src"},
 	}
@@ -549,7 +537,7 @@ func TestSSHCommandErrors(t *testing.T) {
 	assert.Error(t, err, "ssh command must fail, we are requesting an invalid path")
 
 	cmd = sshCommand{
-		command:    "sftpgo-copy",
+		command:    "SFTPxy-copy",
 		connection: &connection,
 		args:       []string{"/../../test_src", "."},
 	}
@@ -626,14 +614,14 @@ func TestSSHCommandsRemoteFs(t *testing.T) {
 		args:       []string{},
 	}
 
-	err := cmd.handleSFTPGoCopy()
+	err := cmd.handleSFTPxyCopy()
 	assert.Error(t, err)
 	cmd = sshCommand{
-		command:    "sftpgo-remove",
+		command:    "SFTPxy-remove",
 		connection: connection,
 		args:       []string{},
 	}
-	err = cmd.handleSFTPGoRemove()
+	err = cmd.handleSFTPxyRemove()
 	assert.Error(t, err)
 }
 
@@ -656,19 +644,19 @@ func TestSSHCmdGetFsErrors(t *testing.T) {
 		channel:        &mockSSHChannel,
 	}
 	cmd := sshCommand{
-		command:    "sftpgo-remove",
+		command:    "SFTPxy-remove",
 		connection: connection,
 		args:       []string{"path"},
 	}
-	err := cmd.handleSFTPGoRemove()
+	err := cmd.handleSFTPxyRemove()
 	assert.Error(t, err)
 
 	cmd = sshCommand{
-		command:    "sftpgo-copy",
+		command:    "SFTPxy-copy",
 		connection: connection,
 		args:       []string{"path1", "path2"},
 	}
-	err = cmd.handleSFTPGoCopy()
+	err = cmd.handleSFTPxyCopy()
 	assert.Error(t, err)
 
 	err = os.RemoveAll(user.GetHomeDir())

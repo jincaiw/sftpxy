@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package ftpd
 
@@ -30,15 +18,15 @@ import (
 	"github.com/eikenb/pipeat"
 	ftpserver "github.com/fclairamb/ftpserverlib"
 	"github.com/pires/go-proxyproto"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -426,7 +414,7 @@ func TestInitialization(t *testing.T) {
 	certMgr = nil
 
 	binding := Binding{
-		Port: 2121,
+		Port: 30081,
 	}
 	c := &Configuration{
 		Bindings:           []Binding{binding},
@@ -464,7 +452,7 @@ func TestInitialization(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid active_connections_security")
 	}
 	binding = Binding{
-		Port:           2121,
+		Port:           30081,
 		ForcePassiveIP: "192.168.1",
 	}
 	server = NewServer(c, configDir, binding, 0)
@@ -488,7 +476,7 @@ func TestInitialization(t *testing.T) {
 	assert.NoError(t, err)
 
 	binding = Binding{
-		Port:           2121,
+		Port:           30081,
 		ClientAuthType: 1,
 	}
 	assert.Equal(t, util.I18nFTPTLSDisabled, binding.GetTLSDescription())
@@ -520,7 +508,7 @@ func TestServerGetSettings(t *testing.T) {
 	oldMgr := certMgr
 
 	binding := Binding{
-		Port:             2121,
+		Port:             30081,
 		ApplyProxyConfig: true,
 	}
 	c := &Configuration{
@@ -549,7 +537,7 @@ func TestServerGetSettings(t *testing.T) {
 	common.Config.ProxyProtocol = 1
 	_, err = server.GetSettings()
 	assert.Error(t, err)
-	server.binding.Port = 8021
+	server.binding.Port = 30081
 
 	assert.Equal(t, util.I18nFTPTLSDisabled, binding.GetTLSDescription())
 	_, err = server.GetTLSConfig()
@@ -581,7 +569,7 @@ func TestServerGetSettings(t *testing.T) {
 	c.CertificateFile = certPath
 	c.CertificateKeyFile = keyPath
 	server = NewServer(c, configDir, binding, 0)
-	server.binding.Port = 9021
+	server.binding.Port = 30089
 	settings, err = server.GetSettings()
 	assert.NoError(t, err)
 	assert.NotNil(t, settings.Listener)
@@ -605,7 +593,7 @@ func TestUserInvalidParams(t *testing.T) {
 		},
 	}
 	binding := Binding{
-		Port: 2121,
+		Port: 30081,
 	}
 	c := &Configuration{
 		Bindings: []Binding{binding},

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 //go:build !noportable
 
@@ -23,17 +11,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/spf13/cobra"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/service"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/service"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 var (
@@ -106,7 +94,7 @@ var (
 		Long: `To serve the current working directory with auto generated credentials simply
 use:
 
-$ sftpgo portable
+$ SFTPxy portable
 
 Please take a look at the usage below to customize the serving parameters`,
 		Run: func(_ *cobra.Command, _ []string) {

@@ -1,20 +1,8 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
-// Package httpd implements REST API and Web interface for SFTPGo.
+// Package httpd implements REST API and Web interface for SFTPxy.
 // The OpenAPI 3 schema for the supported API can be found inside the source tree:
-// https://github.com/drakkan/sftpgo/blob/main/openapi/openapi.yaml
+// https://github.com/jincaiw/sftpxy/blob/main/openapi/openapi.yaml
 package httpd
 
 import (
@@ -25,15 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/acme"
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/ftpd"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/webdavd"
+	"github.com/jincaiw/sftpxy/v2/internal/acme"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/ftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/webdavd"
 )
 
 const (
@@ -176,8 +164,8 @@ const (
 	httpdMaxEditFileSize = 2 * 1048576  // 2 MB
 	maxMultipartMem      = 10 * 1048576 // 10 MB
 	osWindows            = "windows"
-	otpHeaderCode        = "X-SFTPGO-OTP"
-	mTimeHeader          = "X-SFTPGO-MTIME"
+	otpHeaderCode        = "X-SFTPXY-OTP"
+	mTimeHeader          = "X-SFTPXY-MTIME"
 	acmeChallengeURI     = "/.well-known/acme-challenge/"
 )
 
@@ -394,7 +382,7 @@ type ServicesStatus struct {
 // SetupConfig defines the configuration parameters for the initial web admin setup
 type SetupConfig struct {
 	// Installation code to require when creating the first admin account.
-	// As for the other configurations, this value is read at SFTPGo startup and not at runtime
+	// As for the other configurations, this value is read at SFTPxy startup and not at runtime
 	// even if set using an environment variable.
 	// This is not a license key or similar, the purpose here is to prevent anyone who can access
 	// to the initial setup screen from creating an admin user
@@ -446,7 +434,7 @@ type Conf struct {
 	// if a client certificate has been revoked
 	CARevocationLists []string `json:"ca_revocation_lists" mapstructure:"ca_revocation_lists"`
 	// SigningPassphrase defines the passphrase to use to derive the signing key for JWT and CSRF tokens.
-	// If empty a random signing key will be generated each time SFTPGo starts. If you set a
+	// If empty a random signing key will be generated each time SFTPxy starts. If you set a
 	// signing passphrase you should consider rotating it periodically for added security
 	SigningPassphrase     string `json:"signing_passphrase" mapstructure:"signing_passphrase"`
 	SigningPassphraseFile string `json:"signing_passphrase_file" mapstructure:"signing_passphrase_file"`

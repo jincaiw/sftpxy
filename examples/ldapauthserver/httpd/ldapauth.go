@@ -8,16 +8,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/drakkan/sftpgo/ldapauthserver/logger"
+	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/ssh"
 )
 
-func getSFTPGoUser(entry *ldap.Entry, username string) (SFTPGoUser, error) {
+func getSFTPxyUser(entry *ldap.Entry, username string) (SFTPxyUser, error) {
 	var err error
-	var user SFTPGoUser
+	var user SFTPxyUser
 	uid := ldapConfig.DefaultUID
 	gid := ldapConfig.DefaultGID
 	status := 1
@@ -36,19 +36,19 @@ func getSFTPGoUser(entry *ldap.Entry, username string) (SFTPGoUser, error) {
 		}
 	}
 
-	sftpgoUser := SFTPGoUser{
+	SFTPxyUser := SFTPxyUser{
 		Username: username,
 		HomeDir:  entry.GetAttributeValue(ldapConfig.GetHomeDirectory()),
 		UID:      uid,
 		GID:      gid,
 		Status:   status,
 	}
-	sftpgoUser.Permissions = make(map[string][]string)
-	sftpgoUser.Permissions["/"] = []string{"*"}
-	return sftpgoUser, nil
+	SFTPxyUser.Permissions = make(map[string][]string)
+	SFTPxyUser.Permissions["/"] = []string{"*"}
+	return SFTPxyUser, nil
 }
 
-func checkSFTPGoUserAuth(w http.ResponseWriter, r *http.Request) {
+func checkSFTPxyUserAuth(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
 	var authReq externalAuthRequest
 	err := render.DecodeJSON(r.Body, &authReq)
@@ -131,7 +131,7 @@ func checkSFTPGoUserAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := getSFTPGoUser(sr.Entries[0], authReq.Username)
+	user, err := getSFTPxyUser(sr.Entries[0], authReq.Username)
 	if err != nil {
 		logger.Warn(logSender, middleware.GetReqID(r.Context()), "get user from LDAP entry failed for username %q: %v",
 			authReq.Username, err)

@@ -1,0 +1,56 @@
+syntax = "proto3";
+package proto;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "plugin/notifier/proto";
+
+message FsEvent {
+    int64 timestamp = 1;
+    string action = 2;
+    string username = 3;
+    string fs_path = 4;
+    string fs_target_path = 5;
+    string ssh_cmd = 6;
+    int64 file_size =  7;
+    string protocol = 8;
+    int32 status = 9;
+    string ip = 10;
+    string virtual_path = 11;
+    string virtual_target_path = 12;
+    string session_id = 13;
+    int32 fs_provider = 14;
+    string bucket = 15;
+    string endpoint = 16;
+    int32 open_flags = 17;
+    string role = 18;
+    int64 elapsed = 19;
+    map<string,string> metadata = 20;
+}
+
+message ProviderEvent {
+    int64 timestamp = 1;
+    string action = 2;
+    string object_type = 3;
+    string username = 4;
+    string ip = 5;
+    string object_name = 6;
+    bytes object_data = 7; // object JSON serialized
+    string role = 8;
+}
+
+message LogEvent {
+    int64 timestamp = 1;
+    int32 event = 2;
+    string username = 3;
+    string protocol = 4;
+    string ip = 5;
+    string message = 6;
+    string role = 7;
+}
+
+service Notifier {
+    rpc SendFsEvent(FsEvent) returns (google.protobuf.Empty);
+    rpc SendProviderEvent(ProviderEvent) returns (google.protobuf.Empty);
+    rpc SendLogEvent(LogEvent) returns (google.protobuf.Empty);
+}

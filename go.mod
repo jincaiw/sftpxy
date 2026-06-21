@@ -1,4 +1,4 @@
-module github.com/drakkan/sftpgo/v2
+module github.com/jincaiw/sftpxy/v2
 
 go 1.26.0
 
@@ -41,13 +41,13 @@ require (
 	github.com/otiai10/copy v1.14.1
 	github.com/pires/go-proxyproto v0.12.0
 	github.com/pkg/sftp v1.13.10
+	github.com/jincaiw/sftpxy/sdk v0.1.9
 	github.com/pquerna/otp v1.5.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/cors v1.11.1
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.35.1
-	github.com/sftpgo/sdk v0.1.9
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
@@ -179,5 +179,6 @@ require (
 
 replace (
 	github.com/jlaffaye/ftp => github.com/drakkan/ftp v0.0.0-20240430173938-7ba8270c8e7f
+	github.com/jincaiw/sftpxy/sdk => ./sdk
 	github.com/robfig/cron/v3 => github.com/drakkan/cron/v3 v3.0.0-20230222140221-217a1e4d96c0
 )

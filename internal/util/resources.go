@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 //go:build !bundle
 
@@ -22,7 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
 // FindSharedDataPath searches for the specified directory name in searchDir
@@ -38,8 +26,8 @@ func FindSharedDataPath(name, searchDir string) string {
 			searchList = append(searchList, additionalSharedDataSearchPath)
 		}
 		if runtime.GOOS != osWindows {
-			searchList = append(searchList, "/usr/share/sftpgo")
-			searchList = append(searchList, "/usr/local/share/sftpgo")
+			searchList = append(searchList, "/usr/share/SFTPxy")
+			searchList = append(searchList, "/usr/local/share/SFTPxy")
 		}
 		searchList = RemoveDuplicates(searchList, false)
 		for _, basePath := range searchList {

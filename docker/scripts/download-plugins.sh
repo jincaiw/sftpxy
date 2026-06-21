@@ -20,8 +20,8 @@ echo "Downloading plugins for arch ${SUFFIX}"
 PLUGINS=(geoipfilter kms pubsub eventstore eventsearch auth)
 
 for PLUGIN in "${PLUGINS[@]}"; do
-    URL="https://github.com/sftpgo/sftpgo-plugin-${PLUGIN}/releases/latest/download/sftpgo-plugin-${PLUGIN}-linux-${SUFFIX}"
-    DEST="/usr/local/bin/sftpgo-plugin-${PLUGIN}"
+    URL="https://github.com/SFTPxy/SFTPxy-plugin-${PLUGIN}/releases/latest/download/SFTPxy-plugin-${PLUGIN}-linux-${SUFFIX}"
+    DEST="/usr/local/bin/SFTPxy-plugin-${PLUGIN}"
 
     echo "Downloading ${PLUGIN}..."
     if curl --fail --silent --show-error -L "${URL}" --output "${DEST}"; then

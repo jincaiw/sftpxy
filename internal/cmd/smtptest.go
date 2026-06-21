@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package cmd
 
@@ -20,11 +8,11 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/smtp"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/smtp"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 var (
@@ -32,7 +20,7 @@ var (
 	smtpTestCmd       = &cobra.Command{
 		Use:   "smtptest",
 		Short: "Test the SMTP configuration",
-		Long: `SFTPGo will try to send a test email to the specified recipient.
+		Long: `SFTPxy will try to send a test email to the specified recipient.
 If the SMTP configuration is correct you should receive this email.`,
 		Run: func(_ *cobra.Command, _ []string) {
 			logger.DisableLogger()
@@ -56,7 +44,7 @@ If the SMTP configuration is correct you should receive this email.`,
 				logger.ErrorToConsole("unable to initialize SMTP configuration: %v", err)
 				os.Exit(1)
 			}
-			err = smtp.SendEmail([]string{smtpTestRecipient}, nil, "SFTPGo - Testing Email Settings", "It appears your SFTPGo email is setup correctly!",
+			err = smtp.SendEmail([]string{smtpTestRecipient}, nil, "SFTPxy - Testing Email Settings", "It appears your SFTPxy email is setup correctly!",
 				smtp.EmailContentTypeTextPlain)
 			if err != nil {
 				logger.WarnToConsole("Error sending email: %v", err)

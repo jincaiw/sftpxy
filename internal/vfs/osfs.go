@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package vfs
 
@@ -31,9 +19,9 @@ import (
 	fscopy "github.com/otiai10/copy"
 	"github.com/pkg/sftp"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
 const (
@@ -345,11 +333,11 @@ func (*OsFs) GetAtomicUploadPath(name string) string {
 		dir = tempPath
 	}
 	guid := xid.New().String()
-	return filepath.Join(dir, ".sftpgo-upload."+guid+"."+filepath.Base(name))
+	return filepath.Join(dir, ".SFTPxy-upload."+guid+"."+filepath.Base(name))
 }
 
 // GetRelativePath returns the path for a file relative to the user's home dir.
-// This is the path as seen by SFTPGo users
+// This is the path as seen by SFTPxy users
 func (fs *OsFs) GetRelativePath(name string) string {
 	virtualPath := "/"
 	if fs.mountPath != "" {

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package vfs
 
@@ -33,12 +21,12 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/metric"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/metric"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -193,7 +181,7 @@ func (c *HTTPFsConfig) ValidateAndEncryptCredentials(additionalData string) erro
 	return nil
 }
 
-// HTTPFs is a Fs implementation for the SFTPGo HTTP filesystem backend
+// HTTPFs is a Fs implementation for the SFTPxy HTTP filesystem backend
 type HTTPFs struct {
 	connectionID string
 	localTempDir string
@@ -204,7 +192,7 @@ type HTTPFs struct {
 	ctxTimeout time.Duration
 }
 
-// NewHTTPFs returns an HTTPFs object that allows to interact with SFTPGo HTTP filesystem backends
+// NewHTTPFs returns an HTTPFs object that allows to interact with SFTPxy HTTP filesystem backends
 func NewHTTPFs(connectionID, localTempDir, mountPath string, config HTTPFsConfig) (Fs, error) {
 	if localTempDir == "" {
 		localTempDir = getLocalTempDir()
@@ -600,7 +588,7 @@ func (*HTTPFs) GetAtomicUploadPath(_ string) string {
 }
 
 // GetRelativePath returns the path for a file relative to the user's home dir.
-// This is the path as seen by SFTPGo users
+// This is the path as seen by SFTPxy users
 func (fs *HTTPFs) GetRelativePath(name string) string {
 	rel := path.Clean(name)
 	if rel == "." {

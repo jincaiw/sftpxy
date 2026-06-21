@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package cmd
 
@@ -23,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/subosito/gotenv"
 
-	"github.com/drakkan/sftpgo/v2/internal/service"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/service"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -34,11 +22,11 @@ const (
 var (
 	serveCmd = &cobra.Command{
 		Use:   "serve",
-		Short: "Start the SFTPGo service",
-		Long: `To start the SFTPGo with the default values for the command line flags simply
+		Short: "Start the SFTPxy service",
+		Long: `To start the SFTPxy with the default values for the command line flags simply
 use:
 
-$ sftpgo serve
+$ SFTPxy serve
 
 Please take a look at the usage below to customize the startup options`,
 		Run: func(_ *cobra.Command, _ []string) {
@@ -109,31 +97,31 @@ func checkServeParamsFromEnvFiles(configDir string) { //nolint:gocyclo
 					continue
 				}
 				switch k {
-				case "SFTPGO_LOG_FILE_PATH":
+				case "SFTPXY_LOG_FILE_PATH":
 					logFilePath = v
-				case "SFTPGO_LOG_MAX_SIZE":
+				case "SFTPXY_LOG_MAX_SIZE":
 					setIntFromEnv(&logMaxSize, v)
-				case "SFTPGO_LOG_MAX_BACKUPS":
+				case "SFTPXY_LOG_MAX_BACKUPS":
 					setIntFromEnv(&logMaxBackups, v)
-				case "SFTPGO_LOG_MAX_AGE":
+				case "SFTPXY_LOG_MAX_AGE":
 					setIntFromEnv(&logMaxAge, v)
-				case "SFTPGO_LOG_COMPRESS":
+				case "SFTPXY_LOG_COMPRESS":
 					setBoolFromEnv(&logCompress, v)
-				case "SFTPGO_LOG_LEVEL":
+				case "SFTPXY_LOG_LEVEL":
 					logLevel = v
-				case "SFTPGO_LOG_UTC_TIME":
+				case "SFTPXY_LOG_UTC_TIME":
 					setBoolFromEnv(&logUTCTime, v)
-				case "SFTPGO_CONFIG_FILE":
+				case "SFTPXY_CONFIG_FILE":
 					configFile = v
-				case "SFTPGO_LOADDATA_FROM":
+				case "SFTPXY_LOADDATA_FROM":
 					loadDataFrom = v
-				case "SFTPGO_LOADDATA_MODE":
+				case "SFTPXY_LOADDATA_MODE":
 					setIntFromEnv(&loadDataMode, v)
-				case "SFTPGO_LOADDATA_CLEAN":
+				case "SFTPXY_LOADDATA_CLEAN":
 					setBoolFromEnv(&loadDataClean, v)
-				case "SFTPGO_LOADDATA_QUOTA_SCAN":
+				case "SFTPXY_LOADDATA_QUOTA_SCAN":
 					setIntFromEnv(&loadDataQuotaScan, v)
-				case "SFTPGO_GRACE_TIME":
+				case "SFTPXY_GRACE_TIME":
 					setIntFromEnv(&graceTime, v)
 				}
 			}

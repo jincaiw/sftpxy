@@ -1,18 +1,6 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
-// Package plugin provides support for the SFTPGo plugin system
+// Package plugin provides support for the SFTPxy plugin system
 package plugin
 
 import (
@@ -32,15 +20,15 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/sftpgo/sdk/plugin/auth"
-	"github.com/sftpgo/sdk/plugin/eventsearcher"
-	"github.com/sftpgo/sdk/plugin/ipfilter"
-	kmsplugin "github.com/sftpgo/sdk/plugin/kms"
-	"github.com/sftpgo/sdk/plugin/notifier"
+	"github.com/jincaiw/sftpxy/sdk/plugin/auth"
+	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
+	"github.com/jincaiw/sftpxy/sdk/plugin/ipfilter"
+	kmsplugin "github.com/jincaiw/sftpxy/sdk/plugin/kms"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -83,14 +71,14 @@ type Config struct {
 	// rejected. The client will also refuse to connect to any server that isn't
 	// the original instance started by the client.
 	AutoMTLS bool `json:"auto_mtls" mapstructure:"auto_mtls"`
-	// EnvPrefix defines the prefix for env vars to pass from the SFTPGo process
+	// EnvPrefix defines the prefix for env vars to pass from the SFTPxy process
 	// environment to the plugin. Set to "none" to not pass any environment
 	// variable, set to "*" to pass all environment variables. If empty, the
 	// prefix is returned as the plugin name in uppercase with "-" replaced with
 	// "_" and a trailing "_". For example if the plugin name is
-	// sftpgo-plugin-eventsearch the prefix will be SFTPGO_PLUGIN_EVENTSEARCH_
+	// SFTPxy-plugin-eventsearch the prefix will be SFTPXY_PLUGIN_EVENTSEARCH_
 	EnvPrefix string `json:"env_prefix" mapstructure:"env_prefix"`
-	// Additional environment variable names to pass from the SFTPGo process
+	// Additional environment variable names to pass from the SFTPxy process
 	// environment to the plugin.
 	EnvVars []string `json:"env_vars" mapstructure:"env_vars"`
 	// unique identifier for kms plugins

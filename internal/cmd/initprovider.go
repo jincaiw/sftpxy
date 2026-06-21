@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package cmd
 
@@ -21,13 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/service"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/service"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 var (
@@ -39,7 +27,7 @@ configuration file and creates the initial structure or update the existing one,
 as needed.
 
 Some data providers such as bolt and memory does not require an initialization
-but they could require an update to the existing data after upgrading SFTPGo.
+but they could require an update to the existing data after upgrading SFTPxy.
 
 For SQLite/bolt providers the database file will be auto-created if missing.
 
@@ -48,7 +36,7 @@ this command will create/update the required tables as needed.
 
 To initialize/update the data provider from the configuration directory simply use:
 
-$ sftpgo initprovider
+$ SFTPxy initprovider
 
 Any defined action is ignored.
 Please take a look at the usage below to customize the options.`,

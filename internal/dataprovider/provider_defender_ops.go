@@ -1,23 +1,11 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
 import (
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 func GetDefenderHosts(from int64, limit int) ([]DefenderEntry, error) {
@@ -82,7 +70,7 @@ func UpdateAPIKeyLastUse(apiKey *APIKey) error {
 	return nil
 }
 
-// UpdateLastLogin updates the last login field for the given SFTPGo user
+// UpdateLastLogin updates the last login field for the given SFTPxy user
 func UpdateLastLogin(user *User) {
 	delay := lastLoginMinDelay
 	if user.Filters.ExternalAuthCacheTime > 0 {
@@ -96,12 +84,12 @@ func UpdateLastLogin(user *User) {
 	}
 }
 
-// UpdateAdminLastLogin updates the last login field for the given SFTPGo admin
+// UpdateAdminLastLogin updates the last login field for the given SFTPxy admin
 func UpdateAdminLastLogin(admin *Admin) {
 	if !isLastActivityRecent(admin.LastLogin, lastLoginMinDelay) {
 		holder.getProvider().updateAdminLastLogin(admin.Username) //nolint:errcheck
 	}
 }
 
-// UpdateUserQuota updates the quota for the given SFTPGo user adding filesAdd and sizeAdd.
+// UpdateUserQuota updates the quota for the given SFTPxy user adding filesAdd and sizeAdd.
 // If reset is true filesAdd and sizeAdd indicates the total files and the total size instead of the difference.

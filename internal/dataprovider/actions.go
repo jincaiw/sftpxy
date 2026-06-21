@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -25,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sftpgo/sdk/plugin/notifier"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
-	"github.com/drakkan/sftpgo/v2/internal/command"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/command"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -142,14 +130,14 @@ func executeNotificationCommand(operation, executor, ip, objectType, objectName,
 
 	cmd := exec.CommandContext(ctx, holder.getConfig().Actions.Hook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_PROVIDER_ACTION=%s", operation),
-		fmt.Sprintf("SFTPGO_PROVIDER_OBJECT_TYPE=%s", objectType),
-		fmt.Sprintf("SFTPGO_PROVIDER_OBJECT_NAME=%s", objectName),
-		fmt.Sprintf("SFTPGO_PROVIDER_USERNAME=%s", executor),
-		fmt.Sprintf("SFTPGO_PROVIDER_IP=%s", ip),
-		fmt.Sprintf("SFTPGO_PROVIDER_ROLE=%s", role),
-		fmt.Sprintf("SFTPGO_PROVIDER_TIMESTAMP=%d", util.GetTimeAsMsSinceEpoch(time.Now())),
-		fmt.Sprintf("SFTPGO_PROVIDER_OBJECT=%s", objectAsJSON))
+		fmt.Sprintf("SFTPXY_PROVIDER_ACTION=%s", operation),
+		fmt.Sprintf("SFTPXY_PROVIDER_OBJECT_TYPE=%s", objectType),
+		fmt.Sprintf("SFTPXY_PROVIDER_OBJECT_NAME=%s", objectName),
+		fmt.Sprintf("SFTPXY_PROVIDER_USERNAME=%s", executor),
+		fmt.Sprintf("SFTPXY_PROVIDER_IP=%s", ip),
+		fmt.Sprintf("SFTPXY_PROVIDER_ROLE=%s", role),
+		fmt.Sprintf("SFTPXY_PROVIDER_TIMESTAMP=%d", util.GetTimeAsMsSinceEpoch(time.Now())),
+		fmt.Sprintf("SFTPXY_PROVIDER_OBJECT=%s", objectAsJSON))
 
 	startTime := time.Now()
 	err := cmd.Run()

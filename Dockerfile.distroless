@@ -10,6 +10,7 @@ WORKDIR /workspace
 ARG GOPROXY
 
 COPY go.mod go.sum ./
+COPY sdk ./sdk
 RUN go mod download && go mod verify
 
 ARG COMMIT_SHA
@@ -23,35 +24,40 @@ COPY . .
 
 RUN set -xe && \
     export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} && \
-    go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${COMMIT_SHA} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -v -o sftpgo
+    go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${COMMIT_SHA} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -v -o SFTPxy
 
 # Modify the default configuration file
-RUN sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/sftpgo/data",|' sftpgo.json && \
-    sed -i 's|"backups"|"/srv/sftpgo/backups"|' sftpgo.json && \
-    sed -i 's|"sqlite"|"bolt"|' sftpgo.json
+RUN sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/SFTPxy/data",|' SFTPxy.json && \
+    sed -i 's|"backups"|"/srv/SFTPxy/backups"|' SFTPxy.json && \
+    sed -i 's|"templates_path": "templates"|"templates_path": "/usr/share/SFTPxy/templates"|' SFTPxy.json && \
+    sed -i 's|"static_files_path": "static"|"static_files_path": "/usr/share/SFTPxy/static"|' SFTPxy.json && \
+    sed -i 's|"openapi_path": "openapi"|"openapi_path": "/usr/share/SFTPxy/openapi"|' SFTPxy.json && \
+    sed -i 's|"sqlite"|"bolt"|' SFTPxy.json
 
-RUN mkdir /etc/sftpgo /var/lib/sftpgo /srv/sftpgo
+RUN mkdir /etc/SFTPxy /var/lib/SFTPxy /srv/SFTPxy /srv/SFTPxy/backups /srv/SFTPxy/data
 
 FROM gcr.io/distroless/static-debian13
 
-COPY --from=builder --chown=1000:1000 /etc/sftpgo /etc/sftpgo
-COPY --from=builder --chown=1000:1000 /srv/sftpgo /srv/sftpgo
-COPY --from=builder --chown=1000:1000 /var/lib/sftpgo /var/lib/sftpgo
-COPY --from=builder --chown=1000:1000 /workspace/sftpgo.json /etc/sftpgo/sftpgo.json
-COPY --from=builder /workspace/templates /usr/share/sftpgo/templates
-COPY --from=builder /workspace/static /usr/share/sftpgo/static
-COPY --from=builder /workspace/openapi /usr/share/sftpgo/openapi
-COPY --from=builder /workspace/sftpgo /usr/local/bin/
+COPY --from=builder --chown=1000:1000 /etc/SFTPxy /etc/SFTPxy
+COPY --from=builder --chown=1000:1000 /srv/SFTPxy /srv/SFTPxy
+COPY --from=builder --chown=1000:1000 /var/lib/SFTPxy /var/lib/SFTPxy
+COPY --from=builder --chown=1000:1000 /workspace/SFTPxy.json /etc/SFTPxy/SFTPxy.json
+COPY --from=builder /workspace/templates /usr/share/SFTPxy/templates
+COPY --from=builder /workspace/static /usr/share/SFTPxy/static
+COPY --from=builder /workspace/openapi /usr/share/SFTPxy/openapi
+COPY --from=builder /workspace/SFTPxy /usr/local/bin/
 COPY --from=builder /etc/mime.types /etc/mime.types
 
 # Log to the stdout so the logs will be available using docker logs
-ENV SFTPGO_LOG_FILE_PATH=""
+ENV SFTPXY_LOG_FILE_PATH=""
 # These env vars are required to avoid the following error when calling user.Current():
 # unable to get the current user: user: Current requires cgo or $USER set in environment
-ENV USER=sftpgo
-ENV HOME=/var/lib/sftpgo
+ENV USER=SFTPxy
+ENV HOME=/var/lib/SFTPxy
 
-WORKDIR /var/lib/sftpgo
+WORKDIR /var/lib/SFTPxy
 USER 1000:1000
 
-CMD ["sftpgo", "serve"]
+EXPOSE 30080 30081 30082 30085-30088
+
+CMD ["SFTPxy", "serve"]

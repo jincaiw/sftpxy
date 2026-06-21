@@ -1,6 +1,6 @@
 # Security Policy
 
-We take genuine security issues in SFTPGo seriously, and we appreciate the time
+We take genuine security issues in SFTPxy seriously, and we appreciate the time
 researchers spend to responsibly report them. Real vulnerabilities are very
 welcome and are fixed quickly. We focus our detailed analysis on findings that
 have been verified and reproduced; unverified or automated checklist output
@@ -10,18 +10,18 @@ invest their time.
 
 ## Supported Versions
 
-Security fixes are applied to the latest stable release of SFTPGo. The Open
+Security fixes are applied to the latest stable release of SFTPxy. The Open
 Source edition is actively maintained by the maintainers and contributors:
 valid issues are prioritized and shipped as part of regular development,
 without the formal response-time guarantees of a commercial support contract.
 Organizations that need guaranteed response times, SLAs, or out-of-band patches
-can use [SFTPGo Enterprise](https://sftpgo.com/on-premises).
+can use [SFTPxy Enterprise](https://github.com/jincaiw/sftpxy/on-premises).
 
 ## Reporting a Vulnerability
 
 Please report suspected security issues **privately**, either by email to the
-[SFTPGo Team](mailto:support@sftpgo.com) or through GitHub's
-[private vulnerability reporting](https://github.com/drakkan/sftpgo/security/advisories/new).
+[SFTPxy Team](mailto:support@github.com/jincaiw/sftpxy) or through GitHub's
+[private vulnerability reporting](https://github.com/jincaiw/sftpxy/security/advisories/new).
 
 Do not open public issues or pull requests for undisclosed security problems.
 
@@ -30,7 +30,7 @@ Do not open public issues or pull requests for undisclosed security problems.
 A report is actionable when it lets us understand and reproduce the issue
 without guesswork. Please include:
 
-- The SFTPGo version and edition, and the platform it runs on.
+- The SFTPxy version and edition, and the platform it runs on.
 - The relevant configuration, with secrets redacted.
 - Clear, step-by-step reproduction instructions.
 - A concrete description of the impact: what an attacker can do, and which
@@ -43,18 +43,18 @@ current, supported release in a reasonable default configuration.
 
 ## What We Consider a Vulnerability
 
-The deciding question is simple: **does SFTPGo's own code let an attacker cross
+The deciding question is simple: **does SFTPxy's own code let an attacker cross
 a security boundary it is responsible for enforcing, in a reasonable default
 configuration the operator did not deliberately weaken?**
 
 If yes, it is a vulnerability and we want to know. Examples: authentication
 bypass, privilege escalation, path traversal outside a user's home directory,
-breaking isolation between accounts, or SFTPGo emitting attacker-controlled
+breaking isolation between accounts, or SFTPxy emitting attacker-controlled
 content in a way that crosses a trust boundary. These are fixed in code and
 receive a security advisory. Please bring them to us.
 
 If the answer depends on an optional, operator-owned protection not being
-enabled, it is not a vulnerability. SFTPGo deliberately ships usable defaults
+enabled, it is not a vulnerability. SFTPxy deliberately ships usable defaults
 and exposes hardening controls so each operator can choose a posture for their
 own threat model; a default that is not the most restrictive possible is an
 intentional trade-off. The following are **out of scope** as security
@@ -80,7 +80,7 @@ concept**:
   without additional impact.
 
 The distinction is the nature of the issue, not the volume of documentation or
-the presence of a screenshot: a flaw in SFTPGo's code is in scope even if a
+the presence of a screenshot: a flaw in SFTPxy's code is in scope even if a
 hardening control could also have mitigated it; the mere absence of that
 hardening control is not in scope, even with a generic demonstration.
 
@@ -98,7 +98,7 @@ understood, and able to explain and discuss in your own words.
 
 We focus our detailed analysis on reports that meet this bar. Unverified,
 machine-generated submissions — batches of generic findings, results that do
-not actually apply to SFTPGo, or claims the reporter cannot substantiate or
+not actually apply to SFTPxy, or claims the reporter cannot substantiate or
 reproduce — receive a brief response rather than a full investigation, so that
 we can give genuine issues the attention they deserve.
 
@@ -108,7 +108,7 @@ and we would much rather spend that time working with you on a real issue.
 
 ## Recognition and Rewards
 
-SFTPGo does **not** operate a paid bug bounty program and does not offer
+SFTPxy does **not** operate a paid bug bounty program and does not offer
 monetary rewards for security reports. We credit the reporter of a valid,
 original issue in the commit and/or in the published security advisory, unless
 you ask to remain anonymous.
@@ -121,18 +121,18 @@ a report contingent on payment — the condition is disregarded, not the finding
 
 ## Dependency Policy
 
-Our security advisories focus on vulnerabilities in the **SFTPGo codebase
+Our security advisories focus on vulnerabilities in the **SFTPxy codebase
 itself**. Upstream dependencies (the Go standard library, third-party packages,
 Docker base images) are handled as follows:
 
 - For the Open Source edition, dependency vulnerabilities are addressed during
   our **regular release cycles**. We generally do not issue out-of-band or
   ad-hoc releases for dependency-only CVEs.
-- Because SFTPGo is open source, you can rebuild it at any time with a patched
+- Because SFTPxy is open source, you can rebuild it at any time with a patched
   Go toolchain or updated dependencies if your scanners require an immediate
   fix.
-- We keep SFTPGo compatible with the latest stable Go compiler. If an upstream
-  fix breaks SFTPGo, addressing that is a priority for us.
+- We keep SFTPxy compatible with the latest stable Go compiler. If an upstream
+  fix breaks SFTPxy, addressing that is a priority for us.
 - Organizations with strict compliance requirements or internal SLAs that need
   guaranteed, immediate, out-of-band patches can use
-  [SFTPGo Enterprise](https://sftpgo.com/on-premises).
+  [SFTPxy Enterprise](https://github.com/jincaiw/sftpxy/on-premises).

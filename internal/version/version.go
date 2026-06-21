@@ -1,25 +1,13 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
-// Package version defines SFTPGo version details
+// Package version defines SFTPxy version details
 package version
 
 import "strings"
 
 const (
-	version = "2.7.99-dev"
-	appName = "SFTPGo"
+	version = "0.2.0"
+	appName = "SFTPxy"
 )
 
 var (

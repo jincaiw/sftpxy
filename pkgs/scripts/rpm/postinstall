@@ -1,44 +1,44 @@
 if [ $1 -eq 1 ]; then
   # Initial installation
   # Add user and group
-  if ! getent group sftpgo >/dev/null; then
-    /usr/sbin/groupadd --system sftpgo
+  if ! getent group SFTPxy >/dev/null; then
+    /usr/sbin/groupadd --system SFTPxy
   fi
-  if ! getent passwd sftpgo >/dev/null; then
+  if ! getent passwd SFTPxy >/dev/null; then
     /usr/sbin/useradd --system \
-      --gid sftpgo \
+      --gid SFTPxy \
       --no-create-home \
-      --home-dir /var/lib/sftpgo \
+      --home-dir /var/lib/SFTPxy \
       --shell /sbin/nologin \
-      --comment "SFTPGo user" \
-      sftpgo
+      --comment "SFTPxy user" \
+      SFTPxy
   fi
   # initialize data provider
-  /usr/bin/sftpgo initprovider -c /etc/sftpgo
+  /usr/bin/SFTPxy initprovider -c /etc/SFTPxy
   # ensure files and folders have the appropriate permissions
-  /usr/bin/chown -R sftpgo:sftpgo /etc/sftpgo /var/lib/sftpgo /srv/sftpgo
-  /usr/bin/chmod 750 /etc/sftpgo /etc/sftpgo/env.d /var/lib/sftpgo /srv/sftpgo
-  /usr/bin/chmod 640 /etc/sftpgo/sftpgo.json
+  /usr/bin/chown -R SFTPxy:SFTPxy /etc/SFTPxy /var/lib/SFTPxy /srv/SFTPxy
+  /usr/bin/chmod 750 /etc/SFTPxy /etc/SFTPxy/env.d /var/lib/SFTPxy /srv/SFTPxy
+  /usr/bin/chmod 640 /etc/SFTPxy/SFTPxy.json
 fi
 
-# adjust permissions for /srv/sftpgo, /etc/sftpgo/env.d and /var/lib/sftpgo
-if [ -d /srv/sftpgo ]; then
-    /usr/bin/chown sftpgo:sftpgo /srv/sftpgo
-    /usr/bin/chmod 750 /srv/sftpgo
+# adjust permissions for /srv/SFTPxy, /etc/SFTPxy/env.d and /var/lib/SFTPxy
+if [ -d /srv/SFTPxy ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /srv/SFTPxy
+    /usr/bin/chmod 750 /srv/SFTPxy
 fi
 
-if [ -d /etc/sftpgo/env.d ]; then
-    /usr/bin/chown sftpgo:sftpgo /etc/sftpgo/env.d
-    /usr/bin/chmod 750 /etc/sftpgo/env.d
+if [ -d /etc/SFTPxy/env.d ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /etc/SFTPxy/env.d
+    /usr/bin/chmod 750 /etc/SFTPxy/env.d
 fi
 
-if [ -d /var/lib/sftpgo ]; then
-    /usr/bin/chown sftpgo:sftpgo /var/lib/sftpgo
-    /usr/bin/chmod 750 /var/lib/sftpgo
+if [ -d /var/lib/SFTPxy ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /var/lib/SFTPxy
+    /usr/bin/chmod 750 /var/lib/SFTPxy
 fi
 
 # set the cap_net_bind_service capability so the service can bind to privileged ports
-setcap cap_net_bind_service=+ep /usr/bin/sftpgo || :
+setcap cap_net_bind_service=+ep /usr/bin/SFTPxy || :
 
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >/dev/null 2>&1 || :

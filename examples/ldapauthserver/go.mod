@@ -1,4 +1,4 @@
-module github.com/drakkan/sftpgo/ldapauthserver
+module github.com/jincaiw/sftpxy/ldapauthserver
 
 go 1.25.0
 

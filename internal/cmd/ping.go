@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package cmd
 
@@ -22,11 +10,11 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/httpd"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/httpd"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 func getHealthzURLFromBindings(bindings []httpd.Binding) string {
@@ -54,7 +42,7 @@ func getHealthzURLFromBindings(bindings []httpd.Binding) string {
 var (
 	pingCmd = &cobra.Command{
 		Use:   "ping",
-		Short: "Issues an health check to SFTPGo",
+		Short: "Issues an health check to SFTPxy",
 		Long: `This command is only useful in environments where system commands like
 "curl", "wget" and similar are not available.
 Checks over UNIX domain sockets are not supported`,
@@ -101,7 +89,7 @@ Checks over UNIX domain sockets are not supported`,
 			logger.DebugToConsole("Health Check URL %q", url)
 			resp, err := httpclient.RetryableGet(url)
 			if err != nil {
-				logger.ErrorToConsole("Unable to connect to SFTPGo: %v", err)
+				logger.ErrorToConsole("Unable to connect to SFTPxy: %v", err)
 				os.Exit(1)
 			}
 			defer resp.Body.Close()

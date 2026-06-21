@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package httpd
 
@@ -28,12 +16,12 @@ import (
 	"github.com/rs/xid"
 	"golang.org/x/oauth2"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/jwt"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -69,22 +57,22 @@ type OIDC struct {
 	ClientSecret     string `json:"client_secret" mapstructure:"client_secret"`
 	ClientSecretFile string `json:"client_secret_file" mapstructure:"client_secret_file"`
 	// ConfigURL is the identifier for the service.
-	// SFTPGo will try to retrieve the provider configuration on startup and then
+	// SFTPxy will try to retrieve the provider configuration on startup and then
 	// will refuse to start if it fails to connect to the specified URL
 	ConfigURL string `json:"config_url" mapstructure:"config_url"`
 	// RedirectBaseURL is the base URL to redirect to after OpenID authentication.
 	// The suffix "/web/oidc/redirect" will be added to this base URL, adding also the
 	// "web_root" if configured
 	RedirectBaseURL string `json:"redirect_base_url" mapstructure:"redirect_base_url"`
-	// ID token claims field to map to the SFTPGo username
+	// ID token claims field to map to the SFTPxy username
 	UsernameField string `json:"username_field" mapstructure:"username_field"`
-	// Optional ID token claims field to map to a SFTPGo role.
+	// Optional ID token claims field to map to a SFTPxy role.
 	// If the defined ID token claims field is set to "admin" the authenticated user
-	// is mapped to an SFTPGo admin.
+	// is mapped to an SFTPxy admin.
 	// You don't need to specify this field if you want to use OpenID only for the
 	// Web Client UI
 	RoleField string `json:"role_field" mapstructure:"role_field"`
-	// If set, the `RoleField` is ignored and the SFTPGo role is assumed based on
+	// If set, the `RoleField` is ignored and the SFTPxy role is assumed based on
 	// the login link used
 	ImplicitRoles bool `json:"implicit_roles" mapstructure:"implicit_roles"`
 	// Scopes required by the OAuth provider to retrieve information about the authenticated user.
@@ -93,7 +81,7 @@ type OIDC struct {
 	Scopes []string `json:"scopes" mapstructure:"scopes"`
 	// Custom token claims fields to pass to the pre-login hook
 	CustomFields []string `json:"custom_fields" mapstructure:"custom_fields"`
-	// InsecureSkipSignatureCheck causes SFTPGo to skip JWT signature validation.
+	// InsecureSkipSignatureCheck causes SFTPxy to skip JWT signature validation.
 	// It's intended for special cases where providers, such as Azure, use the "none"
 	// algorithm. Skipping the signature validation can cause security issues
 	InsecureSkipSignatureCheck bool `json:"insecure_skip_signature_check" mapstructure:"insecure_skip_signature_check"`
@@ -225,8 +213,8 @@ type oidcToken struct {
 	MustSetTwoFactorAuth       bool            `json:"must_set_2fa,omitempty"`
 	MustChangePassword         bool            `json:"must_change_password,omitempty"`
 	RequiredTwoFactorProtocols []string        `json:"required_two_factor_protocols,omitempty"`
-	TokenRole                  string          `json:"token_role,omitempty"` // SFTPGo role name
-	Role                       any             `json:"role"`                 // oidc user role: SFTPGo user or admin
+	TokenRole                  string          `json:"token_role,omitempty"` // SFTPxy role name
+	Role                       any             `json:"role"`                 // oidc user role: SFTPxy user or admin
 	CustomFields               *map[string]any `json:"custom_fields,omitempty"`
 	Cookie                     string          `json:"cookie"`
 	UsedAt                     int64           `json:"used_at"`
@@ -521,7 +509,7 @@ func (s *httpdServer) validateOIDCToken(w http.ResponseWriter, r *http.Request, 
 		if !token.isAdmin() {
 			logger.Debug(logSender, "", "oidc token associated with cookie %q is not valid for admin users", token.Cookie)
 			setFlashMessage(w, r, newFlashMessage(
-				"Your OpenID token is not valid for the SFTPGo Web Admin UI. Please logout from your OpenID server and log-in as an SFTPGo admin",
+				"Your OpenID token is not valid for the SFTPxy Web Admin UI. Please logout from your OpenID server and log-in as an SFTPxy admin",
 				util.I18nOIDCTokenInvalidAdmin,
 			))
 			doRedirect()
@@ -532,7 +520,7 @@ func (s *httpdServer) validateOIDCToken(w http.ResponseWriter, r *http.Request, 
 	if token.isAdmin() {
 		logger.Debug(logSender, "", "oidc token associated with cookie %q is valid for admin users", token.Cookie)
 		setFlashMessage(w, r, newFlashMessage(
-			"Your OpenID token is not valid for the SFTPGo Web Client UI. Please logout from your OpenID server and log-in as an SFTPGo user",
+			"Your OpenID token is not valid for the SFTPxy Web Client UI. Please logout from your OpenID server and log-in as an SFTPxy user",
 			util.I18nOIDCTokenInvalidUser,
 		))
 		doRedirect()
@@ -699,9 +687,9 @@ func (s *httpdServer) handleOIDCRedirect(w http.ResponseWriter, r *http.Request)
 	switch authReq.Audience {
 	case tokenAudienceWebAdmin:
 		if !token.isAdmin() {
-			logger.Debug(logSender, "", "wrong oidc token role, the mapped user is not an SFTPGo admin")
+			logger.Debug(logSender, "", "wrong oidc token role, the mapped user is not an SFTPxy admin")
 			setFlashMessage(w, r, newFlashMessage(
-				"Wrong OpenID role, the logged in user is not an SFTPGo admin",
+				"Wrong OpenID role, the logged in user is not an SFTPxy admin",
 				util.I18nOIDCTokenInvalidRoleAdmin))
 			doRedirect()
 			doLogout(rawIDToken)
@@ -709,9 +697,9 @@ func (s *httpdServer) handleOIDCRedirect(w http.ResponseWriter, r *http.Request)
 		}
 	case tokenAudienceWebClient:
 		if token.isAdmin() {
-			logger.Debug(logSender, "", "wrong oidc token role, the mapped user is an SFTPGo admin")
+			logger.Debug(logSender, "", "wrong oidc token role, the mapped user is an SFTPxy admin")
 			setFlashMessage(w, r, newFlashMessage(
-				"Wrong OpenID role, the logged in user is an SFTPGo admin",
+				"Wrong OpenID role, the logged in user is an SFTPxy admin",
 				util.I18nOIDCTokenInvalidRoleUser,
 			))
 			doRedirect()
@@ -721,7 +709,7 @@ func (s *httpdServer) handleOIDCRedirect(w http.ResponseWriter, r *http.Request)
 	}
 	err = token.getUser(r)
 	if err != nil {
-		logger.Debug(logSender, "", "unable to get the sftpgo user associated with oidc token: %v", err)
+		logger.Debug(logSender, "", "unable to get the SFTPxy user associated with oidc token: %v", err)
 		setFlashMessage(w, r, newFlashMessage("Unable to get the user associated with the OpenID token", util.I18nOIDCErrGetUser))
 		doRedirect()
 		doLogout(rawIDToken)

@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package common defines code shared among file transfer packages and protocols
 package common
@@ -34,18 +22,18 @@ import (
 	"time"
 
 	"github.com/pires/go-proxyproto"
-	"github.com/sftpgo/sdk/plugin/notifier"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
-	"github.com/drakkan/sftpgo/v2/internal/command"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/metric"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/smtp"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/command"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/metric"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/smtp"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 // constants
@@ -575,17 +563,17 @@ type Configuration struct {
 	// RenameMode defines how to handle directory renames. By default, renaming of non-empty directories
 	// is not allowed for cloud storage providers (S3, GCS, Azure Blob). Set to 1 to enable recursive
 	// renames for these providers, they may be slow, there is no atomic rename API like for local
-	// filesystem, so SFTPGo will recursively list the directory contents and do a rename for each entry
+	// filesystem, so SFTPxy will recursively list the directory contents and do a rename for each entry
 	RenameMode int `json:"rename_mode" mapstructure:"rename_mode"`
 	// ResumeMaxSize defines the maximum size allowed, in bytes, to resume uploads on storage backends
 	// with immutable objects. By default, resuming uploads is not allowed for cloud storage providers
-	// (S3, GCS, Azure Blob) because SFTPGo must rewrite the entire file.
+	// (S3, GCS, Azure Blob) because SFTPxy must rewrite the entire file.
 	// Set to a value greater than 0 to allow resuming uploads of files smaller than or equal to the
 	// defined size.
 	ResumeMaxSize int64 `json:"resume_max_size" mapstructure:"resume_max_size"`
 	// TempPath defines the path for temporary files such as those used for atomic uploads or file pipes.
 	// If you set this option you must make sure that the defined path exists, is accessible for writing
-	// by the user running SFTPGo, and is on the same filesystem as the users home directories otherwise
+	// by the user running SFTPxy, and is on the same filesystem as the users home directories otherwise
 	// the renaming for atomic uploads will become a copy and therefore may take a long time.
 	// The temporary files are not namespaced. The default is generally fine. Leave empty for the default.
 	TempPath string `json:"temp_path" mapstructure:"temp_path"`
@@ -596,14 +584,14 @@ type Configuration struct {
 	// Default: 80.
 	SecretMinEntropy float64 `json:"secret_min_entropy" mapstructure:"secret_min_entropy"`
 	// Support for HAProxy PROXY protocol.
-	// If you are running SFTPGo behind a proxy server such as HAProxy, AWS ELB or NGNIX, you can enable
+	// If you are running SFTPxy behind a proxy server such as HAProxy, AWS ELB or NGNIX, you can enable
 	// the proxy protocol. It provides a convenient way to safely transport connection information
 	// such as a client's address across multiple layers of NAT or TCP proxies to get the real
 	// client IP address instead of the proxy IP. Both protocol versions 1 and 2 are supported.
 	// - 0 means disabled
 	// - 1 means proxy protocol enabled. Proxy header will be used and requests without proxy header will be accepted.
 	// - 2 means proxy protocol required. Proxy header will be used and requests without proxy header will be rejected.
-	// If the proxy protocol is enabled in SFTPGo then you have to enable the protocol in your proxy configuration too,
+	// If the proxy protocol is enabled in SFTPxy then you have to enable the protocol in your proxy configuration too,
 	// for example for HAProxy add "send-proxy" or "send-proxy-v2" to each server configuration line.
 	ProxyProtocol int `json:"proxy_protocol" mapstructure:"proxy_protocol"`
 	// List of IP addresses and IP ranges allowed to send the proxy header.
@@ -614,9 +602,9 @@ type Configuration struct {
 	ProxyAllowed []string `json:"proxy_allowed" mapstructure:"proxy_allowed"`
 	// List of IP addresses and IP ranges for which not to read the proxy header
 	ProxySkipped []string `json:"proxy_skipped" mapstructure:"proxy_skipped"`
-	// Absolute path to an external program or an HTTP URL to invoke as soon as SFTPGo starts.
+	// Absolute path to an external program or an HTTP URL to invoke as soon as SFTPxy starts.
 	// If you define an HTTP URL it will be invoked using a `GET` request.
-	// Please note that SFTPGo services may not yet be available when this hook is run.
+	// Please note that SFTPxy services may not yet be available when this hook is run.
 	// Leave empty do disable.
 	StartupHook string `json:"startup_hook" mapstructure:"startup_hook"`
 	// Absolute path to an external program or an HTTP URL to invoke after a user connects
@@ -801,10 +789,10 @@ func (c *Configuration) executePostDisconnectHook(remoteAddr, protocol, username
 	startTime := time.Now()
 	cmd := exec.CommandContext(ctx, c.PostDisconnectHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_CONNECTION_IP=%s", ipAddr),
-		fmt.Sprintf("SFTPGO_CONNECTION_USERNAME=%s", username),
-		fmt.Sprintf("SFTPGO_CONNECTION_DURATION=%d", connDuration),
-		fmt.Sprintf("SFTPGO_CONNECTION_PROTOCOL=%s", protocol))
+		fmt.Sprintf("SFTPXY_CONNECTION_IP=%s", ipAddr),
+		fmt.Sprintf("SFTPXY_CONNECTION_USERNAME=%s", username),
+		fmt.Sprintf("SFTPXY_CONNECTION_DURATION=%d", connDuration),
+		fmt.Sprintf("SFTPXY_CONNECTION_PROTOCOL=%s", protocol))
 	err := cmd.Run()
 	logger.Debug(protocol, connID, "Post disconnect hook executed, elapsed: %s error: %v", time.Since(startTime), err)
 }
@@ -860,8 +848,8 @@ func (c *Configuration) ExecutePostConnectHook(ipAddr, protocol string) error {
 
 	cmd := exec.CommandContext(ctx, c.PostConnectHook, args...)
 	cmd.Env = append(env,
-		fmt.Sprintf("SFTPGO_CONNECTION_IP=%s", ipAddr),
-		fmt.Sprintf("SFTPGO_CONNECTION_PROTOCOL=%s", protocol))
+		fmt.Sprintf("SFTPXY_CONNECTION_IP=%s", ipAddr),
+		fmt.Sprintf("SFTPXY_CONNECTION_PROTOCOL=%s", protocol))
 	err := cmd.Run()
 	if err != nil {
 		logger.Warn(protocol, "", "Login from ip %q denied, connect hook error: %v", ipAddr, err)

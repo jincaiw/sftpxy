@@ -1,131 +1,172 @@
-# SFTPGo
+# SFTPxy
 
-[![CI Status](https://github.com/drakkan/sftpgo/workflows/CI/badge.svg)](https://github.com/drakkan/sftpgo/workflows/CI/badge.svg)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)
+[![CI Status](https://github.com/jincaiw/sftpxy/workflows/CI/badge.svg)](https://github.com/jincaiw/sftpxy/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-Full-featured and highly configurable event-driven file transfer solution. Server protocols: SFTP, HTTP/S, FTP/S, WebDAV. Storage backends: local filesystem, encrypted local filesystem, S3 (compatible) Object Storage, Google Cloud Storage, Azure Blob Storage, other SFTP servers.
+SFTPxy is a production-ready file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends. It is designed for private infrastructure where a single binary, a systemd service, or a Docker container should be enough to run a stable transfer service.
 
-With SFTPGo you can leverage local and cloud storage backends for exchanging and storing files internally or with business partners using the same tools and processes you are already familiar with.
+Default service ports:
 
-## Project Status & Editions
+| Service | URL or port |
+| --- | --- |
+| WebAdmin and REST/OpenAPI | `http://localhost:30080/web/admin/login` |
+| WebClient | `http://localhost:30081/web/client/login` |
+| SFTP | `30082` |
+| FTP passive range | `30085-30088` |
 
-SFTPGo is an open-source project with a sustainable business model. We offer two editions to suit different requirements, ensuring the project remains healthy and maintained for everyone.
+The web interface defaults to Chinese (`zh-CN`). English remains available from the language selector.
 
-### Open Source (Community)
+## Demo
 
-Free, Copyleft (AGPLv3), Community Supported. The Community edition is a fully functional, production-ready solution widely adopted worldwide. It includes all the core protocols, storage backends, and the WebAdmin/WebClient UIs. It is ideal for:
+![WebAdmin login](docs/screenshots/webadmin-login.png)
 
-- Standard file transfer needs.
-- Integrating storage backends (S3, GCS, Azure Blob) with legacy protocols.
-- Projects that are comfortable with AGPLv3 licensing.
+![WebClient login](docs/screenshots/webclient-login.png)
 
-### SFTPGo Enterprise
+![Mobile WebAdmin login](docs/screenshots/mobile-webadmin-login.png)
 
-Commercial License, Professional Support, ISO 27001 Vendor. The Enterprise edition is built on the same core but extends it for mission-critical environments, compliance-heavy industries, and advanced workflows. It is a drop-in replacement (seamless upgrade).
+## Quick Start
 
-| Feature | Open Source (Community) | Enterprise Edition |
-| :--- | :--- | :--- |
-| **License Type** | AGPLv3 (Copyleft) | **Commercial License**<br/>Proprietary/No Copyleft |
-| **Vendor Compliance** | Not Applicable<br/>Community Project | **Certified Vendor**<br/>ISO 27001 & Supply Chain Validation |
-| **Support** | Community (GitHub) | **Direct from Authors** |
-| **Cloud Storage Engine** | Standard | **High Performance & Scalable**<br/>In-memory streaming (no local temp files) and up to 70% faster |
-| **High Availability (HA)** | Standard<br/>Shared DB & Storage | **Advanced**<br/>Enhanced event handling and optimized instance coordination |
-| **Automation Logic** | Simple Placeholders | **Dynamic Logic & Virtual Folders**<br/>Conditions, loops, route data across storage backends |
-| **Data Lifecycle** | Delete / Retain | **Smart Archiving**<br/>Move data to external Cloud/SFTP storage via Virtual Folders |
-| **Email Data Ingestion** | - | **Native IMAP Integration**<br/>Auto-extract attachments from email to storage |
-| **Public Sharing** | Standard Links | **Advanced & Collaborative**<br/>Email Authentication & Group Delegation |
-| **Data Protection** | - | **Encryption & Scanning**<br/>Automated PGP, Antivirus & DLP via ICAP |
-| **Advanced Identity (SSO)** | Standard | **Extended Controls**<br/>Advanced Single Sign-On parameters |
-| **Document Editing** | - | **Included**<br/>View, edit, and co-author in browser |
+Download the latest release from [GitHub Releases](https://github.com/jincaiw/sftpxy/releases), extract the archive for your platform, and start the service:
 
-**Note**: We are committed to keeping the Open Source edition powerful and maintained. The Enterprise edition helps fund the development of the entire SFTPGo ecosystem.
+```bash
+./SFTPxy serve -c .
+```
 
-## Sponsors
+For a first local run you can create a default administrator:
 
-If you rely on SFTPGo in your projects, consider becoming a [sponsor](https://github.com/sponsors/drakkan).
+```bash
+SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
+SFTPXY_DEFAULT_ADMIN_PASSWORD='change-this-password' \
+SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
+./SFTPxy serve -c .
+```
 
-Your sponsorship helps cover maintenance, security updates and ongoing development of the open-source edition.
+Open `http://localhost:30080/web/admin/login`, sign in, then change the generated bootstrap credentials before production use.
 
-### Thank you to our sponsors
+## Linux Single-Binary Deployment
 
-#### Platinum sponsors
+This layout keeps executable, configuration, state, and user data separate:
 
-[<img src="./img/Aledade_logo.png" alt="Aledade logo" width="202" height="70">](https://www.aledade.com/)
-</br></br>
-[<img src="./img/jumptrading.png" alt="Jump Trading logo" width="362" height="63">](https://www.jumptrading.com/)
-</br></br>
-[<img src="./img/wpengine.png" alt="WP Engine logo" width="331" height="63">](https://wpengine.com/)
+```bash
+sudo install -d -m 0755 /etc/SFTPxy /usr/local/bin /srv/SFTPxy/data
+sudo install -d -m 0750 /var/lib/SFTPxy /var/log/SFTPxy
 
-#### Silver sponsors
+sudo install -m 0755 SFTPxy /usr/local/bin/SFTPxy
+sudo cp SFTPxy.json /etc/SFTPxy/SFTPxy.json
+sudo cp -R templates static openapi /etc/SFTPxy/
+```
 
-[<img src="./img/IDCS.png" alt="IDCS logo" width="212" height="51">](https://idcs.ip-paris.fr/)
+Create the first admin account on the first boot:
 
-#### Bronze sponsors
+```bash
+sudo SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+  SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
+  SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
+  /usr/local/bin/SFTPxy serve -c /etc/SFTPxy
+```
 
-[<img src="./img/7digital.png" alt="7digital logo" width="178" height="56">](https://www.7digital.com/)
-</br></br>
-[<img src="./img/servinga.png" alt="servinga logo" width="258" height="56">](https://servinga.com/)
-</br></br>
-[<img src="./img/reui.png" alt="ReUI logo" width="151" height="56">](https://www.reui.io/)
+After the first login, stop the temporary foreground process and run SFTPxy using systemd.
 
-## Documentation
+## systemd Deployment
 
-You can explore all supported features and configuration options at [docs.sftpgo.com](https://docs.sftpgo.com/latest/).
+Create a dedicated account:
 
-**Note:** The link above refers to the **Community Edition**.
-For details on **Enterprise Edition**, please refer to the [Enterprise Documentation](https://docs.sftpgo.com/enterprise/).
+```bash
+sudo useradd --system --home /var/lib/SFTPxy --shell /usr/sbin/nologin SFTPxy
+sudo chown -R SFTPxy:SFTPxy /var/lib/SFTPxy /srv/SFTPxy /var/log/SFTPxy
+sudo chown -R root:SFTPxy /etc/SFTPxy
+sudo chmod 0750 /etc/SFTPxy
+```
 
-## Support
+Install the service:
 
-- **Community Support**: use [GitHub Discussions](https://github.com/drakkan/sftpgo/discussions) to ask questions, share feedback, and engage with other users.
-- **Commercial Support**: If you require guaranteed SLAs, expert guidance, or the advanced features listed above, check out [SFTPGo Enterprise](https://sftpgo.com).
+```bash
+sudo cp init/SFTPxy.service /etc/systemd/system/SFTPxy.service
+sudo tee /etc/SFTPxy/SFTPxy.env >/dev/null <<'EOF'
+SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1
+SFTPXY_DEFAULT_ADMIN_USERNAME=admin
+SFTPXY_DEFAULT_ADMIN_PASSWORD=replace-with-a-strong-password
+SFTPXY_COMMON__SECRET_MIN_ENTROPY=0
+EOF
 
-SFTPGo Enterprise is available as:
+sudo systemctl daemon-reload
+sudo systemctl enable --now SFTPxy
+sudo systemctl status SFTPxy
+```
 
-- On-premises: Full control on your infrastructure. More details: [sftpgo.com/on-premises](https://sftpgo.com/on-premises)
-- Fully managed SaaS: We handle the infrastructure. More details: [sftpgo.com/saas](https://sftpgo.com/saas)
+After the default admin is created and a permanent password is set, remove the bootstrap variables from `/etc/SFTPxy/SFTPxy.env` and restart:
 
-## Internationalization
+```bash
+sudo sed -i '/CREATE_DEFAULT_ADMIN/d;/DEFAULT_ADMIN_/d;/SECRET_MIN_ENTROPY/d' /etc/SFTPxy/SFTPxy.env
+sudo systemctl restart SFTPxy
+```
 
-The translations are available via [Crowdin](https://crowdin.com/project/sftpgo), who have granted us an open source license.
+## Docker Deployment
 
-Before translating please take a look at our contribution [guidelines](https://docs.sftpgo.com/latest/web-interfaces/#internationalization).
+The Docker image is published as `jincaiw/sftpxy`.
 
-## Release Cadence
+```bash
+docker run -d --name sftpxy \
+  -p 30080:30080 \
+  -p 30081:30081 \
+  -p 30082:30082 \
+  -p 30085-30088:30085-30088 \
+  -e SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+  -e SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
+  -e SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
+  -v sftpxy-config:/etc/SFTPxy \
+  -v sftpxy-data:/srv/SFTPxy \
+  jincaiw/sftpxy:v0.2.0
+```
 
-SFTPGo follows a feature-driven release cycle.
+Docker Compose:
 
-- Enterprise Edition: Receives major new features first and follows a faster [release cadence](https://docs.sftpgo.com/enterprise/changelog/).
-- Community Edition: Remains maintained, receiving bug fixes, security updates, and updates to core features.
+```yaml
+services:
+  sftpxy:
+    image: jincaiw/sftpxy:v0.2.0
+    container_name: sftpxy
+    restart: unless-stopped
+    ports:
+      - "30080:30080"
+      - "30081:30081"
+      - "30082:30082"
+      - "30085-30088:30085-30088"
+    environment:
+      SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "1"
+      SFTPXY_DEFAULT_ADMIN_USERNAME: admin
+      SFTPXY_DEFAULT_ADMIN_PASSWORD: replace-with-a-strong-password
+      SFTPXY_COMMON__SECRET_MIN_ENTROPY: "0"
+    volumes:
+      - sftpxy-config:/etc/SFTPxy
+      - sftpxy-data:/srv/SFTPxy
 
-## Acknowledgements
+volumes:
+  sftpxy-config:
+  sftpxy-data:
+```
 
-SFTPGo makes use of the third party libraries listed inside [go.mod](./go.mod).
+## Release Artifacts
 
-We are very grateful to all the people who contributed with ideas and/or pull requests.
+Release `v0.2.0` provides:
 
-Thank you to [ysura](https://www.ysura.com/) for granting us stable access to a test AWS S3 account.
+- Linux packages and portable archives.
+- Windows installers and portable archives.
+- Source archive with vendored dependencies.
+- Docker image `jincaiw/sftpxy:v0.2.0` and `jincaiw/sftpxy:latest`.
 
-Thank you to [KeenThemes](https://keenthemes.com/) for granting us a custom license to use their amazing [themes](https://keenthemes.com/bootstrap-templates) for the SFTPGo WebAdmin and WebClient user interfaces, across both the Open Source and Open Core versions.
+## Configuration Notes
 
-Thank you to [Crowdin](https://crowdin.com/) for granting us an Open Source License.
-
-Thank you to [Incode](https://www.incode.it/) for helping us to improve the UI/UX.
+- Keep WebAdmin and REST/OpenAPI on `30080`.
+- Keep WebClient on `30081`.
+- Keep SFTP on `30082`.
+- Use `30085-30088` for passive FTP when FTP is enabled.
+- Prefer environment variables in `/etc/SFTPxy/SFTPxy.env` or Docker environment entries for secrets.
+- Do not commit local databases, logs, runtime keys, release bundles, or private configuration overrides.
 
 ## License
 
-SFTPGo source code is licensed under the GNU AGPL-3.0-only with [additional terms](./NOTICE).
-
-The [theme](https://keenthemes.com/bootstrap-templates) used in WebAdmin and WebClient user interfaces is proprietary, this means:
-
-- KeenThemes HTML/CSS/JS components are allowed for use only within the SFTPGo product and restricted to be used in a resealable HTML template that can compete with KeenThemes products anyhow.
-- The SFTPGo WebAdmin and WebClient user interfaces (HTML, CSS and JS components) based on this theme are allowed for use only within the SFTPGo product and therefore cannot be used in derivative works/products without an explicit grant from the [SFTPGo Team](mailto:support@sftpgo.com).
-
-More information about [compliance](https://sftpgo.com/compliance.html).
-
-**Note:** We do not provide legal advice. If you have questions about license compliance or whether your use case is permitted under the license terms, please consult your legal team.
-
-## Copyright
-
-Copyright (C) 2019 - 2026 Nicola Murino
+SFTPxy is licensed under the [MIT License](./LICENSE).

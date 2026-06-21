@@ -1,25 +1,13 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
 import (
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 func UpdateUserQuota(user *User, filesAdd int, sizeAdd int64, reset bool) error {
@@ -69,7 +57,7 @@ func UpdateVirtualFolderQuota(vfolder *vfs.BaseVirtualFolder, filesAdd int, size
 	return nil
 }
 
-// UpdateUserTransferQuota updates the transfer quota for the given SFTPGo user.
+// UpdateUserTransferQuota updates the transfer quota for the given SFTPxy user.
 // If reset is true uploadSize and downloadSize indicates the actual sizes instead of the difference.
 func UpdateUserTransferQuota(user *User, uploadSize, downloadSize int64, reset bool) error {
 	if holder.getConfig().TrackQuota == 0 {
@@ -106,7 +94,7 @@ func UpdateUserTransferTimestamps(username string, isUpload bool) error {
 	return err
 }
 
-// GetUsedQuota returns the used quota for the given SFTPGo user.
+// GetUsedQuota returns the used quota for the given SFTPxy user.
 func GetUsedQuota(username string) (int, int64, int64, int64, error) {
 	if holder.getConfig().TrackQuota == 0 {
 		return 0, 0, 0, 0, util.NewMethodDisabledError(trackQuotaDisabledError)

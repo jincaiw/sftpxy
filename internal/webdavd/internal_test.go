@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package webdavd
 
@@ -32,15 +20,15 @@ import (
 
 	"github.com/drakkan/webdav"
 	"github.com/eikenb/pipeat"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -750,7 +738,7 @@ func TestContentType(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	baseTransfer = common.NewBaseTransfer(nil, connection.BaseConnection, nil, testFilePath, testFilePath, testFile+".sftpgo",
+	baseTransfer = common.NewBaseTransfer(nil, connection.BaseConnection, nil, testFilePath, testFilePath, testFile+".SFTPxy",
 		common.TransferDownload, 0, 0, 0, 0, false, fs, dataprovider.TransferQuota{})
 	fs = newMockOsFs(false, fs.ConnectionID(), user.GetHomeDir(), nil, os.ErrInvalid)
 	davFile = newWebDavFile(baseTransfer, nil, nil)
@@ -759,7 +747,7 @@ func TestContentType(t *testing.T) {
 	if assert.NoError(t, err) {
 		ctype, err := fi.(*webDavFileInfo).ContentType(ctx)
 		assert.NoError(t, err)
-		assert.Equal(t, "application/sftpgo", ctype)
+		assert.Equal(t, "application/SFTPxy", ctype)
 	}
 	err = davFile.Close()
 	assert.NoError(t, err)
@@ -1750,8 +1738,8 @@ func TestBindingGetAddress(t *testing.T) {
 	}{
 		{
 			name:    "IP address with port",
-			binding: Binding{Address: "127.0.0.1", Port: 8080},
-			want:    "127.0.0.1:8080",
+			binding: Binding{Address: "127.0.0.1", Port: 30080},
+			want:    "127.0.0.1:30080",
 		},
 		{
 			name:    "Unix socket path (no port)",

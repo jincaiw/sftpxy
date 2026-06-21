@@ -1,16 +1,4 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -27,12 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
@@ -75,7 +63,7 @@ const (
 )
 
 // Supported algorithms for hashing passwords.
-// These algorithms can be used when SFTPGo hashes a plain text password
+// These algorithms can be used when SFTPxy hashes a plain text password
 const (
 	HashingAlgoBcrypt   = "bcrypt"
 	HashingAlgoArgon2ID = "argon2id"
@@ -277,9 +265,9 @@ type PasswordValidationRules struct {
 
 // PasswordValidation defines the password validation rules for admins and protocol users
 type PasswordValidation struct {
-	// Password validation rules for SFTPGo admin users
+	// Password validation rules for SFTPxy admin users
 	Admins PasswordValidationRules `json:"admins" mapstructure:"admins"`
-	// Password validation rules for SFTPGo protocol users
+	// Password validation rules for SFTPxy protocol users
 	Users PasswordValidationRules `json:"users" mapstructure:"users"`
 }
 
@@ -424,7 +412,7 @@ type Config struct {
 	// its main use case is to allow to easily support things like password+OTP for protocols
 	// without keyboard interactive support such as FTP and WebDAV. You can ask your users
 	// to login using a string consisting of a fixed password and a One Time Token, you
-	// can verify the token inside the hook and ask to SFTPGo to verify the fixed part.
+	// can verify the token inside the hook and ask to SFTPxy to verify the fixed part.
 	CheckPasswordHook string `json:"check_password_hook" mapstructure:"check_password_hook"`
 	// CheckPasswordScope defines the scope for the check password hook.
 	// - 0 means all protocols
@@ -449,7 +437,7 @@ type Config struct {
 	// queries to the data provider.
 	// If you want to track quotas, a scheduled quota update is recommended in any case, the stored
 	// quota size may be incorrect for several reasons, such as an unexpected shutdown, temporary provider
-	// failures, file copied outside of SFTPGo, and so on.
+	// failures, file copied outside of SFTPxy, and so on.
 	// 0 means immediate quota update.
 	DelayedQuotaUpdate int `json:"delayed_quota_update" mapstructure:"delayed_quota_update"`
 	// If enabled, a default admin user with username "admin" and password "password" will be created
@@ -468,9 +456,9 @@ type Config struct {
 	// could be unable to login, for example existing users with mixed cases in their usernames.
 	// You have to ensure that all existing users respect the defined rules.
 	NamingRules int `json:"naming_rules" mapstructure:"naming_rules"`
-	// If the data provider is shared across multiple SFTPGo instances, set this parameter to 1.
+	// If the data provider is shared across multiple SFTPxy instances, set this parameter to 1.
 	// MySQL, PostgreSQL and CockroachDB can be shared, this setting is ignored for other data
-	// providers. For shared data providers, SFTPGo periodically reloads the latest updated users,
+	// providers. For shared data providers, SFTPxy periodically reloads the latest updated users,
 	// based on the "updated_at" field, and updates its internal caches if users are updated from
 	// a different instance. This check, if enabled, is executed every 10 minutes.
 	// For shared data providers, active transfers are persisted in the database and thus
@@ -708,7 +696,7 @@ type checkPasswordResponse struct {
 	// 0 KO, 1 OK, 2 partial success, -1 not executed
 	Status int `json:"status"`
 	// for status = 2 this is the password to check against the one stored
-	// inside the SFTPGo data provider
+	// inside the SFTPxy data provider
 	ToVerify string `json:"to_verify"`
 }
 

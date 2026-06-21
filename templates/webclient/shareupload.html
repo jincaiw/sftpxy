@@ -1,18 +1,4 @@
-<!--
-Copyright (C) 2023 Nicola Murino
-
-This WebUI uses the KeenThemes Bootstrap Templates:
-
-https://keenthemes.com/bootstrap-templates
-
-KeenThemes HTML/CSS/JS components are allowed for use only within the
-SFTPGo product and restricted to be used in a resealable HTML template
-that can compete with KeenThemes products anyhow.
-
-This WebUI is allowed for use only within the SFTPGo product and
-therefore cannot be used in derivative works/products without an
-explicit grant from the SFTPGo Team (support@sftpgo.com).
--->
+<!-- SPDX-License-Identifier: MIT -->
 {{- template "base" .}}
 
 {{- define "page_body"}}
@@ -122,7 +108,7 @@ explicit grant from the SFTPGo Team (support@sftpgo.com).
 
             axios.post(uploadPath, f, {
                 headers: {
-                    'X-SFTPGO-MTIME': lastModified,
+                    'X-SFTPXY-MTIME': lastModified,
                     'X-CSRF-TOKEN': '{{.CSRFToken}}'
                 },
                 onUploadProgress: function (progressEvent) {

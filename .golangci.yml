@@ -56,7 +56,7 @@ formatters:
       simplify: true
     goimports:
       local-prefixes:
-        - github.com/drakkan/sftpgo
+        - github.com/jincaiw/sftpxy
   exclusions:
     generated: lax
     paths:

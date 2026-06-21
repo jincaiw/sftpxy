@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package common
 
@@ -18,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
 // HostEvent is the enumerable for the supported host events
@@ -62,7 +50,7 @@ type DefenderConfig struct {
 	Enabled bool `json:"enabled" mapstructure:"enabled"`
 	// Defender implementation to use, we support "memory" and "provider".
 	// Using "provider" as driver you can share the defender events among
-	// multiple SFTPGo instances. For a single instance "memory" provider will
+	// multiple SFTPxy instances. For a single instance "memory" provider will
 	// be much faster
 	Driver string `json:"driver" mapstructure:"driver"`
 	// BanTime is the number of minutes that a host is banned

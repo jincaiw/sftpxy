@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package httpd
 
@@ -21,11 +9,11 @@ import (
 	"github.com/rs/xid"
 	"golang.org/x/oauth2"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/smtp"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/smtp"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 type smtpTestRequest struct {
@@ -71,8 +59,8 @@ func testSMTPConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := req.SendEmail([]string{req.Recipient}, nil, "SFTPGo - Testing Email Settings",
-		"It appears your SFTPGo email is setup correctly!", smtp.EmailContentTypeTextPlain); err != nil {
+	if err := req.SendEmail([]string{req.Recipient}, nil, "SFTPxy - Testing Email Settings",
+		"It appears your SFTPxy email is setup correctly!", smtp.EmailContentTypeTextPlain); err != nil {
 		logger.Info(logSender, "", "unable to send test email: %v", err)
 		sendAPIResponse(w, r, err, "", http.StatusInternalServerError)
 		return

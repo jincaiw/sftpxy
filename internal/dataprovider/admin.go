@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -25,17 +13,17 @@ import (
 	"strings"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
-// Available permissions for SFTPGo admins
+// Available permissions for SFTPxy admins
 const (
 	PermAdminAny              = "*"
 	PermAdminAddUsers         = "add_users"
@@ -181,7 +169,7 @@ func (p *AdminPreferences) VisibleUserPageSections() int {
 	return result
 }
 
-// AdminFilters defines additional restrictions for SFTPGo admins
+// AdminFilters defines additional restrictions for SFTPxy admins
 // TODO: rename to AdminOptions in v3
 type AdminFilters struct {
 	// only clients connecting from these IP/Mask are allowed.
@@ -227,13 +215,13 @@ func (o *AdminGroupMappingOptions) GetUserGroupType() int {
 	}
 }
 
-// AdminGroupMapping defines the mapping between an SFTPGo admin and a group
+// AdminGroupMapping defines the mapping between an SFTPxy admin and a group
 type AdminGroupMapping struct {
 	Name    string                   `json:"name"`
 	Options AdminGroupMappingOptions `json:"options"`
 }
 
-// Admin defines a SFTPGo admin
+// Admin defines a SFTPxy admin
 type Admin struct {
 	// Database unique identifier
 	ID int64 `json:"id"`
@@ -647,10 +635,10 @@ func (a *Admin) getACopy() Admin {
 }
 
 func (a *Admin) setFromEnv() error {
-	envUsername := strings.TrimSpace(os.Getenv("SFTPGO_DEFAULT_ADMIN_USERNAME"))
-	envPassword := strings.TrimSpace(os.Getenv("SFTPGO_DEFAULT_ADMIN_PASSWORD"))
+	envUsername := strings.TrimSpace(os.Getenv("SFTPXY_DEFAULT_ADMIN_USERNAME"))
+	envPassword := strings.TrimSpace(os.Getenv("SFTPXY_DEFAULT_ADMIN_PASSWORD"))
 	if envUsername == "" || envPassword == "" {
-		return errors.New(`to create the default admin you need to set the env vars "SFTPGO_DEFAULT_ADMIN_USERNAME" and "SFTPGO_DEFAULT_ADMIN_PASSWORD"`)
+		return errors.New(`to create the default admin you need to set the env vars "SFTPXY_DEFAULT_ADMIN_USERNAME" and "SFTPXY_DEFAULT_ADMIN_PASSWORD"`)
 	}
 	a.Username = envUsername
 	a.Password = envPassword

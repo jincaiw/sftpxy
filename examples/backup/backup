@@ -10,8 +10,8 @@ try:
 except ImportError:
 	import urlparse
 
-# change base_url to point to your SFTPGo installation
-base_url = "http://127.0.0.1:8080"
+# change base_url to point to your SFTPxy installation
+base_url = "http://127.0.0.1:30080"
 # set to False if you want to skip TLS certificate validation
 verify_tls_cert = True
 # set the credentials for a valid admin here

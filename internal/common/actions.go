@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package common
 
@@ -30,14 +18,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sftpgo/sdk"
-	"github.com/sftpgo/sdk/plugin/notifier"
+	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
-	"github.com/drakkan/sftpgo/v2/internal/command"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpclient"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/command"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpclient"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
 )
 
 var (
@@ -62,7 +50,7 @@ type ProtocolActions struct {
 	ExecuteOn []string `json:"execute_on" mapstructure:"execute_on"`
 	// Actions to be performed synchronously.
 	// The pre-delete action is always executed synchronously while the other ones are asynchronous.
-	// Executing an action synchronously means that SFTPGo will not return a result code to the client
+	// Executing an action synchronously means that SFTPxy will not return a result code to the client
 	// (which is waiting for it) until your hook have completed its execution.
 	ExecuteSync []string `json:"execute_sync" mapstructure:"execute_sync"`
 	// Absolute path to an external program or an HTTP URL
@@ -325,30 +313,30 @@ func (h *defaultActionHandler) handleCommand(event *notifier.FsEvent) error {
 
 func notificationAsEnvVars(event *notifier.FsEvent) []string {
 	result := []string{
-		fmt.Sprintf("SFTPGO_ACTION=%s", event.Action),
-		fmt.Sprintf("SFTPGO_ACTION_USERNAME=%s", event.Username),
-		fmt.Sprintf("SFTPGO_ACTION_PATH=%s", event.Path),
-		fmt.Sprintf("SFTPGO_ACTION_TARGET=%s", event.TargetPath),
-		fmt.Sprintf("SFTPGO_ACTION_VIRTUAL_PATH=%s", event.VirtualPath),
-		fmt.Sprintf("SFTPGO_ACTION_VIRTUAL_TARGET=%s", event.VirtualTargetPath),
-		fmt.Sprintf("SFTPGO_ACTION_SSH_CMD=%s", event.SSHCmd),
-		fmt.Sprintf("SFTPGO_ACTION_FILE_SIZE=%d", event.FileSize),
-		fmt.Sprintf("SFTPGO_ACTION_ELAPSED=%d", event.Elapsed),
-		fmt.Sprintf("SFTPGO_ACTION_FS_PROVIDER=%d", event.FsProvider),
-		fmt.Sprintf("SFTPGO_ACTION_BUCKET=%s", event.Bucket),
-		fmt.Sprintf("SFTPGO_ACTION_ENDPOINT=%s", event.Endpoint),
-		fmt.Sprintf("SFTPGO_ACTION_STATUS=%d", event.Status),
-		fmt.Sprintf("SFTPGO_ACTION_PROTOCOL=%s", event.Protocol),
-		fmt.Sprintf("SFTPGO_ACTION_IP=%s", event.IP),
-		fmt.Sprintf("SFTPGO_ACTION_SESSION_ID=%s", event.SessionID),
-		fmt.Sprintf("SFTPGO_ACTION_OPEN_FLAGS=%d", event.OpenFlags),
-		fmt.Sprintf("SFTPGO_ACTION_TIMESTAMP=%d", event.Timestamp),
-		fmt.Sprintf("SFTPGO_ACTION_ROLE=%s", event.Role),
+		fmt.Sprintf("SFTPXY_ACTION=%s", event.Action),
+		fmt.Sprintf("SFTPXY_ACTION_USERNAME=%s", event.Username),
+		fmt.Sprintf("SFTPXY_ACTION_PATH=%s", event.Path),
+		fmt.Sprintf("SFTPXY_ACTION_TARGET=%s", event.TargetPath),
+		fmt.Sprintf("SFTPXY_ACTION_VIRTUAL_PATH=%s", event.VirtualPath),
+		fmt.Sprintf("SFTPXY_ACTION_VIRTUAL_TARGET=%s", event.VirtualTargetPath),
+		fmt.Sprintf("SFTPXY_ACTION_SSH_CMD=%s", event.SSHCmd),
+		fmt.Sprintf("SFTPXY_ACTION_FILE_SIZE=%d", event.FileSize),
+		fmt.Sprintf("SFTPXY_ACTION_ELAPSED=%d", event.Elapsed),
+		fmt.Sprintf("SFTPXY_ACTION_FS_PROVIDER=%d", event.FsProvider),
+		fmt.Sprintf("SFTPXY_ACTION_BUCKET=%s", event.Bucket),
+		fmt.Sprintf("SFTPXY_ACTION_ENDPOINT=%s", event.Endpoint),
+		fmt.Sprintf("SFTPXY_ACTION_STATUS=%d", event.Status),
+		fmt.Sprintf("SFTPXY_ACTION_PROTOCOL=%s", event.Protocol),
+		fmt.Sprintf("SFTPXY_ACTION_IP=%s", event.IP),
+		fmt.Sprintf("SFTPXY_ACTION_SESSION_ID=%s", event.SessionID),
+		fmt.Sprintf("SFTPXY_ACTION_OPEN_FLAGS=%d", event.OpenFlags),
+		fmt.Sprintf("SFTPXY_ACTION_TIMESTAMP=%d", event.Timestamp),
+		fmt.Sprintf("SFTPXY_ACTION_ROLE=%s", event.Role),
 	}
 	if len(event.Metadata) > 0 {
 		data, err := json.Marshal(event.Metadata)
 		if err == nil {
-			result = append(result, fmt.Sprintf("SFTPGO_ACTION_METADATA=%s", data))
+			result = append(result, fmt.Sprintf("SFTPXY_ACTION_METADATA=%s", data))
 		}
 	}
 	return result

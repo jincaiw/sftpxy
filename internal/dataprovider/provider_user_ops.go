@@ -1,16 +1,4 @@
-// Copyright (C) 2024 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package dataprovider
 
@@ -18,16 +6,16 @@ import (
 	"errors"
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 func HasAdmin() bool {
 	return isAdminCreated.Load()
 }
 
-// AddAdmin adds a new SFTPGo admin
+// AddAdmin adds a new SFTPxy admin
 func AddAdmin(admin *Admin, executor, ipAddress, role string) error {
 	admin.Filters.RecoveryCodes = nil
 	admin.Filters.TOTPConfig = AdminTOTPConfig{
@@ -42,7 +30,7 @@ func AddAdmin(admin *Admin, executor, ipAddress, role string) error {
 	return err
 }
 
-// UpdateAdmin updates an existing SFTPGo admin
+// UpdateAdmin updates an existing SFTPxy admin
 func UpdateAdmin(admin *Admin, executor, ipAddress, role string) error {
 	err := holder.getProvider().updateAdmin(admin)
 	if err == nil {
@@ -51,7 +39,7 @@ func UpdateAdmin(admin *Admin, executor, ipAddress, role string) error {
 	return err
 }
 
-// DeleteAdmin deletes an existing SFTPGo admin
+// DeleteAdmin deletes an existing SFTPxy admin
 func DeleteAdmin(username, executor, ipAddress, role string) error {
 	username = holder.getConfig().convertName(username)
 	admin, err := holder.getProvider().adminExists(username)
@@ -72,7 +60,7 @@ func AdminExists(username string) (Admin, error) {
 	return holder.getProvider().adminExists(username)
 }
 
-// UserExists checks if the given SFTPGo username exists, returns an error if no match is found
+// UserExists checks if the given SFTPxy username exists, returns an error if no match is found
 func UserExists(username, role string) (User, error) {
 	username = holder.getConfig().convertName(username)
 	return holder.getProvider().userExists(username, role)
@@ -117,7 +105,7 @@ func GetUserVariants(username, role string) (User, User, error) {
 	return user, userWithGroupSettings, err
 }
 
-// AddUser adds a new SFTPGo user.
+// AddUser adds a new SFTPxy user.
 func AddUser(user *User, executor, ipAddress, role string) error {
 	user.Username = holder.getConfig().convertName(user.Username)
 	err := holder.getProvider().addUser(user)
@@ -150,7 +138,7 @@ func UpdateUserPassword(username, plainPwd, executor, ipAddress, role string) er
 	return nil
 }
 
-// UpdateUser updates an existing SFTPGo user.
+// UpdateUser updates an existing SFTPxy user.
 func UpdateUser(user *User, executor, ipAddress, role string) error {
 	if user.groupSettingsApplied {
 		return errors.New("cannot save a user with group settings applied")
@@ -163,7 +151,7 @@ func UpdateUser(user *User, executor, ipAddress, role string) error {
 	return err
 }
 
-// DeleteUser deletes an existing SFTPGo user.
+// DeleteUser deletes an existing SFTPxy user.
 func DeleteUser(username, executor, ipAddress, role string) error {
 	username = holder.getConfig().convertName(username)
 	user, err := holder.getProvider().userExists(username, role)

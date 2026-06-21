@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package common
 
@@ -18,9 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 type dbDefender struct {
@@ -148,7 +136,7 @@ func (d *dbDefender) cleanup() {
 	if lastCleanup.IsZero() || lastCleanup.Add(time.Duration(d.config.ObservationTime)*time.Minute*3).Before(time.Now()) {
 		// FIXME: this could be racy in rare cases but it is better than acquire the lock for the cleanup duration
 		// or to always acquire a read/write lock.
-		// Concurrent cleanups could happen anyway from multiple SFTPGo instances and should not cause any issues
+		// Concurrent cleanups could happen anyway from multiple SFTPxy instances and should not cause any issues
 		d.setLastCleanup(time.Now())
 		expireTime := time.Now().Add(-time.Duration(d.config.ObservationTime+1) * time.Minute)
 		logger.Debug(logSender, "", "cleanup defender hosts before %v, last cleanup %v", expireTime, lastCleanup)

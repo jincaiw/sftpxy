@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package sftpd_test
 
@@ -53,29 +41,29 @@ import (
 	"github.com/pquerna/otp/totp"
 
 	"github.com/pkg/sftp"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/rs/zerolog"
-	"github.com/sftpgo/sdk"
-	sdkkms "github.com/sftpgo/sdk/kms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/config"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/httpdtest"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/mfa"
-	"github.com/drakkan/sftpgo/v2/internal/sftpd"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/httpdtest"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/mfa"
+	"github.com/jincaiw/sftpxy/v2/internal/sftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
 	logSender           = "sftpdTesting"
-	sftpServerAddr      = "127.0.0.1:2022"
-	sftpSrvAddr2222     = "127.0.0.1:2222"
+	sftpServerAddr      = "127.0.0.1:30081"
+	sftpSrvAddr2222     = "127.0.0.1:30082"
 	defaultUsername     = "test_user_sftp"
 	defaultPassword     = "test_password"
 	defaultSFTPUsername = "test_sftpfs_user"
@@ -182,7 +170,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	logFilePath = filepath.Join(configDir, "sftpgo_sftpd_test.log")
+	logFilePath = filepath.Join(configDir, "SFTPxy_sftpd_test.log")
 	loginBannerFileName := "login_banner"
 	loginBannerFile := filepath.Join(configDir, loginBannerFileName)
 	logger.InitLogger(logFilePath, 10, 1, 28, false, false, zerolog.DebugLevel)
@@ -190,12 +178,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		logger.ErrorToConsole("error creating login banner: %v", err)
 	}
-	os.Setenv("SFTPGO_COMMON__UPLOAD_MODE", "2")
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
-	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
-	os.Setenv("SFTPGO_COMMON__SECRET_MIN_ENTROPY", "0")
+	os.Setenv("SFTPXY_COMMON__UPLOAD_MODE", "2")
+	os.Setenv("SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
+	os.Setenv("SFTPXY_COMMON__ALLOW_SELF_CONNECTIONS", "1")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_USERNAME", "admin")
+	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
+	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
 	err = config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -252,9 +240,15 @@ func TestMain(m *testing.M) {
 
 	sftpdConf := config.GetSFTPDConfig()
 	httpdConf := config.GetHTTPDConfig()
+	httpdConf.Bindings = httpdConf.Bindings[:1]
+	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].EnableWebAdmin = true
+	httpdConf.Bindings[0].EnableWebClient = true
+	httpdConf.Bindings[0].EnableRESTAPI = true
+	httpdtest.SetBaseURL("http://127.0.0.1:30080")
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             2022,
+			Port:             30081,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -299,7 +293,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             2222,
+			Port:             30082,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -318,7 +312,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             2226,
+			Port:             30083,
 			ApplyProxyConfig: false,
 		},
 	}
@@ -336,7 +330,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             2224,
+			Port:             30084,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -379,7 +373,7 @@ func TestInitialization(t *testing.T) {
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             2022,
+			Port:             30081,
 			ApplyProxyConfig: true,
 		},
 		{
@@ -403,14 +397,15 @@ func TestInitialization(t *testing.T) {
 	assert.Error(t, err)
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             4444,
+			Port:             30085,
 			ApplyProxyConfig: true,
 		},
 	}
 	common.Config.ProxyProtocol = 1
 	assert.True(t, sftpdConf.Bindings[0].HasProxy())
 	common.Config.ProxyProtocol = 0
-	sftpdConf.HostKeys = []string{"missing key"}
+	sftpdConf.Bindings[0].Port = 0
+	sftpdConf.HostKeys = []string{"."}
 	err = sftpdConf.Initialize(configDir)
 	assert.Error(t, err)
 	sftpdConf.HostKeys = nil
@@ -456,9 +451,6 @@ func TestInitialization(t *testing.T) {
 	if assert.Error(t, err) {
 		assert.Contains(t, err.Error(), "unable to load host certificate")
 	}
-	sftpdConf.HostCertificates = []string{"."}
-	err = sftpdConf.Initialize(configDir)
-	assert.Error(t, err)
 	hostCertPath := filepath.Join(os.TempDir(), "host_cert.pub")
 	err = os.WriteFile(hostCertPath, []byte(testCertValid), 0600)
 	assert.NoError(t, err)
@@ -482,6 +474,7 @@ func TestInitialization(t *testing.T) {
 	}
 	err = os.WriteFile(hostCertPath, []byte(testHostCert), 0600)
 	assert.NoError(t, err)
+	sftpdConf.Bindings[0].Port = 0
 	err = sftpdConf.Initialize(configDir)
 	assert.Error(t, err)
 
@@ -500,6 +493,7 @@ func TestInitialization(t *testing.T) {
 	assert.Error(t, err)
 	sftpdConf.OPKSSHPath = ""
 	sftpdConf.OPKSSHChecksum = ""
+	sftpdConf.Bindings[0].Port = 30081
 	sftpdConf.RevokedUserCertsFile = "."
 	err = sftpdConf.Initialize(configDir)
 	assert.Error(t, err)
@@ -1239,7 +1233,7 @@ func TestProxyProtocol(t *testing.T) {
 		defer client.Close()
 		assert.NoError(t, checkBasicSFTP(client))
 	}
-	_, _, err = getSftpClientWithAddr(user, usePubKey, "127.0.0.1:2224")
+	_, _, err = getSftpClientWithAddr(user, usePubKey, "127.0.0.1:30084")
 	assert.Error(t, err)
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)
 	assert.NoError(t, err)
@@ -2278,7 +2272,7 @@ func TestMultiStepLoginKeyAndPwd(t *testing.T) {
 		assert.NoError(t, checkBasicSFTP(client))
 	}
 	conn, client, err = getCustomAuthSftpClient(user, authMethods, sftpSrvAddr2222)
-	if !assert.Error(t, err, "password auth is disabled on port 2222, multi-step auth must fail") {
+	if !assert.Error(t, err, "password auth is disabled on port 30082, multi-step auth must fail") {
 		client.Close()
 		conn.Close()
 	}
@@ -3324,7 +3318,7 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.Error(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:8080/web/admin/login"
+	common.Config.Actions.Hook = "http://127.0.0.1:30080/web/admin/login"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3341,7 +3335,7 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.NoError(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:8080/"
+	common.Config.Actions.Hook = "http://127.0.0.1:30080/"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3426,7 +3420,7 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.Error(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:8080/web/client/login"
+	common.Config.Actions.Hook = "http://127.0.0.1:30080/web/client/login"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3443,7 +3437,7 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.NoError(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:8080/web"
+	common.Config.Actions.Hook = "http://127.0.0.1:30080/web"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3499,7 +3493,7 @@ func TestPostConnectHook(t *testing.T) {
 		conn.Close()
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8080/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:30080/healthz"
 
 	conn, client, err = getSftpClient(u, usePubKey)
 	if assert.NoError(t, err) {
@@ -3509,7 +3503,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:8080/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:30080/notfound"
 	conn, client, err = getSftpClient(u, usePubKey)
 	if !assert.Error(t, err) {
 		client.Close()
@@ -9289,13 +9283,13 @@ func TestSSHCopy(t *testing.T) {
 
 		_, err = client.Stat(testDir1)
 		assert.Error(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %s", path.Join(vdirPath1, testDir1)), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %s", path.Join(vdirPath1, testDir1)), user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand("sftpgo-copy", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-copy", user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %s %s", testFileName, testFileName+".linkcopy"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %s %s", testFileName, testFileName+".linkcopy"), user, usePubKey)
 		assert.Error(t, err)
-		out, err := runSSHCommand(fmt.Sprintf("sftpgo-copy %s %s", path.Join(vdirPath1, testDir1), "."), user, usePubKey)
+		out, err := runSSHCommand(fmt.Sprintf("SFTPxy-copy %s %s", path.Join(vdirPath1, testDir1), "."), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 			fi, err := client.Stat(testDir1)
@@ -9307,9 +9301,9 @@ func TestSSHCopy(t *testing.T) {
 			assert.Equal(t, 6, user.UsedQuotaFiles)
 			assert.Equal(t, 3*testFileSize+3*testFileSize1, user.UsedQuotaSize)
 		}
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", "missing\\ dir", "."), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", "missing\\ dir", "."), user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir1), "."), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir1), "."), user, usePubKey)
 		if assert.NoError(t, err) {
 			// all files are overwritten, quota must remain unchanged
 			user, _, err = httpdtest.GetUserByUsername(user.Username, http.StatusOK)
@@ -9317,7 +9311,7 @@ func TestSSHCopy(t *testing.T) {
 			assert.Equal(t, 6, user.UsedQuotaFiles)
 			assert.Equal(t, 3*testFileSize+3*testFileSize1, user.UsedQuotaSize)
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath2, testDir1, testFileName), testFileName+".copy"), //nolint:goconst
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath2, testDir1, testFileName), testFileName+".copy"), //nolint:goconst
 			user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
@@ -9330,7 +9324,7 @@ func TestSSHCopy(t *testing.T) {
 			assert.Equal(t, 7, user.UsedQuotaFiles)
 			assert.Equal(t, 4*testFileSize+3*testFileSize1, user.UsedQuotaSize)
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir1), path.Join(vdirPath2, testDir1+"copy")), //nolint:goconst
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir1), path.Join(vdirPath2, testDir1+"copy")), //nolint:goconst
 			user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
@@ -9347,7 +9341,7 @@ func TestSSHCopy(t *testing.T) {
 			assert.Equal(t, testFileSize*2+testFileSize1*2, f.UsedQuotaSize)
 			assert.Equal(t, 4, f.UsedQuotaFiles)
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir1), path.Join(vdirPath1, testDir1+"copy")),
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir1), path.Join(vdirPath1, testDir1+"copy")),
 			user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
@@ -9364,12 +9358,12 @@ func TestSSHCopy(t *testing.T) {
 		}
 		// cross folder copy
 		newDir := "newdir"
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath2, ".."), newDir), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath2, ".."), newDir), user, usePubKey)
 		assert.NoError(t, err)
 		_, err = client.Stat(newDir)
 		assert.NoError(t, err)
 		// denied pattern
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(testDir, testFileName), testFileName+".denied"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(testDir, testFileName), testFileName+".denied"), user, usePubKey)
 		assert.Error(t, err)
 		if runtime.GOOS != osWindows {
 			subPath := filepath.Join(mappedPath1, testDir1, "asubdir", "anothersub", "another")
@@ -9378,13 +9372,13 @@ func TestSSHCopy(t *testing.T) {
 			err = os.Chmod(subPath, 0001)
 			assert.NoError(t, err)
 			// listing contents for subdirs with no permissions will fail
-			_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", vdirPath1, "newdir1"), user, usePubKey)
+			_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", vdirPath1, "newdir1"), user, usePubKey)
 			assert.Error(t, err)
 			err = os.Chmod(subPath, os.ModePerm)
 			assert.NoError(t, err)
 			err = os.Chmod(filepath.Join(user.GetHomeDir(), testDir1), 0555)
 			assert.NoError(t, err)
-			_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir1, testFileName),
+			_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir1, testFileName),
 				path.Join(testDir1, "anewdir")), user, usePubKey)
 			assert.Error(t, err)
 			err = os.Chmod(filepath.Join(user.GetHomeDir(), testDir1), os.ModePerm)
@@ -9437,14 +9431,14 @@ func TestSSHCopyPermissions(t *testing.T) {
 		err = sftpUploadFile(testFilePath, path.Join("/", testDir, testFileName), testFileSize, client)
 		assert.NoError(t, err)
 		// test copy file with no permission
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir, testFileName), path.Join("/dir3", testFileName)),
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir, testFileName), path.Join("/dir3", testFileName)),
 			user, usePubKey)
 		assert.Error(t, err)
 		// test copy dir with no create dirs perm
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir), "/dir1/"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir), "/dir1/"), user, usePubKey)
 		assert.Error(t, err)
 		// dir2 has the needed permissions
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir), "/dir2/"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir), "/dir2/"), user, usePubKey)
 		assert.NoError(t, err)
 		info, err := client.Stat(path.Join("/dir2", testDir))
 		if assert.NoError(t, err) {
@@ -9457,15 +9451,15 @@ func TestSSHCopyPermissions(t *testing.T) {
 		// now create a symlink, dir2 has no create symlink permission, but symlinks will be ignored
 		err = client.Symlink(path.Join("/", testDir, testFileName), path.Join("/", testDir, testFileName+".link"))
 		assert.NoError(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir), "/dir2/sub"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir), "/dir2/sub"), user, usePubKey)
 		assert.NoError(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir), "/newdir"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir), "/newdir"), user, usePubKey)
 		assert.NoError(t, err)
 		// now delete the file and copy inside /dir3
 		err = client.Remove(path.Join("/", testDir, testFileName))
 		assert.NoError(t, err)
 		// the symlink will be skipped, so no errors
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join("/", testDir), "/dir3"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join("/", testDir), "/dir3"), user, usePubKey)
 		assert.NoError(t, err)
 
 		err = os.Remove(testFilePath)
@@ -9561,20 +9555,20 @@ func TestSSHCopyQuotaLimits(t *testing.T) {
 		assert.NoError(t, err)
 		// user quota: 2 files, size: 32768*2, folder2 quota: 2 files, size: 32768*2
 		// try to duplicate testDir, this will result in 4 file (over quota) and 32768*4 bytes (not over quota)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", testDir, testDir+"_copy"), user, usePubKey) //nolint:goconst
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", testDir, testDir+"_copy"), user, usePubKey) //nolint:goconst
 		assert.Error(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath2, testDir),
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath2, testDir),
 			path.Join(vdirPath2, testDir+"_copy")), user, usePubKey)
 		assert.Error(t, err)
 
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testDir), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testDir), user, usePubKey)
 		assert.NoError(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
 		assert.NoError(t, err)
 		// remove partially copied dirs
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testDir+"_copy"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testDir+"_copy"), user, usePubKey)
 		assert.NoError(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir+"_copy")), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir+"_copy")), user, usePubKey)
 		assert.NoError(t, err)
 		user, _, err = httpdtest.GetUserByUsername(user.Username, http.StatusOK)
 		assert.NoError(t, err)
@@ -9602,11 +9596,11 @@ func TestSSHCopyQuotaLimits(t *testing.T) {
 		assert.NoError(t, err)
 
 		// vdir1 is included in user quota, file limit will be exceeded
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir), "/"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir), "/"), user, usePubKey)
 		assert.Error(t, err)
 
 		// vdir2 size limit will be exceeded
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir, testFileName),
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir, testFileName),
 			vdirPath2+"/"), user, usePubKey)
 		assert.Error(t, err)
 		// now decrease the limits
@@ -9630,11 +9624,11 @@ func TestSSHCopyQuotaLimits(t *testing.T) {
 				}
 			}
 		}
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath1, testDir),
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath1, testDir),
 			path.Join(vdirPath2, testDir+".copy")), user, usePubKey)
 		assert.Error(t, err)
 
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-copy %v %v", path.Join(vdirPath2, testDir),
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-copy %v %v", path.Join(vdirPath2, testDir),
 			testDir+".copy"), user, usePubKey)
 		assert.Error(t, err)
 
@@ -9736,15 +9730,15 @@ func TestSSHRemove(t *testing.T) {
 		assert.NoError(t, err)
 		err = client.Symlink(testFileName, testFileName+".link")
 		assert.NoError(t, err)
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testFileName+".link"), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testFileName+".link"), user, usePubKey)
 		assert.NoError(t, err)
-		_, err = runSSHCommand("sftpgo-remove /vdir1", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove /vdir1", user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand("sftpgo-remove /", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove /", user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand("sftpgo-remove", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove", user, usePubKey)
 		assert.Error(t, err)
-		out, err := runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testFileName), user, usePubKey)
+		out, err := runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testFileName), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 			_, err := client.Stat(testFileName)
@@ -9754,7 +9748,7 @@ func TestSSHRemove(t *testing.T) {
 			assert.Equal(t, 3, user.UsedQuotaFiles)
 			assert.Equal(t, testFileSize+2*testFileSize1, user.UsedQuotaSize)
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath1, testDir)), user, usePubKey)
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath1, testDir)), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 			_, err := client.Stat(path.Join(vdirPath1, testFileName))
@@ -9764,20 +9758,20 @@ func TestSSHRemove(t *testing.T) {
 			assert.Equal(t, 1, user.UsedQuotaFiles)
 			assert.Equal(t, testFileSize1, user.UsedQuotaSize)
 		}
-		_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", vdirPath1), user, usePubKey)
+		_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", vdirPath1), user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand("sftpgo-remove /", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove /", user, usePubKey)
 		assert.Error(t, err)
-		_, err = runSSHCommand("sftpgo-remove missing_file", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove missing_file", user, usePubKey)
 		assert.Error(t, err)
 		if runtime.GOOS != osWindows {
 			err = os.Chmod(filepath.Join(mappedPath2, testDir), 0555)
 			assert.NoError(t, err)
-			_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
+			_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
 			assert.Error(t, err)
 			err = os.Chmod(filepath.Join(mappedPath2, testDir), 0001)
 			assert.NoError(t, err)
-			_, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
+			_, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
 			assert.Error(t, err)
 			err = os.Chmod(filepath.Join(mappedPath2, testDir), os.ModePerm)
 			assert.NoError(t, err)
@@ -9792,7 +9786,7 @@ func TestSSHRemove(t *testing.T) {
 	if assert.NoError(t, err) {
 		defer conn.Close()
 		defer client.Close()
-		_, err = runSSHCommand("sftpgo-remove adir", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove adir", user, usePubKey)
 		assert.Error(t, err)
 	}
 
@@ -9887,29 +9881,29 @@ func TestSSHRemoveCryptFs(t *testing.T) {
 		assert.NoError(t, err)
 		err = writeSFTPFile(path.Join(vdirPath2, testDir, testFileName1), testFileSize1, client)
 		assert.NoError(t, err)
-		_, err = runSSHCommand("sftpgo-remove /vdir2", user, usePubKey)
+		_, err = runSSHCommand("SFTPxy-remove /vdir2", user, usePubKey)
 		assert.Error(t, err)
-		out, err := runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testFileName), user, usePubKey)
+		out, err := runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testFileName), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 			_, err := client.Stat(testFileName)
 			assert.Error(t, err)
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", testDir), user, usePubKey)
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", testDir), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath1, testDir)), user, usePubKey)
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath1, testDir)), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 		}
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir, testFileName)), user, usePubKey)
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir, testFileName)), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 		}
 		err = writeSFTPFile(path.Join(vdirPath2, testDir, testFileName), testFileSize, client)
 		assert.NoError(t, err)
-		out, err = runSSHCommand(fmt.Sprintf("sftpgo-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
+		out, err = runSSHCommand(fmt.Sprintf("SFTPxy-remove %v", path.Join(vdirPath2, testDir)), user, usePubKey)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "OK\n", string(out))
 		}
@@ -11496,7 +11490,7 @@ func getScpDownloadCommand(localPath, remotePath string, preserveTime, recursive
 		args = append(args, "-O")
 	}
 	args = append(args, "-P")
-	args = append(args, "2022")
+	args = append(args, "30081")
 	args = append(args, "-o")
 	args = append(args, "StrictHostKeyChecking=no")
 	args = append(args, "-i")
@@ -11524,7 +11518,7 @@ func getScpUploadCommand(localPath, remotePath string, preserveTime, remoteToRem
 		args = append(args, "-O")
 	}
 	args = append(args, "-P")
-	args = append(args, "2022")
+	args = append(args, "30081")
 	args = append(args, "-o")
 	args = append(args, "StrictHostKeyChecking=no")
 	args = append(args, "-o")
@@ -11645,7 +11639,7 @@ func getExtAuthScriptContent(user dataprovider.User, nonJSONResponse, emptyRespo
 	if emptyResponse {
 		return extAuthContent
 	}
-	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPGO_AUTHD_USERNAME\" = \"%v\"; then\n", user.Username))...)
+	extAuthContent = append(extAuthContent, []byte(fmt.Sprintf("if test \"$SFTPXY_AUTHD_USERNAME\" = \"%v\"; then\n", user.Username))...)
 	if username != "" {
 		user.Username = username
 	}

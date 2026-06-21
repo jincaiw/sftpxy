@@ -1,10 +1,10 @@
-module github.com/drakkan/sftpgo/tests/eventsearcher
+module github.com/jincaiw/sftpxy/tests/eventsearcher
 
 go 1.25.0
 
 require (
 	github.com/hashicorp/go-plugin v1.8.0
-	github.com/sftpgo/sdk v0.1.9
+	github.com/jincaiw/sftpxy/sdk v0.1.9
 )
 
 require (
@@ -22,3 +22,5 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace github.com/jincaiw/sftpxy/sdk => ../../sdk

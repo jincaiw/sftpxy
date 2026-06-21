@@ -10,6 +10,7 @@ WORKDIR /workspace
 ARG GOPROXY
 
 COPY go.mod go.sum ./
+COPY sdk ./sdk
 RUN go mod download && go mod verify
 
 ARG COMMIT_SHA
@@ -23,7 +24,7 @@ COPY . .
 
 RUN set -xe && \
     export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} && \
-    go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${COMMIT_SHA} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -v -o sftpgo
+    go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${COMMIT_SHA} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -v -o SFTPxy
 
 # Set to "true" to download the "official" plugins in /usr/local/bin
 ARG DOWNLOAD_PLUGINS=false
@@ -39,29 +40,34 @@ RUN apt-get update && apt-get -y upgrade && apt-get install --no-install-recomme
 
 RUN if [ "${INSTALL_OPTIONAL_PACKAGES}" = "true" ]; then apt-get update && apt-get install --no-install-recommends -y jq && rm -rf /var/lib/apt/lists/*; fi
 
-RUN mkdir -p /etc/sftpgo /var/lib/sftpgo /usr/share/sftpgo /srv/sftpgo/data /srv/sftpgo/backups
+RUN mkdir -p /etc/SFTPxy /var/lib/SFTPxy /usr/share/SFTPxy /srv/SFTPxy/data /srv/SFTPxy/backups
 
-RUN groupadd --system -g 1000 sftpgo && \
-    useradd --system --gid sftpgo --no-create-home \
-    --home-dir /var/lib/sftpgo --shell /usr/sbin/nologin \
-    --comment "SFTPGo user" --uid 1000 sftpgo
+RUN groupadd --system -g 1000 SFTPxy && \
+    useradd --system --gid SFTPxy --no-create-home \
+    --home-dir /var/lib/SFTPxy --shell /usr/sbin/nologin \
+    --comment "SFTPxy user" --uid 1000 SFTPxy
 
-COPY --from=builder /workspace/sftpgo.json /etc/sftpgo/sftpgo.json
-COPY --from=builder /workspace/templates /usr/share/sftpgo/templates
-COPY --from=builder /workspace/static /usr/share/sftpgo/static
-COPY --from=builder /workspace/openapi /usr/share/sftpgo/openapi
-COPY --from=builder /workspace/sftpgo /usr/local/bin/sftpgo-plugin-* /usr/local/bin/
+COPY --from=builder /workspace/SFTPxy.json /etc/SFTPxy/SFTPxy.json
+COPY --from=builder /workspace/templates /usr/share/SFTPxy/templates
+COPY --from=builder /workspace/static /usr/share/SFTPxy/static
+COPY --from=builder /workspace/openapi /usr/share/SFTPxy/openapi
+COPY --from=builder /workspace/SFTPxy /usr/local/bin/SFTPxy-plugin-* /usr/local/bin/
 
 # Log to the stdout so the logs will be available using docker logs
-ENV SFTPGO_LOG_FILE_PATH=""
+ENV SFTPXY_LOG_FILE_PATH=""
 
 # Modify the default configuration file
-RUN sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/sftpgo/data",|' /etc/sftpgo/sftpgo.json && \
-    sed -i 's|"backups"|"/srv/sftpgo/backups"|' /etc/sftpgo/sftpgo.json
+RUN sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/SFTPxy/data",|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"backups"|"/srv/SFTPxy/backups"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"templates_path": "templates"|"templates_path": "/usr/share/SFTPxy/templates"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"static_files_path": "static"|"static_files_path": "/usr/share/SFTPxy/static"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"openapi_path": "openapi"|"openapi_path": "/usr/share/SFTPxy/openapi"|' /etc/SFTPxy/SFTPxy.json
 
-RUN chown -R sftpgo:sftpgo /etc/sftpgo /srv/sftpgo && chown sftpgo:sftpgo /var/lib/sftpgo && chmod 700 /srv/sftpgo/backups
+RUN chown -R SFTPxy:SFTPxy /etc/SFTPxy /srv/SFTPxy && chown SFTPxy:SFTPxy /var/lib/SFTPxy && chmod 700 /srv/SFTPxy/backups
 
-WORKDIR /var/lib/sftpgo
+WORKDIR /var/lib/SFTPxy
 USER 1000:1000
 
-CMD ["sftpgo", "serve"]
+EXPOSE 30080 30081 30082 30085-30088
+
+CMD ["SFTPxy", "serve"]

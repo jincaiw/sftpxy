@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package vfs provides local and remote filesystems support
 package vfs
@@ -33,12 +21,12 @@ import (
 
 	"github.com/eikenb/pipeat"
 	"github.com/pkg/sftp"
-	"github.com/sftpgo/sdk"
+	"github.com/jincaiw/sftpxy/sdk"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
 )
 
 const (
@@ -46,7 +34,7 @@ const (
 	s3fsName          = "S3Fs"
 	gcsfsName         = "GCSFs"
 	azBlobFsName      = "AzureBlobFs"
-	lastModifiedField = "sftpgo_last_modified"
+	lastModifiedField = "SFTPxy_last_modified"
 	preResumeTimeout  = 90 * time.Second
 	// ListerBatchSize defines the default limit for DirLister implementations
 	ListerBatchSize = 1000
@@ -195,7 +183,7 @@ type FsFileCopier interface {
 	CopyFile(source, target string, srcInfo os.FileInfo) (int, int64, error)
 }
 
-// File defines an interface representing a SFTPGo file
+// File defines an interface representing a SFTPxy file
 type File interface {
 	io.Reader
 	io.Writer
@@ -208,7 +196,7 @@ type File interface {
 	Truncate(size int64) error
 }
 
-// PipeWriter defines an interface representing a SFTPGo pipe writer
+// PipeWriter defines an interface representing a SFTPxy pipe writer
 type PipeWriter interface {
 	io.Writer
 	io.WriterAt
@@ -217,7 +205,7 @@ type PipeWriter interface {
 	GetWrittenBytes() int64
 }
 
-// PipeReader defines an interface representing a SFTPGo pipe reader
+// PipeReader defines an interface representing a SFTPxy pipe reader
 type PipeReader interface {
 	io.Reader
 	io.ReaderAt

@@ -10,8 +10,8 @@ import (
 
 	unixcrypt "github.com/nathanaelle/password/v2"
 
-	"github.com/drakkan/sftpgo/ldapauthserver/logger"
-	"github.com/drakkan/sftpgo/ldapauthserver/utils"
+	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
+	"github.com/jincaiw/sftpxy/ldapauthserver/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -86,7 +86,7 @@
   "sftpd": {
     "bindings": [
       {
-        "port": 2022,
+        "port": 30082,
         "address": "",
         "apply_proxy_config": true
       }
@@ -139,8 +139,8 @@
     "banner_file": "",
     "active_transfers_port_non_20": true,
     "passive_port_range": {
-      "start": 50000,
-      "end": 50100
+      "start": 30085,
+      "end": 30088
     },
     "disable_active_mode": false,
     "enable_site": false,
@@ -201,7 +201,7 @@
   },
   "data_provider": {
     "driver": "sqlite",
-    "name": "sftpgo.db",
+    "name": "SFTPxy.db",
     "host": "",
     "port": 0,
     "username": "",
@@ -265,10 +265,10 @@
   "httpd": {
     "bindings": [
       {
-        "port": 8080,
+        "port": 30080,
         "address": "",
         "enable_web_admin": true,
-        "enable_web_client": true,
+        "enable_web_client": false,
         "enable_rest_api": true,
         "enabled_login_methods": 0,
         "disabled_login_methods": 0,
@@ -287,7 +287,95 @@
         "render_openapi": true,
         "base_url": "",
         "languages": [
-          "en"
+          "en",
+          "zh-CN"
+        ],
+        "oidc": {
+          "client_id": "",
+          "client_secret": "",
+          "client_secret_file": "",
+          "config_url": "",
+          "redirect_base_url": "",
+          "scopes": [
+            "openid",
+            "profile",
+            "email"
+          ],
+          "username_field": "",
+          "role_field": "",
+          "implicit_roles": false,
+          "custom_fields": [],
+          "insecure_skip_signature_check": false,
+          "debug": false
+        },
+        "security": {
+          "enabled": false,
+          "allowed_hosts": [],
+          "allowed_hosts_are_regex": false,
+          "hosts_proxy_headers": [],
+          "https_redirect": false,
+          "https_host": "",
+          "https_proxy_headers": [],
+          "sts_seconds": 0,
+          "sts_include_subdomains": false,
+          "sts_preload": false,
+          "content_type_nosniff": false,
+          "content_security_policy": "",
+          "permissions_policy": "",
+          "cross_origin_opener_policy": "",
+          "cross_origin_resource_policy": "",
+          "cross_origin_embedder_policy": "",
+          "referrer_policy": "",
+          "cache_control": ""
+        },
+        "branding": {
+          "web_admin": {
+            "name": "",
+            "short_name": "",
+            "favicon_path": "",
+            "logo_path": "",
+            "disclaimer_name": "",
+            "disclaimer_path": "",
+            "default_css": [],
+            "extra_css": []
+          },
+          "web_client": {
+            "name": "",
+            "short_name": "",
+            "favicon_path": "",
+            "logo_path": "",
+            "disclaimer_name": "",
+            "disclaimer_path": "",
+            "default_css": [],
+            "extra_css": []
+          }
+        }
+      },
+      {
+        "port": 30081,
+        "address": "",
+        "enable_web_admin": false,
+        "enable_web_client": true,
+        "enable_rest_api": false,
+        "enabled_login_methods": 0,
+        "disabled_login_methods": 0,
+        "enable_https": false,
+        "certificate_file": "",
+        "certificate_key_file": "",
+        "min_tls_version": 12,
+        "client_auth_type": 0,
+        "tls_cipher_suites": [],
+        "tls_protocols": [],
+        "proxy_mode": 0,
+        "proxy_allowed": [],
+        "client_ip_proxy_header": "",
+        "client_ip_header_depth": 0,
+        "hide_login_url": 0,
+        "render_openapi": false,
+        "base_url": "",
+        "languages": [
+          "en",
+          "zh-CN"
         ],
         "oidc": {
           "client_id": "",
@@ -421,7 +509,7 @@
     "totp": [
       {
         "name": "Default",
-        "issuer": "SFTPGo",
+        "issuer": "SFTPxy",
         "algo": "sha1"
       }
     ]

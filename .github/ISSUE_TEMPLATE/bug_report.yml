@@ -1,16 +1,12 @@
 name: Open Source Bug Report
-description: "Submit a report and help us improve SFTPGo"
+description: "Submit a report and help us improve SFTPxy"
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        ### 👍 Thank you for contributing to our project!
-        Before asking for help please check our [support policy](https://github.com/drakkan/sftpgo?tab=readme-ov-file#support).
-        If you are a [commercial user](https://sftpgo.com/) please contact us using the dedicated [email address](mailto:support@sftpgo.com).
-        If you'd like to contribute code, please make sure to read and understand our [Contributor License Agreement (CLA)](https://sftpgo.com/cla.html).
-        You’ll be asked to accept it when submitting a pull request.
+        Thank you for helping improve SFTPxy. Please include enough detail for maintainers to reproduce the issue.
   - type: checkboxes
     id: before-posting
     attributes:
@@ -53,7 +49,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: SFTPGo version
+      label: SFTPxy version
     validations:
       required: true
   - type: input
@@ -92,8 +88,8 @@ body:
   - type: dropdown
     id: usecase
     attributes:
-      label: What are you using SFTPGo for?
-      description: We'd like to understand your SFTPGo usecase more
+      label: What are you using SFTPxy for?
+      description: We'd like to understand your SFTPxy usecase more
       multiple: true
       options:
         - "Private user, home usecase (home backup/VPS)"

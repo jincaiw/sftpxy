@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 // Package smtp provides supports for sending emails
 package smtp
@@ -28,11 +16,11 @@ import (
 	"github.com/rs/xid"
 	"github.com/wneessen/go-mail"
 
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/logger"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/version"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
 )
 
 const (
@@ -156,9 +144,9 @@ type Config struct {
 	Host string `json:"host" mapstructure:"host"`
 	// Port of SMTP email server
 	Port int `json:"port" mapstructure:"port"`
-	// From address, for example "SFTPGo <sftpgo@example.com>".
+	// From address, for example "SFTPxy <SFTPxy@example.com>".
 	// Many SMTP servers reject emails without a `From` header so, if not set,
-	// SFTPGo will try to use the username as fallback, this may or may not be appropriate
+	// SFTPxy will try to use the username as fallback, this may or may not be appropriate
 	From string `json:"from" mapstructure:"from"`
 	// SMTP username
 	User string `json:"user" mapstructure:"user"`

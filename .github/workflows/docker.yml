@@ -76,7 +76,7 @@ jobs:
           elif [[ $DOCKER_PKG == debian ]]; then
             FEATURES="${FEATURES},unixcrypt"
           fi
-          DOCKER_IMAGES=("drakkan/sftpgo" "ghcr.io/drakkan/sftpgo")
+          DOCKER_IMAGES=("jincaiw/sftpxy" "ghcr.io/jincaiw/sftpxy")
           TAGS="${DOCKER_IMAGES[0]}:${VERSION}"
           TAGS_SLIM="${DOCKER_IMAGES[0]}:${VERSION_SLIM}"
 
@@ -177,12 +177,12 @@ jobs:
             DOWNLOAD_PLUGINS=${{ steps.info.outputs.plugins }}
             FEATURES=${{ steps.info.outputs.features }}
           labels: |
-            org.opencontainers.image.title=SFTPGo
+            org.opencontainers.image.title=SFTPxy
             org.opencontainers.image.description=Full-featured and highly configurable file transfer server: SFTP, HTTP/S,FTP/S, WebDAV
-            org.opencontainers.image.url=https://github.com/drakkan/sftpgo
-            org.opencontainers.image.documentation=https://github.com/drakkan/sftpgo/blob/${{ github.sha }}/docker/README.md
-            org.opencontainers.image.source=https://github.com/drakkan/sftpgo
+            org.opencontainers.image.url=https://github.com/jincaiw/sftpxy
+            org.opencontainers.image.documentation=https://github.com/jincaiw/sftpxy/blob/${{ github.sha }}/docker/README.md
+            org.opencontainers.image.source=https://github.com/jincaiw/sftpxy
             org.opencontainers.image.version=${{ steps.info.outputs.version }}
             org.opencontainers.image.created=${{ steps.info.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=AGPL-3.0-only
+            org.opencontainers.image.licenses=MIT

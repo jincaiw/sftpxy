@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/drakkan/sftpgo/ldapauthserver/config"
-	"github.com/drakkan/sftpgo/ldapauthserver/logger"
-	"github.com/drakkan/sftpgo/ldapauthserver/utils"
+	"github.com/jincaiw/sftpxy/ldapauthserver/config"
+	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
+	"github.com/jincaiw/sftpxy/ldapauthserver/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -62,7 +62,7 @@ func StartHTTPServer(configDir string, httpConfig config.HTTPDConfig) error {
 	router.Group(func(router chi.Router) {
 		router.Use(checkAuth)
 
-		router.Post(checkAuthPath, checkSFTPGoUserAuth)
+		router.Post(checkAuthPath, checkSFTPxyUserAuth)
 	})
 
 	ldapConfig = config.GetLDAPConfig()

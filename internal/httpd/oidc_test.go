@@ -1,16 +1,4 @@
-// Copyright (C) 2019 Nicola Murino
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, version 3.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
 
 package httpd
 
@@ -32,22 +20,22 @@ import (
 	"unsafe"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/rs/xid"
-	"github.com/sftpgo/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
-	"github.com/drakkan/sftpgo/v2/internal/common"
-	"github.com/drakkan/sftpgo/v2/internal/dataprovider"
-	"github.com/drakkan/sftpgo/v2/internal/jwt"
-	"github.com/drakkan/sftpgo/v2/internal/kms"
-	"github.com/drakkan/sftpgo/v2/internal/util"
-	"github.com/drakkan/sftpgo/v2/internal/vfs"
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/kms"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
 )
 
 const (
-	oidcMockAddr = "127.0.0.1:11111"
+	oidcMockAddr = "127.0.0.1:30083"
 )
 
 type mockTokenSource struct {
@@ -103,12 +91,12 @@ func TestOIDCInitialization(t *testing.T) {
 	assert.NoError(t, err)
 	secret := "jRsmE0SWnuZjP7djBqNq0mrf8QN77j2c"
 	config = OIDC{
-		ClientID:        "sftpgo-client",
+		ClientID:        "SFTPxy-client",
 		ClientSecret:    util.GenerateUniqueID(),
 		ConfigURL:       fmt.Sprintf("http://%v/", oidcMockAddr),
-		RedirectBaseURL: "http://127.0.0.1:8081/",
+		RedirectBaseURL: "http://127.0.0.1:30080/",
 		UsernameField:   "preferred_username",
-		RoleField:       "sftpgo_role",
+		RoleField:       "SFTPxy_role",
 	}
 	err = config.initialize()
 	if assert.Error(t, err) {
@@ -128,10 +116,10 @@ func TestOIDCInitialization(t *testing.T) {
 		assert.Contains(t, err.Error(), "oidc: unable to initialize provider")
 	}
 	assert.Equal(t, secret, config.ClientSecret)
-	config.ConfigURL = fmt.Sprintf("http://%v/auth/realms/sftpgo", oidcMockAddr)
+	config.ConfigURL = fmt.Sprintf("http://%v/auth/realms/SFTPxy", oidcMockAddr)
 	err = config.initialize()
 	assert.NoError(t, err)
-	assert.Equal(t, "http://127.0.0.1:8081"+webOIDCRedirectPath, config.getRedirectURL())
+	assert.Equal(t, "http://127.0.0.1:30080"+webOIDCRedirectPath, config.getRedirectURL())
 }
 
 func TestOIDCLoginLogout(t *testing.T) {
@@ -339,7 +327,7 @@ func TestOIDCLoginLogout(t *testing.T) {
 		Nonce:  authReq.Nonce,
 		Expiry: time.Now().Add(5 * time.Minute),
 	}
-	setIDTokenClaims(idToken, []byte(`{"preferred_username":"test","sftpgo_role":"admin"}`))
+	setIDTokenClaims(idToken, []byte(`{"preferred_username":"test","SFTPxy_role":"admin"}`))
 	server.binding.OIDC.verifier = &mockOIDCVerifier{
 		err:   nil,
 		token: idToken,
@@ -377,7 +365,7 @@ func TestOIDCLoginLogout(t *testing.T) {
 		Nonce:  authReq.Nonce,
 		Expiry: time.Now().Add(5 * time.Minute),
 	}
-	setIDTokenClaims(idToken, []byte(`{"preferred_username":"test","sftpgo_role":"admin"}`))
+	setIDTokenClaims(idToken, []byte(`{"preferred_username":"test","SFTPxy_role":"admin"}`))
 	server.binding.OIDC.verifier = &mockOIDCVerifier{
 		err:   nil,
 		token: idToken,
@@ -396,7 +384,7 @@ func TestOIDCLoginLogout(t *testing.T) {
 		Nonce:  authReq.Nonce,
 		Expiry: time.Now().Add(5 * time.Minute),
 	}
-	setIDTokenClaims(idToken, []byte(`{"preferred_username":"admin","sftpgo_role":"admin","sid":"sid123"}`))
+	setIDTokenClaims(idToken, []byte(`{"preferred_username":"admin","SFTPxy_role":"admin","sid":"sid123"}`))
 	server.binding.OIDC.verifier = &mockOIDCVerifier{
 		err:   nil,
 		token: idToken,
@@ -857,7 +845,7 @@ func TestOIDCLogoutErrors(t *testing.T) {
 	server.logoutFromOIDCOP("")
 	server.binding.OIDC.providerLogoutURL = "http://foo\x7f.com/"
 	server.doOIDCFromLogout("")
-	server.binding.OIDC.providerLogoutURL = "http://127.0.0.1:11234"
+	server.binding.OIDC.providerLogoutURL = "http://127.0.0.1:30089"
 	server.doOIDCFromLogout("")
 }
 
@@ -936,7 +924,7 @@ func TestOIDCToken(t *testing.T) {
 	user.FsConfig.Provider = sdk.SFTPFilesystemProvider
 	user.FsConfig.SFTPConfig = vfs.SFTPFsConfig{
 		BaseSFTPFsConfig: sdk.BaseSFTPFsConfig{
-			Endpoint: "127.0.0.1:8022",
+			Endpoint: "127.0.0.1:30082",
 			Username: username,
 		},
 		Password: kms.NewPlainSecret("np"),
@@ -1502,11 +1490,11 @@ func TestParseAdminRole(t *testing.T) {
 		"given_name": "Sally",
 		"family_name": "Tyler",
 		"params": {
-		  "sftpgo_role": "admin",
+		  "SFTPxy_role": "admin",
 		  "subparams": {
-			"sftpgo_role": "admin",
+			"SFTPxy_role": "admin",
 			"inner": {
-				"sftpgo_role": ["user","admin"]
+				"SFTPxy_role": ["user","admin"]
 			}
 		  }
 		},
@@ -1527,16 +1515,16 @@ func TestParseAdminRole(t *testing.T) {
 
 	tests := []test{
 		{input: "", want: false},
-		{input: "sftpgo_role", want: false},
-		{input: "params.sftpgo_role", want: true, val: "admin"},
-		{input: "params.subparams.sftpgo_role", want: true, val: "admin"},
-		{input: "params.subparams.inner.sftpgo_role", want: true, val: []any{"user", "admin"}},
+		{input: "SFTPxy_role", want: false},
+		{input: "params.SFTPxy_role", want: true, val: "admin"},
+		{input: "params.subparams.SFTPxy_role", want: true, val: "admin"},
+		{input: "params.subparams.inner.SFTPxy_role", want: true, val: []any{"user", "admin"}},
 		{input: "email", want: false},
 		{input: "missing", want: false},
 		{input: "params.email", want: false},
-		{input: "missing.sftpgo_role", want: false},
+		{input: "missing.SFTPxy_role", want: false},
 		{input: "params", want: false},
-		{input: "params.subparams.inner.sftpgo_role.missing", want: false},
+		{input: "params.subparams.inner.SFTPxy_role.missing", want: false},
 	}
 
 	for _, tc := range tests {
@@ -1753,12 +1741,12 @@ func getTestOIDCServer() *httpdServer {
 	return &httpdServer{
 		binding: Binding{
 			OIDC: OIDC{
-				ClientID:        "sftpgo-client",
+				ClientID:        "SFTPxy-client",
 				ClientSecret:    "jRsmE0SWnuZjP7djBqNq0mrf8QN77j2c",
-				ConfigURL:       fmt.Sprintf("http://%v/auth/realms/sftpgo", oidcMockAddr),
-				RedirectBaseURL: "http://127.0.0.1:8081/",
+				ConfigURL:       fmt.Sprintf("http://%v/auth/realms/SFTPxy", oidcMockAddr),
+				RedirectBaseURL: "http://127.0.0.1:30080/",
 				UsernameField:   "preferred_username",
-				RoleField:       "sftpgo_role",
+				RoleField:       "SFTPxy_role",
 				ImplicitRoles:   false,
 				Scopes:          []string{oidc.ScopeOpenID, "profile", "email"},
 				CustomFields:    nil,
