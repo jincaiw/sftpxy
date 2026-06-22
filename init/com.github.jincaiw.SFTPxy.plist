@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.jincaiw.SFTPxy</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SFTPXY_CONFIG_DIR</key>
+        <string>/usr/local/opt/SFTPxy/etc</string>
+        <key>SFTPXY_LOG_FILE_PATH</key>
+        <string>/usr/local/opt/SFTPxy/var/log/SFTPxy.log</string>
+        <key>SFTPXY_HTTPD__TEMPLATES_PATH</key>
+        <string>/usr/local/opt/SFTPxy/usr/share/templates</string>
+        <key>SFTPXY_HTTPD__STATIC_FILES_PATH</key>
+        <string>/usr/local/opt/SFTPxy/usr/share/static</string>
+        <key>SFTPXY_HTTPD__OPENAPI_PATH</key>
+        <string>/usr/local/opt/SFTPxy/usr/share/openapi</string>
+        <key>SFTPXY_HTTPD__BACKUPS_PATH</key>
+        <string>/usr/local/opt/SFTPxy/var/lib/backups</string>
+        <key>SFTPXY_DATA_PROVIDER__CREDENTIALS_PATH</key>
+        <string>/usr/local/opt/SFTPxy/var/lib/credentials</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/usr/local/opt/SFTPxy/etc</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/opt/SFTPxy/bin/SFTPxy</string>
+        <string>serve</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

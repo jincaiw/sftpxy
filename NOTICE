@@ -1,0 +1,4 @@
+SFTPxy is distributed under the MIT License.
+
+This project includes third-party components under their respective licenses.
+See go.mod, static/vendor, and package metadata for dependency details.

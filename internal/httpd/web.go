@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: MIT
+
+package httpd
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+
+	"github.com/go-chi/render"
+	"github.com/unrolled/secure"
+
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+	"github.com/jincaiw/sftpxy/v2/internal/version"
+)
+
+const (
+	webDateTimeFormat         = "2006-01-02 15:04:05" // YYYY-MM-DD HH:MM:SS
+	redactedSecret            = "[**redacted**]"
+	csrfFormToken             = "_form_token"
+	csrfHeaderToken           = "X-CSRF-TOKEN"
+	templateCommonDir         = "common"
+	templateTwoFactor         = "twofactor.html"
+	templateTwoFactorRecovery = "twofactor-recovery.html"
+	templateForgotPassword    = "forgot-password.html"
+	templateResetPassword     = "reset-password.html"
+	templateChangePwd         = "changepassword.html"
+	templateMessage           = "message.html"
+	templateCommonBase        = "base.html"
+	templateCommonBaseLogin   = "baselogin.html"
+	templateCommonLogin       = "login.html"
+)
+
+var (
+	errInvalidTokenClaims = errors.New("invalid token claims")
+)
+
+type commonBasePage struct {
+	CSPNonce  string
+	StaticURL string
+	Version   string
+}
+
+type loginPage struct {
+	commonBasePage
+	CurrentURL     string
+	Error          *util.I18nError
+	CSRFToken      string
+	AltLoginURL    string
+	AltLoginName   string
+	ForgotPwdURL   string
+	OpenIDLoginURL string
+	Title          string
+	Branding       UIBranding
+	Languages      []string
+	FormDisabled   bool
+	CheckRedirect  bool
+}
+
+type twoFactorPage struct {
+	commonBasePage
+	CurrentURL    string
+	Error         *util.I18nError
+	CSRFToken     string
+	RecoveryURL   string
+	Title         string
+	Branding      UIBranding
+	Languages     []string
+	CheckRedirect bool
+}
+
+type forgotPwdPage struct {
+	commonBasePage
+	CurrentURL    string
+	Error         *util.I18nError
+	CSRFToken     string
+	LoginURL      string
+	Title         string
+	Branding      UIBranding
+	Languages     []string
+	CheckRedirect bool
+}
+
+type resetPwdPage struct {
+	commonBasePage
+	CurrentURL    string
+	Error         *util.I18nError
+	CSRFToken     string
+	LoginURL      string
+	Title         string
+	Branding      UIBranding
+	Languages     []string
+	CheckRedirect bool
+}
+
+func getSliceFromDelimitedValues(values, delimiter string) []string {
+	result := []string{}
+	for v := range strings.SplitSeq(values, delimiter) {
+		cleaned := strings.TrimSpace(v)
+		if cleaned != "" {
+			result = append(result, cleaned)
+		}
+	}
+	return result
+}
+
+func hasPrefixAndSuffix(key, prefix, suffix string) bool {
+	return strings.HasPrefix(key, prefix) && strings.HasSuffix(key, suffix)
+}
+
+func getCommonBasePage(r *http.Request) commonBasePage {
+	return commonBasePage{
+		CSPNonce:  secure.CSPNonce(r.Context()),
+		StaticURL: webStaticFilesPath,
+		Version:   version.GetServerVersion(" ", true),
+	}
+}
+
+func i18nListDirMsg(status int) string {
+	if status == http.StatusForbidden {
+		return util.I18nErrorDirList403
+	}
+	return util.I18nErrorDirListGeneric
+}
+
+func i18nFsMsg(status int) string {
+	if status == http.StatusForbidden {
+		return util.I18nError403Message
+	}
+	return util.I18nErrorFsGeneric
+}
+
+func getI18NErrorString(err error, fallback string) string {
+	var errI18n *util.I18nError
+	if errors.As(err, &errI18n) {
+		return errI18n.Message
+	}
+	return fallback
+}
+
+func getI18nError(err error) *util.I18nError {
+	var errI18n *util.I18nError
+	if err != nil {
+		errI18n = util.NewI18nError(err, util.I18nError500Message)
+	}
+	return errI18n
+}
+
+func handlePingRequest(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	render.PlainText(w, r, "PONG")
+}

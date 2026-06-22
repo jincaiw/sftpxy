@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: MIT
+
+package vfs
+
+import (
+	"os"
+	"path"
+	"time"
+
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+)
+
+// FileInfo implements os.FileInfo for a Cloud Storage file.
+type FileInfo struct {
+	name        string
+	sizeInBytes int64
+	modTime     time.Time
+	mode        os.FileMode
+	metadata    map[string]string
+}
+
+// NewFileInfo creates file info.
+func NewFileInfo(name string, isDirectory bool, sizeInBytes int64, modTime time.Time, fullName bool) *FileInfo {
+	mode := os.FileMode(0644)
+	if isDirectory {
+		mode = os.FileMode(0755) | os.ModeDir
+	}
+	if !fullName {
+		// we have always Unix style paths here
+		name = path.Base(name)
+	}
+
+	return &FileInfo{
+		name:        name,
+		sizeInBytes: sizeInBytes,
+		modTime:     modTime,
+		mode:        mode,
+	}
+}
+
+// Name provides the base name of the file.
+func (fi *FileInfo) Name() string {
+	return fi.name
+}
+
+// Size provides the length in bytes for a file.
+func (fi *FileInfo) Size() int64 {
+	return fi.sizeInBytes
+}
+
+// Mode provides the file mode bits
+func (fi *FileInfo) Mode() os.FileMode {
+	return fi.mode
+}
+
+// ModTime provides the last modification time.
+func (fi *FileInfo) ModTime() time.Time {
+	return fi.modTime
+}
+
+// IsDir provides the abbreviation for Mode().IsDir()
+func (fi *FileInfo) IsDir() bool {
+	return fi.mode&os.ModeDir != 0
+}
+
+// SetMode sets the file mode
+func (fi *FileInfo) SetMode(mode os.FileMode) {
+	fi.mode = mode
+}
+
+// Sys provides the underlying data source (can return nil)
+func (fi *FileInfo) Sys() any {
+	return fi.metadata
+}
+
+func (fi *FileInfo) setMetadata(value map[string]string) {
+	fi.metadata = value
+}
+
+func (fi *FileInfo) setMetadataFromPointerVal(value map[string]*string) {
+	if len(value) == 0 {
+		fi.metadata = nil
+		return
+	}
+
+	fi.metadata = map[string]string{}
+	for k, v := range value {
+		val := util.GetStringFromPointer(v)
+		if val != "" {
+			fi.metadata[k] = val
+		}
+	}
+}
+
+func getMetadata(fi os.FileInfo) map[string]string {
+	if fi.Sys() == nil {
+		return nil
+	}
+	if val, ok := fi.Sys().(map[string]string); ok {
+		if len(val) > 0 {
+			return val
+		}
+	}
+	return nil
+}

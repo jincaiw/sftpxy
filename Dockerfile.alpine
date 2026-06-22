@@ -1,0 +1,66 @@
+FROM golang:1.26-alpine3.23 AS builder
+
+ENV GOFLAGS="-mod=readonly"
+
+RUN apk -U upgrade --no-cache && apk add --update --no-cache bash ca-certificates curl git gcc g++
+
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+ARG GOPROXY
+
+COPY go.mod go.sum ./
+COPY sdk ./sdk
+RUN go mod download && go mod verify
+
+ARG COMMIT_SHA
+
+# This ARG allows to disable some optional features and it might be useful if you build the image yourself.
+# For example you can disable S3 and GCS support like this:
+# --build-arg FEATURES=nos3,nogcs
+ARG FEATURES
+
+COPY . .
+
+RUN set -xe && \
+    export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} && \
+    go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${COMMIT_SHA} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -v -o SFTPxy
+
+FROM alpine:3.23
+
+# Set to "true" to install jq
+ARG INSTALL_OPTIONAL_PACKAGES=false
+
+RUN apk -U upgrade --no-cache && apk add --update --no-cache ca-certificates tzdata mailcap
+
+RUN if [ "${INSTALL_OPTIONAL_PACKAGES}" = "true" ]; then apk add --update --no-cache jq; fi
+
+RUN mkdir -p /etc/SFTPxy /var/lib/SFTPxy /usr/share/SFTPxy /srv/SFTPxy/data /srv/SFTPxy/backups
+
+RUN addgroup -g 1000 -S SFTPxy && \
+    adduser -u 1000 -h /var/lib/SFTPxy -s /sbin/nologin -G SFTPxy -S -D -H -g "SFTPxy user" SFTPxy
+
+COPY --from=builder /workspace/SFTPxy.json /etc/SFTPxy/SFTPxy.json
+COPY --from=builder /workspace/templates /usr/share/SFTPxy/templates
+COPY --from=builder /workspace/static /usr/share/SFTPxy/static
+COPY --from=builder /workspace/openapi /usr/share/SFTPxy/openapi
+COPY --from=builder /workspace/SFTPxy /usr/local/bin/
+
+# Log to the stdout so the logs will be available using docker logs
+ENV SFTPXY_LOG_FILE_PATH=""
+
+# Modify the default configuration file
+RUN sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/SFTPxy/data",|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"backups"|"/srv/SFTPxy/backups"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"templates_path": "templates"|"templates_path": "/usr/share/SFTPxy/templates"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"static_files_path": "static"|"static_files_path": "/usr/share/SFTPxy/static"|' /etc/SFTPxy/SFTPxy.json && \
+    sed -i 's|"openapi_path": "openapi"|"openapi_path": "/usr/share/SFTPxy/openapi"|' /etc/SFTPxy/SFTPxy.json
+
+RUN chown -R SFTPxy:SFTPxy /etc/SFTPxy /srv/SFTPxy && chown SFTPxy:SFTPxy /var/lib/SFTPxy && chmod 700 /srv/SFTPxy/backups
+
+WORKDIR /var/lib/SFTPxy
+USER 1000:1000
+
+EXPOSE 30080 30081 30082 30085-30088
+
+CMD ["SFTPxy", "serve"]

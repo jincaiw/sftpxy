@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: MIT
+
+package sftpd
+
+import (
+	"fmt"
+	"io"
+
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/vfs"
+)
+
+type writerAtCloser interface {
+	io.WriterAt
+	io.Closer
+}
+
+type readerAtCloser interface {
+	io.ReaderAt
+	io.Closer
+}
+
+type failingReader struct {
+	innerReader readerAtCloser
+	errRead     error
+}
+
+func (r *failingReader) ReadAt(_ []byte, _ int64) (n int, err error) {
+	return 0, r.errRead
+}
+
+func (r *failingReader) Close() error {
+	if r.innerReader == nil {
+		return nil
+	}
+	return r.innerReader.Close()
+}
+
+// transfer defines the transfer details.
+// It implements the io.ReaderAt and io.WriterAt interfaces to handle SFTP downloads and uploads
+type transfer struct {
+	*common.BaseTransfer
+	writerAt   writerAtCloser
+	readerAt   readerAtCloser
+	isFinished bool
+}
+
+func newTransfer(baseTransfer *common.BaseTransfer, pipeWriter vfs.PipeWriter, pipeReader vfs.PipeReader,
+	errForRead error) *transfer {
+	var writer writerAtCloser
+	var reader readerAtCloser
+	if baseTransfer.File != nil {
+		writer = baseTransfer.File
+		if errForRead == nil {
+			reader = baseTransfer.File
+		} else {
+			reader = &failingReader{
+				innerReader: baseTransfer.File,
+				errRead:     errForRead,
+			}
+		}
+	} else if pipeWriter != nil {
+		writer = pipeWriter
+	} else if pipeReader != nil {
+		if errForRead == nil {
+			reader = pipeReader
+		} else {
+			reader = &failingReader{
+				innerReader: pipeReader,
+				errRead:     errForRead,
+			}
+		}
+	}
+	if baseTransfer.File == nil && errForRead != nil && pipeReader == nil {
+		reader = &failingReader{
+			innerReader: nil,
+			errRead:     errForRead,
+		}
+	}
+	return &transfer{
+		BaseTransfer: baseTransfer,
+		writerAt:     writer,
+		readerAt:     reader,
+		isFinished:   false,
+	}
+}
+
+// ReadAt reads len(p) bytes from the File to download starting at byte offset off and updates the bytes sent.
+// It handles download bandwidth throttling too
+func (t *transfer) ReadAt(p []byte, off int64) (n int, err error) {
+	t.Connection.UpdateLastActivity()
+
+	n, err = t.readerAt.ReadAt(p, off)
+	t.BytesSent.Add(int64(n))
+
+	if err == nil {
+		err = t.CheckRead()
+	}
+	if err != nil && err != io.EOF {
+		if t.GetType() == common.TransferDownload {
+			t.TransferError(err)
+		}
+		err = t.ConvertError(err)
+		return
+	}
+	t.HandleThrottle()
+	return
+}
+
+// WriteAt writes len(p) bytes to the uploaded file starting at byte offset off and updates the bytes received.
+// It handles upload bandwidth throttling too
+func (t *transfer) WriteAt(p []byte, off int64) (n int, err error) {
+	t.Connection.UpdateLastActivity()
+	if off < t.MinWriteOffset {
+		err := fmt.Errorf("invalid write offset: %v minimum valid value: %v", off, t.MinWriteOffset)
+		t.TransferError(err)
+		return 0, err
+	}
+
+	n, err = t.writerAt.WriteAt(p, off)
+	t.BytesReceived.Add(int64(n))
+
+	if err == nil {
+		err = t.CheckWrite()
+	}
+	if err != nil {
+		t.TransferError(err)
+		err = t.ConvertError(err)
+		return
+	}
+	t.HandleThrottle()
+	return
+}
+
+// Close it is called when the transfer is completed.
+// It closes the underlying file, logs the transfer info, updates the user quota (for uploads)
+// and executes any defined action.
+// If there is an error no action will be executed and, in atomic mode, we try to delete
+// the temporary file
+func (t *transfer) Close() error {
+	if err := t.setFinished(); err != nil {
+		return err
+	}
+	err := t.closeIO()
+	errBaseClose := t.BaseTransfer.Close()
+	if errBaseClose != nil {
+		err = errBaseClose
+	}
+	return t.Connection.GetFsError(t.Fs, err)
+}
+
+func (t *transfer) closeIO() error {
+	var err error
+	if t.File != nil {
+		err = t.File.Close()
+	} else if t.writerAt != nil {
+		err = t.writerAt.Close()
+		t.Lock()
+		// we set ErrTransfer here so quota is not updated, in this case the uploads are atomic
+		if err != nil && t.ErrTransfer == nil {
+			t.ErrTransfer = err
+		}
+		t.Unlock()
+	} else if t.readerAt != nil {
+		err = t.readerAt.Close()
+		if metadater, ok := t.readerAt.(vfs.Metadater); ok {
+			t.SetMetadata(metadater.Metadata())
+		}
+	}
+	return err
+}
+
+func (t *transfer) setFinished() error {
+	t.Lock()
+	defer t.Unlock()
+	if t.isFinished {
+		return common.ErrTransferClosed
+	}
+	t.isFinished = true
+	return nil
+}

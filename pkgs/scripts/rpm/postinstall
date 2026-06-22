@@ -1,0 +1,44 @@
+if [ $1 -eq 1 ]; then
+  # Initial installation
+  # Add user and group
+  if ! getent group SFTPxy >/dev/null; then
+    /usr/sbin/groupadd --system SFTPxy
+  fi
+  if ! getent passwd SFTPxy >/dev/null; then
+    /usr/sbin/useradd --system \
+      --gid SFTPxy \
+      --no-create-home \
+      --home-dir /var/lib/SFTPxy \
+      --shell /sbin/nologin \
+      --comment "SFTPxy user" \
+      SFTPxy
+  fi
+  # initialize data provider
+  /usr/bin/SFTPxy initprovider -c /etc/SFTPxy
+  # ensure files and folders have the appropriate permissions
+  /usr/bin/chown -R SFTPxy:SFTPxy /etc/SFTPxy /var/lib/SFTPxy /srv/SFTPxy
+  /usr/bin/chmod 750 /etc/SFTPxy /etc/SFTPxy/env.d /var/lib/SFTPxy /srv/SFTPxy
+  /usr/bin/chmod 640 /etc/SFTPxy/SFTPxy.json
+fi
+
+# adjust permissions for /srv/SFTPxy, /etc/SFTPxy/env.d and /var/lib/SFTPxy
+if [ -d /srv/SFTPxy ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /srv/SFTPxy
+    /usr/bin/chmod 750 /srv/SFTPxy
+fi
+
+if [ -d /etc/SFTPxy/env.d ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /etc/SFTPxy/env.d
+    /usr/bin/chmod 750 /etc/SFTPxy/env.d
+fi
+
+if [ -d /var/lib/SFTPxy ]; then
+    /usr/bin/chown SFTPxy:SFTPxy /var/lib/SFTPxy
+    /usr/bin/chmod 750 /var/lib/SFTPxy
+fi
+
+# set the cap_net_bind_service capability so the service can bind to privileged ports
+setcap cap_net_bind_service=+ep /usr/bin/SFTPxy || :
+
+# reload to pick up any changes to systemd files
+/bin/systemctl daemon-reload >/dev/null 2>&1 || :

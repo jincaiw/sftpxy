@@ -1,0 +1,509 @@
+name: Release
+
+on:
+  push:
+    tags: 'v*'
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  GO_VERSION: 1.26.4
+
+jobs:
+  prepare-sources-with-deps:
+    name: Prepare sources with deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get SFTPxy version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+
+      - name: Prepare release
+        run: |
+          go mod vendor
+          echo "${SFTPXY_VERSION}" > VERSION.txt
+          echo "${GITHUB_SHA::8}" >> VERSION.txt
+          tar cJvf SFTPxy_${SFTPXY_VERSION}_src_with_deps.tar.xz *
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_src_with_deps.tar.xz
+          path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_src_with_deps.tar.xz
+          retention-days: 1
+
+  prepare-windows:
+    name: Prepare Windows binaries
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get SFTPxy version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Build
+        run: |
+          $GIT_COMMIT = (git describe --always --abbrev=8 --dirty) | Out-String
+          $DATE_TIME = ([datetime]::Now.ToUniversalTime().toString("yyyy-MM-ddTHH:mm:ssZ")) | Out-String
+          $FILE_VERSION = $Env:SFTPXY_VERSION.substring(1)  + ".0"
+          go install github.com/tc-hib/go-winres@latest
+          go-winres simply --arch amd64 --product-version $Env:SFTPXY_VERSION-$GIT_COMMIT --file-version "$FILE_VERSION" --file-description "SFTPxy server" --product-name SFTPxy --copyright "2026 jincaiw" --original-filename SFTPxy.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=$GIT_COMMIT -X github.com/jincaiw/sftpxy/v2/internal/version.date=$DATE_TIME" -o SFTPxy.exe
+          mkdir arm64
+          $Env:CGO_ENABLED='0'
+          $Env:GOOS='windows'
+          $Env:GOARCH='arm64'
+          go-winres simply --arch arm64 --product-version $Env:SFTPXY_VERSION-$GIT_COMMIT --file-version "$FILE_VERSION" --file-description "SFTPxy server" --product-name SFTPxy --copyright "2026 jincaiw" --original-filename SFTPxy.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,nosqlite -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=$GIT_COMMIT -X github.com/jincaiw/sftpxy/v2/internal/version.date=$DATE_TIME" -o .\arm64\SFTPxy.exe
+          mkdir x86
+          $Env:GOARCH='386'
+          go-winres simply --arch 386 --product-version $Env:SFTPXY_VERSION-$GIT_COMMIT --file-version "$FILE_VERSION" --file-description "SFTPxy server" --product-name SFTPxy --copyright "2026 jincaiw" --original-filename SFTPxy.exe --icon  .\windows-installer\icon.ico
+          go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules,nosqlite -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=$GIT_COMMIT -X github.com/jincaiw/sftpxy/v2/internal/version.date=$DATE_TIME" -o .\x86\SFTPxy.exe
+          Remove-Item Env:\CGO_ENABLED
+          Remove-Item Env:\GOOS
+          Remove-Item Env:\GOARCH
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Initialize data provider
+        run: ./SFTPxy initprovider
+        shell: bash
+
+      - name: Prepare Release
+        run: |
+          mkdir output
+          copy .\SFTPxy.exe .\output
+          copy .\SFTPxy.json .\output
+          copy .\SFTPxy.db .\output
+          copy .\LICENSE .\output\LICENSE.txt
+          copy .\NOTICE .\output\NOTICE.txt
+          mkdir output\templates
+          xcopy .\templates .\output\templates\ /E
+          mkdir output\static
+          xcopy .\static .\output\static\ /E
+          mkdir output\openapi
+          xcopy .\openapi .\output\openapi\ /E
+          iscc .\windows-installer\SFTPxy.iss
+          rm .\output\SFTPxy.exe
+          rm .\output\SFTPxy.db
+          copy .\arm64\SFTPxy.exe .\output
+          (Get-Content .\output\SFTPxy.json).replace('"sqlite"', '"bolt"') | Set-Content .\output\SFTPxy.json
+          $Env:SFTPXY_DATA_PROVIDER__DRIVER='bolt'
+          $Env:SFTPXY_DATA_PROVIDER__NAME='.\output\SFTPxy.db'
+          .\SFTPxy.exe initprovider
+          Remove-Item Env:\SFTPXY_DATA_PROVIDER__DRIVER
+          Remove-Item Env:\SFTPXY_DATA_PROVIDER__NAME
+          $Env:SFTPXY_ISS_ARCH='arm64'
+          iscc .\windows-installer\SFTPxy.iss
+
+          rm .\output\SFTPxy.exe
+          copy .\x86\SFTPxy.exe .\output
+          $Env:SFTPXY_ISS_ARCH='x86'
+          iscc .\windows-installer\SFTPxy.iss
+        env:
+          SFTPXY_ISS_VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Prepare Portable Release
+        run: |
+          mkdir win-portable
+          copy .\SFTPxy.exe .\win-portable
+          mkdir win-portable\arm64
+          copy .\arm64\SFTPxy.exe .\win-portable\arm64
+          mkdir win-portable\x86
+          copy .\x86\SFTPxy.exe .\win-portable\x86
+          copy .\SFTPxy.json .\win-portable
+          (Get-Content .\win-portable\SFTPxy.json).replace('"sqlite"', '"bolt"') | Set-Content .\win-portable\SFTPxy.json
+          copy .\output\SFTPxy.db .\win-portable
+          copy .\LICENSE .\win-portable\LICENSE.txt
+          copy .\NOTICE .\win-portable\NOTICE.txt
+          mkdir win-portable\templates
+          xcopy .\templates .\win-portable\templates\ /E
+          mkdir win-portable\static
+          xcopy .\static .\win-portable\static\ /E
+          mkdir win-portable\openapi
+          xcopy .\openapi .\win-portable\openapi\ /E
+          Compress-Archive .\win-portable\* SFTPxy_portable.zip
+
+      - name: Upload Windows installer x86_64 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_windows_x86_64.exe
+          path: ./SFTPxy_windows_x86_64.exe
+          retention-days: 1
+
+      - name: Upload Windows installer arm64 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_windows_arm64.exe
+          path: ./SFTPxy_windows_arm64.exe
+          retention-days: 1
+
+      - name: Upload Windows installer x86 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_windows_x86.exe
+          path: ./SFTPxy_windows_x86.exe
+          retention-days: 1
+
+      - name: Upload Windows portable artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_windows_portable.zip
+          path: ./SFTPxy_portable.zip
+          retention-days: 1
+
+  prepare-mac:
+    name: Prepare macOS binaries
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get SFTPxy version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Build for macOS x86_64
+        run: go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -o SFTPxy
+
+      - name: Build for macOS arm64
+        run: CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 SDKROOT=$(xcrun --sdk macosx --show-sdk-path) go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -o SFTPxy_arm64
+
+      - name: Initialize data provider
+        run: ./SFTPxy initprovider
+        shell: bash
+
+      - name: Prepare Release
+        run: |
+          mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
+          echo "For documentation please take a look here:" > output/README.txt
+          echo "" >> output/README.txt
+          echo "https://github.com/jincaiw/sftpxy" >> output/README.txt
+          cp LICENSE output/
+          cp NOTICE output/
+          cp SFTPxy output/
+          cp SFTPxy.json output/
+          cp SFTPxy.db output/sqlite/
+          cp -r static output/
+          cp -r openapi output/
+          cp -r templates output/
+          cp init/com.github.jincaiw.SFTPxy.plist output/init/
+          ./SFTPxy gen completion bash > output/bash_completion/SFTPxy
+          ./SFTPxy gen completion zsh > output/zsh_completion/_SFTPxy
+          ./SFTPxy gen man -d output/man/man1
+          gzip output/man/man1/*
+          cd output
+          tar cJvf ../SFTPxy_${SFTPXY_VERSION}_macOS_x86_64.tar.xz *
+          cd ..
+          cp SFTPxy_arm64 output/SFTPxy
+          cd output
+          tar cJvf ../SFTPxy_${SFTPXY_VERSION}_macOS_arm64.tar.xz *
+          cd ..
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Upload macOS x86_64 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_x86_64.tar.xz
+          path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_x86_64.tar.xz
+          retention-days: 1
+
+      - name: Upload macOS arm64 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.tar.xz
+          path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.tar.xz
+          retention-days: 1
+
+  prepare-linux:
+    name: Prepare Linux binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            distro: ubuntu:18.04
+            go-arch: amd64
+            deb-arch: amd64
+            rpm-arch: x86_64
+            tar-arch: x86_64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get versions
+        id: get_version
+        run: |
+          echo "SFTPXY_VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+          echo "GO_VERSION=${GO_VERSION}" >> $GITHUB_OUTPUT
+          echo "COMMIT=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        shell: bash
+        env:
+          GO_VERSION: ${{ env.GO_VERSION }}
+
+      - name: Build on amd64
+        if: ${{ matrix.arch == 'amd64' }}
+        run: |
+          echo '#!/bin/bash' > build.sh
+          echo '' >> build.sh
+          echo 'set -e' >> build.sh
+          echo 'apt-get update -q -y' >> build.sh
+          echo 'apt-get install -q -y curl gcc' >> build.sh
+          echo 'curl --retry 5 --retry-delay 2 --connect-timeout 10 -o go.tar.gz -L https://go.dev/dl/go${{ steps.get_version.outputs.GO_VERSION }}.linux-${{ matrix.go-arch }}.tar.gz' >> build.sh
+          echo 'tar -C /usr/local -xzf go.tar.gz' >> build.sh
+          echo 'export PATH=$PATH:/usr/local/go/bin' >> build.sh
+          echo 'go version' >> build.sh
+          echo 'cd /usr/local/src' >> build.sh
+          echo 'go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${{ steps.get_version.outputs.COMMIT }} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -o SFTPxy' >> build.sh
+
+          chmod 755 build.sh
+          docker run --rm --name ubuntu-build --mount type=bind,source=`pwd`,target=/usr/local/src ${{ matrix.distro }} /usr/local/src/build.sh
+          mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
+          echo "For documentation please take a look here:" > output/README.txt
+          echo "" >> output/README.txt
+          echo "https://github.com/jincaiw/sftpxy/blob/${SFTPXY_VERSION}/README.md" >> output/README.txt
+          cp LICENSE output/
+          cp NOTICE output/
+          cp SFTPxy.json output/
+          cp -r templates output/
+          cp -r static output/
+          cp -r openapi output/
+          cp init/SFTPxy.service output/init/
+          ./SFTPxy initprovider
+          ./SFTPxy gen completion bash > output/bash_completion/SFTPxy
+          ./SFTPxy gen completion zsh > output/zsh_completion/_SFTPxy
+          ./SFTPxy gen man -d output/man/man1
+          gzip output/man/man1/*
+          cp SFTPxy output/
+          cp SFTPxy.db output/sqlite/
+          cd output
+          tar cJvf SFTPxy_${SFTPXY_VERSION}_linux_${{ matrix.tar-arch }}.tar.xz *
+          cd ..
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.SFTPXY_VERSION }}
+
+      - uses: uraimo/run-on-arch-action@v3
+        if: ${{ matrix.arch != 'amd64' }}
+        name: Build for ${{ matrix.arch }}
+        id: build
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+          setup: |
+            mkdir -p "${PWD}/output"
+          dockerRunArgs: |
+            --volume "${PWD}/output:/output"
+          shell: /bin/bash
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y curl gcc xz-utils
+            GO_DOWNLOAD_ARCH=${{ matrix.go-arch }}
+            if [ ${{ matrix.arch}} == 'armv7' ]
+            then
+              GO_DOWNLOAD_ARCH=armv6l
+            fi
+            curl --retry 5 --retry-delay 2 --connect-timeout 10 -o go.tar.gz -L https://go.dev/dl/go${{ steps.get_version.outputs.GO_VERSION }}.linux-${GO_DOWNLOAD_ARCH}.tar.gz
+            tar -C /usr/local -xzf go.tar.gz
+          run: |
+            export PATH=$PATH:/usr/local/go/bin
+            go version
+            go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${{ steps.get_version.outputs.COMMIT }} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -o SFTPxy
+            mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
+            echo "For documentation please take a look here:" > output/README.txt
+            echo "" >> output/README.txt
+            echo "https://github.com/jincaiw/sftpxy/blob/${{ steps.get_version.outputs.SFTPXY_VERSION }}/README.md" >> output/README.txt
+            cp LICENSE output/
+            cp NOTICE output/
+            cp SFTPxy.json output/
+            cp -r templates output/
+            cp -r static output/
+            cp -r openapi output/
+            cp init/SFTPxy.service output/init/
+            ./SFTPxy initprovider
+            ./SFTPxy gen completion bash > output/bash_completion/SFTPxy
+            ./SFTPxy gen completion zsh > output/zsh_completion/_SFTPxy
+            ./SFTPxy gen man -d output/man/man1
+            gzip output/man/man1/*
+            cp SFTPxy output/
+            cp SFTPxy.db output/sqlite/
+            cd output
+            tar cJvf SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_${{ matrix.tar-arch }}.tar.xz *
+            cd ..
+
+      - name: Upload build artifact for ${{ matrix.arch }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_${{ matrix.tar-arch }}.tar.xz
+          path: ./output/SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_${{ matrix.tar-arch }}.tar.xz
+          retention-days: 1
+
+      - name: Build Packages
+        id: build_linux_pkgs
+        run: |
+          export NFPM_ARCH=${{ matrix.go-arch }}
+          cd pkgs
+          ./build.sh
+          PKG_VERSION=${SFTPXY_VERSION:1}
+          echo "pkg-version=${PKG_VERSION}" >> $GITHUB_OUTPUT
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.SFTPXY_VERSION }}
+
+      - name: Upload Deb Package
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.build_linux_pkgs.outputs.pkg-version }}-1_${{ matrix.deb-arch}}.deb
+          path: ./pkgs/dist/deb/SFTPxy_${{ steps.build_linux_pkgs.outputs.pkg-version }}-1_${{ matrix.deb-arch}}.deb
+          retention-days: 1
+
+      - name: Upload RPM Package
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy-${{ steps.build_linux_pkgs.outputs.pkg-version }}-1.${{ matrix.rpm-arch}}.rpm
+          path: ./pkgs/dist/rpm/SFTPxy-${{ steps.build_linux_pkgs.outputs.pkg-version }}-1.${{ matrix.rpm-arch}}.rpm
+          retention-days: 1
+
+  prepare-linux-bundle:
+    name: Prepare Linux bundle
+    needs: prepare-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get versions
+        id: get_version
+        run: |
+          echo "SFTPXY_VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Download amd64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_x86_64.tar.xz
+
+      - name: Build bundle
+        shell: bash
+        run: |
+          mkdir -p bundle
+          cd bundle
+          tar xvf ../SFTPxy_${SFTPXY_VERSION}_linux_x86_64.tar.xz
+          tar cJvf SFTPxy_${SFTPXY_VERSION}_linux_bundle.tar.xz *
+          cd ..
+        env:
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.SFTPXY_VERSION }}
+
+      - name: Upload Linux bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_bundle.tar.xz
+          path: ./bundle/SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_bundle.tar.xz
+          retention-days: 1
+
+  create-release:
+    name: Release
+    needs: [prepare-linux-bundle, prepare-sources-with-deps, prepare-mac, prepare-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get versions
+        id: get_version
+        run: |
+          SFTPXY_VERSION=${GITHUB_REF/refs\/tags\//}
+          PKG_VERSION=${SFTPXY_VERSION:1}
+          echo "SFTPXY_VERSION=${SFTPXY_VERSION}" >> $GITHUB_OUTPUT
+          echo "PKG_VERSION=${PKG_VERSION}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Download amd64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_x86_64.tar.xz
+
+      - name: Download Linux bundle artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_linux_bundle.tar.xz
+
+      - name: Download Deb amd64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.PKG_VERSION }}-1_amd64.deb
+
+      - name: Download RPM x86_64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy-${{ steps.get_version.outputs.PKG_VERSION }}-1.x86_64.rpm
+
+      - name: Download macOS x86_64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_macOS_x86_64.tar.xz
+
+      - name: Download macOS arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_macOS_arm64.tar.xz
+
+      - name: Download Windows installer x86_64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_windows_x86_64.exe
+
+      - name: Download Windows installer arm64 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_windows_arm64.exe
+
+      - name: Download Windows installer x86 artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_windows_x86.exe
+
+      - name: Download Windows portable artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_windows_portable.zip
+
+      - name: Download source with deps artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_src_with_deps.tar.xz
+
+      - name: Create release
+        run: |
+          mv SFTPxy_windows_x86_64.exe SFTPxy_${SFTPXY_VERSION}_windows_x86_64.exe
+          mv SFTPxy_windows_arm64.exe SFTPxy_${SFTPXY_VERSION}_windows_arm64.exe
+          mv SFTPxy_windows_x86.exe SFTPxy_${SFTPXY_VERSION}_windows_x86.exe
+          mv SFTPxy_portable.zip SFTPxy_${SFTPXY_VERSION}_windows_portable.zip
+          gh release create "${SFTPXY_VERSION}" -t "${SFTPXY_VERSION}" --draft
+          gh release upload "${SFTPXY_VERSION}" SFTPxy_*.xz --clobber
+          gh release upload "${SFTPXY_VERSION}" SFTPxy-*.rpm --clobber
+          gh release upload "${SFTPXY_VERSION}" SFTPxy_*.deb --clobber
+          gh release upload "${SFTPXY_VERSION}" SFTPxy_*.exe --clobber
+          gh release upload "${SFTPXY_VERSION}" SFTPxy_*.zip --clobber
+          gh release view "${SFTPXY_VERSION}"
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          SFTPXY_VERSION: ${{ steps.get_version.outputs.SFTPXY_VERSION }}

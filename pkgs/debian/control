@@ -1,0 +1,17 @@
+Source: SFTPxy
+Section: net
+Priority: optional
+Maintainer: jincaiw <https://github.com/jincaiw>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.1.2
+Homepage: https://github.com/jincaiw/sftpxy
+Vcs-Git: https://github.com/jincaiw/sftpxy.git
+
+Package: SFTPxy
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: bash-completion, mime-support
+Description: Full-featured and highly configurable SFTP server
+ SFTPxy has optional FTP/S and WebDAV support.
+ It can serve local filesystem, S3 (Compatible) Object Storage,
+ Google Cloud Storage, Azure Blob Storage, SFTP.

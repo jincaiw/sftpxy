@@ -1,0 +1,31 @@
+freebsd_task:
+  name: FreeBSD
+
+  matrix:
+    - name: FreeBSD 14.3
+      freebsd_instance:
+        image_family: freebsd-14-3
+
+  pkginstall_script:
+    - pkg update -f
+    - pkg install -y go126
+    - pkg install -y git
+
+  setup_script:
+    - ln -s /usr/local/bin/go126 /usr/local/bin/go
+    - pw groupadd SFTPxy
+    - pw useradd SFTPxy -g SFTPxy -w none -m
+    - mkdir /home/SFTPxy/SFTPxy
+    - cp -R . /home/SFTPxy/SFTPxy
+    - chown -R SFTPxy:SFTPxy /home/SFTPxy/SFTPxy
+
+  compile_script:
+    - su SFTPxy -c 'cd ~/SFTPxy && go build -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=`git describe --always --abbrev=8 --dirty` -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -o SFTPxy'
+    - su SFTPxy -c 'cd ~/SFTPxy/tests/eventsearcher && go build -trimpath -ldflags "-s -w" -o eventsearcher'
+    - su SFTPxy -c 'cd ~/SFTPxy/tests/ipfilter && go build -trimpath -ldflags "-s -w" -o ipfilter'
+
+  check_script:
+    - su SFTPxy -c 'cd ~/SFTPxy && ./SFTPxy initprovider && ./SFTPxy resetprovider --force'
+
+  test_script:
+    - su SFTPxy -c 'cd ~/SFTPxy && go test -v -tags nopgxregisterdefaulttypes,disable_grpc_modules -p 1 -timeout 20m ./... -coverprofile=coverage.txt -covermode=atomic'

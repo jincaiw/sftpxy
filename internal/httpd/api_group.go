@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: MIT
+
+package httpd
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/url"
+
+	"github.com/go-chi/render"
+
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/jwt"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+)
+
+func getGroups(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	limit, offset, order, err := getSearchFilters(w, r)
+	if err != nil {
+		return
+	}
+
+	groups, err := dataprovider.GetGroups(limit, offset, order, false)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", http.StatusInternalServerError)
+		return
+	}
+	render.JSON(w, r, groups)
+}
+
+func addGroup(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+
+	claims, err := jwt.FromContext(r.Context())
+	if err != nil || claims.Username == "" {
+		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
+		return
+	}
+	var group dataprovider.Group
+	err = render.DecodeJSON(r.Body, &group)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", http.StatusBadRequest)
+		return
+	}
+	err = dataprovider.AddGroup(&group, claims.Username, util.GetIPFromRemoteAddress(r.RemoteAddr), claims.Role)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	w.Header().Add("Location", fmt.Sprintf("%s/%s", groupPath, url.PathEscape(group.Name)))
+	renderGroup(w, r, group.Name, claims, http.StatusCreated)
+}
+
+func updateGroup(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	claims, err := jwt.FromContext(r.Context())
+	if err != nil || claims.Username == "" {
+		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
+		return
+	}
+
+	name := getURLParam(r, "name")
+	group, err := dataprovider.GroupExists(name)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+
+	var updatedGroup dataprovider.Group
+	err = render.DecodeJSON(r.Body, &updatedGroup)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", http.StatusBadRequest)
+		return
+	}
+	updatedGroup.ID = group.ID
+	updatedGroup.Name = group.Name
+	updatedGroup.UserSettings.FsConfig.SetEmptySecretsIfNil()
+	updateEncryptedSecrets(&updatedGroup.UserSettings.FsConfig, &group.UserSettings.FsConfig)
+	err = dataprovider.UpdateGroup(&updatedGroup, group.Users, claims.Username, util.GetIPFromRemoteAddress(r.RemoteAddr),
+		claims.Role)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	sendAPIResponse(w, r, nil, "Group updated", http.StatusOK)
+}
+
+func renderGroup(w http.ResponseWriter, r *http.Request, name string, claims *jwt.Claims, status int) {
+	group, err := dataprovider.GroupExists(name)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	if hideConfidentialData(claims, r) {
+		group.PrepareForRendering()
+	}
+	if status != http.StatusOK {
+		ctx := context.WithValue(r.Context(), render.StatusCtxKey, status)
+		render.JSON(w, r.WithContext(ctx), group)
+	} else {
+		render.JSON(w, r, group)
+	}
+}
+
+func getGroupByName(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	claims, err := jwt.FromContext(r.Context())
+	if err != nil || claims.Username == "" {
+		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
+		return
+	}
+	name := getURLParam(r, "name")
+	renderGroup(w, r, name, claims, http.StatusOK)
+}
+
+func deleteGroup(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
+	claims, err := jwt.FromContext(r.Context())
+	if err != nil || claims.Username == "" {
+		sendAPIResponse(w, r, err, "Invalid token claims", http.StatusBadRequest)
+		return
+	}
+	name := getURLParam(r, "name")
+	err = dataprovider.DeleteGroup(name, claims.Username, util.GetIPFromRemoteAddress(r.RemoteAddr), claims.Role)
+	if err != nil {
+		sendAPIResponse(w, r, err, "", getRespStatus(err))
+		return
+	}
+	sendAPIResponse(w, r, err, "Group deleted", http.StatusOK)
+}

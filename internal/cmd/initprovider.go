@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: MIT
+
+package cmd
+
+import (
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	"github.com/jincaiw/sftpxy/v2/internal/common"
+	"github.com/jincaiw/sftpxy/v2/internal/config"
+	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
+	"github.com/jincaiw/sftpxy/v2/internal/logger"
+	"github.com/jincaiw/sftpxy/v2/internal/plugin"
+	"github.com/jincaiw/sftpxy/v2/internal/service"
+	"github.com/jincaiw/sftpxy/v2/internal/util"
+)
+
+var (
+	initProviderCmd = &cobra.Command{
+		Use:   "initprovider",
+		Short: "Initialize and/or updates the configured data provider",
+		Long: `This command reads the data provider connection details from the specified
+configuration file and creates the initial structure or update the existing one,
+as needed.
+
+Some data providers such as bolt and memory does not require an initialization
+but they could require an update to the existing data after upgrading SFTPxy.
+
+For SQLite/bolt providers the database file will be auto-created if missing.
+
+For PostgreSQL and MySQL providers you need to create the configured database,
+this command will create/update the required tables as needed.
+
+To initialize/update the data provider from the configuration directory simply use:
+
+$ SFTPxy initprovider
+
+Any defined action is ignored.
+Please take a look at the usage below to customize the options.`,
+		Run: func(_ *cobra.Command, _ []string) {
+			logger.DisableLogger()
+			logger.EnableConsoleLogger(zerolog.DebugLevel)
+			configDir = util.CleanDirInput(configDir)
+			err := config.LoadConfig(configDir, configFile)
+			if err != nil {
+				logger.ErrorToConsole("Unable to initialize data provider, config load error: %v", err)
+				return
+			}
+			kmsConfig := config.GetKMSConfig()
+			err = kmsConfig.Initialize()
+			if err != nil {
+				logger.ErrorToConsole("Unable to initialize KMS: %v", err)
+				os.Exit(1)
+			}
+			if config.HasKMSPlugin() {
+				if err := plugin.Initialize(config.GetPluginsConfig(), "debug"); err != nil {
+					logger.ErrorToConsole("unable to initialize plugin system: %v", err)
+					os.Exit(1)
+				}
+				registerSignals()
+				defer plugin.Handler.Cleanup()
+			}
+
+			mfaConfig := config.GetMFAConfig()
+			err = mfaConfig.Initialize()
+			if err != nil {
+				logger.ErrorToConsole("Unable to initialize MFA: %v", err)
+				os.Exit(1)
+			}
+			providerConf := config.GetProviderConf()
+			// ignore actions
+			providerConf.Actions.Hook = ""
+			providerConf.Actions.ExecuteFor = nil
+			providerConf.Actions.ExecuteOn = nil
+			logger.InfoToConsole("Initializing provider: %q config file: %q", providerConf.Driver, viper.ConfigFileUsed())
+			err = dataprovider.InitializeDatabase(providerConf, configDir)
+			switch err {
+			case nil:
+				logger.InfoToConsole("Data provider successfully initialized/updated")
+			case dataprovider.ErrNoInitRequired:
+				logger.InfoToConsole("%v", err.Error())
+			default:
+				logger.ErrorToConsole("Unable to initialize/update the data provider: %v", err)
+				os.Exit(1)
+			}
+			if providerConf.Driver != dataprovider.MemoryDataProviderName && loadDataFrom != "" {
+				if err := common.Initialize(config.GetCommonConfig(), providerConf.GetShared()); err != nil {
+					logger.ErrorToConsole("%v", err)
+					os.Exit(1)
+				}
+				service := service.Service{
+					LoadDataFrom:      loadDataFrom,
+					LoadDataMode:      loadDataMode,
+					LoadDataQuotaScan: loadDataQuotaScan,
+					LoadDataClean:     loadDataClean,
+				}
+				if err = service.LoadInitialData(); err != nil {
+					logger.ErrorToConsole("Cannot load initial data: %v", err)
+					os.Exit(1)
+				}
+			}
+		},
+	}
+)
+
+func init() {
+	rootCmd.AddCommand(initProviderCmd)
+	addConfigFlags(initProviderCmd)
+	addBaseLoadDataFlags(initProviderCmd)
+}
