@@ -17,8 +17,8 @@ import (
 
 	"github.com/eikenb/pipeat"
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/pires/go-proxyproto"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

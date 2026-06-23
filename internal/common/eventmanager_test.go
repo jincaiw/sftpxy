@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/klauspost/compress/zip"
 	"github.com/jincaiw/sftpxy/sdk"
 	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/klauspost/compress/zip"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1939,7 +1939,7 @@ func TestQuotaActionsWithQuotaTrackDisabled(t *testing.T) {
 
 func TestScheduledActions(t *testing.T) {
 	startEventScheduler()
-	backupsPath := filepath.Join(os.TempDir(), "backups")
+	backupsPath := dataprovider.GetBackupsPath()
 	err := os.RemoveAll(backupsPath)
 	assert.NoError(t, err)
 	now := time.Now().UTC().Format(dateTimeMillisFormat)
@@ -1947,13 +1947,13 @@ func TestScheduledActions(t *testing.T) {
 	expectedDirPath := filepath.Join(backupsPath, fmt.Sprintf("%s_%s_%s", now[0:4], now[5:7], now[8:10]))
 
 	action1 := &dataprovider.BaseEventAction{
-		Name: "action1",
+		Name: "scheduled_actions_backup",
 		Type: dataprovider.ActionTypeBackup,
 	}
 	err = dataprovider.AddEventAction(action1, "", "", "")
 	assert.NoError(t, err)
 	action2 := &dataprovider.BaseEventAction{
-		Name: "action2",
+		Name: "scheduled_actions_mkdir",
 		Type: dataprovider.ActionTypeFilesystem,
 		Options: dataprovider.BaseEventActionOptions{
 			FsConfig: dataprovider.EventActionFilesystemConfig{
@@ -1965,7 +1965,7 @@ func TestScheduledActions(t *testing.T) {
 	err = dataprovider.AddEventAction(action2, "", "", "")
 	assert.NoError(t, err)
 	rule := &dataprovider.EventRule{
-		Name:    "rule",
+		Name:    "scheduled_actions_rule",
 		Status:  1,
 		Trigger: dataprovider.EventTriggerSchedule,
 		Conditions: dataprovider.EventConditions{

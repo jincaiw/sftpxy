@@ -40,9 +40,9 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"github.com/pkg/sftp"
 	"github.com/jincaiw/sftpxy/sdk"
 	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

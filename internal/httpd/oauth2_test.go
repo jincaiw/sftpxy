@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rs/xid"
 	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

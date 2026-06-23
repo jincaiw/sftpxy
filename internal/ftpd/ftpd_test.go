@@ -24,10 +24,10 @@ import (
 	"time"
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/jlaffaye/ftp"
-	"github.com/pkg/sftp"
 	"github.com/jincaiw/sftpxy/sdk"
 	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/jlaffaye/ftp"
+	"github.com/pkg/sftp"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/zerolog"

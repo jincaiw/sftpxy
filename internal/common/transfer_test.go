@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/sftp"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

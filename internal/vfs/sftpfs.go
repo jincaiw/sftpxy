@@ -24,10 +24,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/xid"
-	"github.com/jincaiw/sftpxy/sdk"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/jincaiw/sftpxy/v2/internal/kms"

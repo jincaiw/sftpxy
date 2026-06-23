@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/sftp"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/pkg/sftp"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

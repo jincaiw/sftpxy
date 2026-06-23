@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lithammer/shortuuid/v4"
-	"github.com/rs/xid"
 	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
+	"github.com/lithammer/shortuuid/v4"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

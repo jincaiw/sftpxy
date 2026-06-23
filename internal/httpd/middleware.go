@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/xid"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/rs/xid"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
 	"github.com/rs/xid"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/sftp"
 	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"

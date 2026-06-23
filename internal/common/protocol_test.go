@@ -27,11 +27,11 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jincaiw/sftpxy/sdk"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mhale/smtpd"
 	"github.com/minio/sio"
 	"github.com/pkg/sftp"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/xid"
@@ -9682,7 +9682,10 @@ func TestHTTPFs(t *testing.T) {
 	err = conn.CreateDir(httpFsWellKnowDir, false)
 	assert.NoError(t, err)
 
-	err = os.WriteFile(filepath.Join(os.TempDir(), "httpfs", defaultHTTPFsUsername, httpFsWellKnowDir, "file.txt"), []byte("data"), 0666)
+	wellKnownPath := filepath.Join(os.TempDir(), "httpfs", defaultHTTPFsUsername, httpFsWellKnowDir)
+	err = os.MkdirAll(wellKnownPath, os.ModePerm)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(wellKnownPath, "file.txt"), []byte("data"), 0666)
 	assert.NoError(t, err)
 
 	err = conn.Copy(httpFsWellKnowDir, httpFsWellKnowDir+"_copy")

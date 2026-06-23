@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/klauspost/compress/zip"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/xid"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/wneessen/go-mail"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

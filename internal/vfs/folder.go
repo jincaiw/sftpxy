@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rs/xid"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/rs/xid"
 )
 
 // BaseVirtualFolder defines the path for the virtual folder and the used quota limits.

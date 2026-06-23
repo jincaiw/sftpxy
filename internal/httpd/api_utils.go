@@ -24,9 +24,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 	"github.com/klauspost/compress/zip"
 	"github.com/rs/xid"
-	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

@@ -21,8 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pires/go-proxyproto"
 	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
+	"github.com/pires/go-proxyproto"
 
 	"github.com/jincaiw/sftpxy/v2/internal/command"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

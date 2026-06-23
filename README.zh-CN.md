@@ -1,24 +1,24 @@
 # SFTPxy
 
-[中文文档](./README.zh-CN.md)
+[English](./README.md)
 
 [![CI Status](https://github.com/jincaiw/sftpxy/workflows/CI/badge.svg)](https://github.com/jincaiw/sftpxy/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-SFTPxy is a production-ready file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends. It is designed for private infrastructure where a single binary, a systemd service, or a Docker container should be enough to run a stable transfer service.
+SFTPxy 是一个面向生产环境的文件传输服务，支持 SFTP、WebAdmin、WebClient、FTP/S、WebDAV、REST API 和可插拔存储后端。它适合部署在私有基础设施中，可以通过单文件二进制、systemd 服务或 Docker 容器稳定运行。
 
-Default service ports:
+默认服务端口：
 
-| Service | URL or port |
+| 服务 | URL 或端口 |
 | --- | --- |
-| WebAdmin and REST/OpenAPI | `http://localhost:30080/` |
+| WebAdmin 和 REST/OpenAPI | `http://localhost:30080/` |
 | WebClient | `http://localhost:30081/` |
 | SFTP | `30082` |
-| FTP passive range | `30085-30088` |
+| FTP 被动端口范围 | `30085-30088` |
 
-The web interface defaults to Chinese (`zh-CN`). English remains available from the language selector.
+Web 界面默认使用中文（`zh-CN`）。英文可以在语言选择器中切换。
 
-## Demo
+## 演示
 
 ![WebAdmin login](docs/screenshots/webadmin-login.png)
 
@@ -26,15 +26,15 @@ The web interface defaults to Chinese (`zh-CN`). English remains available from 
 
 ![Mobile WebAdmin login](docs/screenshots/mobile-webadmin-login.png)
 
-## Quick Start
+## 快速开始
 
-Download the latest release from [GitHub Releases](https://github.com/jincaiw/sftpxy/releases), extract the archive for your platform, and start the service:
+从 [GitHub Releases](https://github.com/jincaiw/sftpxy/releases) 下载最新版本，解压对应平台的归档文件，然后启动服务：
 
 ```bash
 ./SFTPxy serve -c .
 ```
 
-For a first local run you can create a default administrator:
+首次本地运行时，可以创建默认管理员：
 
 ```bash
 SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
@@ -44,11 +44,11 @@ SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
 ./SFTPxy serve -c .
 ```
 
-Open `http://localhost:30080/`, sign in, then change the generated bootstrap credentials before production use.
+打开 `http://localhost:30080/` 登录，然后在生产使用前修改启动时创建的临时凭据。
 
-## Linux Single-Binary Deployment
+## Linux 单文件部署
 
-This layout keeps executable, configuration, state, and user data separate:
+下面的目录结构将可执行文件、配置、状态和用户数据分开管理：
 
 ```bash
 sudo install -d -m 0755 /etc/SFTPxy /usr/local/bin /srv/SFTPxy/data
@@ -59,7 +59,7 @@ sudo cp SFTPxy.json /etc/SFTPxy/SFTPxy.json
 sudo cp -R templates static openapi /etc/SFTPxy/
 ```
 
-Create the first admin account on the first boot:
+首次启动时创建管理员账号：
 
 ```bash
 sudo SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
@@ -69,11 +69,11 @@ sudo SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
   /usr/local/bin/SFTPxy serve -c /etc/SFTPxy
 ```
 
-After the first login, stop the temporary foreground process and run SFTPxy using systemd.
+首次登录后，停止临时前台进程，并改用 systemd 运行 SFTPxy。
 
-## systemd Deployment
+## systemd 部署
 
-Create a dedicated account:
+创建专用系统账号：
 
 ```bash
 sudo useradd --system --home /var/lib/SFTPxy --shell /usr/sbin/nologin SFTPxy
@@ -82,7 +82,7 @@ sudo chown -R root:SFTPxy /etc/SFTPxy
 sudo chmod 0750 /etc/SFTPxy
 ```
 
-Install the service:
+安装服务：
 
 ```bash
 sudo cp init/SFTPxy.service /etc/systemd/system/SFTPxy.service
@@ -98,16 +98,16 @@ sudo systemctl enable --now SFTPxy
 sudo systemctl status SFTPxy
 ```
 
-After the default admin is created and a permanent password is set, remove the bootstrap variables from `/etc/SFTPxy/SFTPxy.env` and restart:
+默认管理员创建完成并设置正式密码后，删除 `/etc/SFTPxy/SFTPxy.env` 中的启动变量并重启：
 
 ```bash
 sudo sed -i '/CREATE_DEFAULT_ADMIN/d;/DEFAULT_ADMIN_/d;/SECRET_MIN_ENTROPY/d' /etc/SFTPxy/SFTPxy.env
 sudo systemctl restart SFTPxy
 ```
 
-## Docker Deployment
+## Docker 部署
 
-The Docker image is published as `qing1205/sftpxy`.
+Docker 镜像发布在 `qing1205/sftpxy`。
 
 ```bash
 docker run -d --name sftpxy \
@@ -124,7 +124,7 @@ docker run -d --name sftpxy \
   qing1205/sftpxy:v0.2.1
 ```
 
-Docker Compose:
+Docker Compose：
 
 ```yaml
 services:
@@ -151,43 +151,43 @@ volumes:
   sftpxy-data:
 ```
 
-## Release Artifacts
+## 发布产物
 
-Release `v0.2.1` provides:
+`v0.2.1` 发布包含：
 
-- Linux packages and portable archives.
-- Windows installers and portable archives.
-- Source archive with vendored dependencies.
-- Docker image `qing1205/sftpxy:v0.2.1` and `qing1205/sftpxy:latest`.
+- Linux 安装包和便携归档。
+- Windows 安装程序和便携归档。
+- 包含 vendored 依赖的源码归档。
+- Docker 镜像 `qing1205/sftpxy:v0.2.1` 和 `qing1205/sftpxy:latest`。
 
-## Standard Release Flow
+## 标准发布流程
 
-SFTPxy releases use semantic versions and the `vX.Y.Z` tag format. The release version is stored in `VERSION` without the leading `v`, and `internal/version/version.go` must match it.
+SFTPxy 使用语义化版本，Git 标签格式为 `vX.Y.Z`。发布版本写在 `VERSION` 文件中，不带前缀 `v`，并且必须与 `internal/version/version.go` 保持一致。
 
-Run the local release gate before tagging:
+打标签前先运行本地发布门禁：
 
 ```bash
 make release-dry-run VERSION=0.2.1
 ```
 
-When the dry run passes and the working tree is clean, create and push the release tag:
+本地流程通过且工作树干净后，创建并推送发布标签：
 
 ```bash
 make release-tag VERSION=0.2.1
 make release-push VERSION=0.2.1
 ```
 
-Pushing the tag starts the GitHub release workflow and the Docker workflow. See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for the full release checklist.
+推送标签会触发 GitHub release workflow 和 Docker workflow。完整发布检查清单见 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)。
 
-## Configuration Notes
+## 配置说明
 
-- Keep WebAdmin and REST/OpenAPI on `30080`.
-- Keep WebClient on `30081`.
-- Keep SFTP on `30082`.
-- Use `30085-30088` for passive FTP when FTP is enabled.
-- Prefer environment variables in `/etc/SFTPxy/SFTPxy.env` or Docker environment entries for secrets.
-- Do not commit local databases, logs, runtime keys, release bundles, or private configuration overrides.
+- WebAdmin 和 REST/OpenAPI 使用 `30080`。
+- WebClient 使用 `30081`。
+- SFTP 使用 `30082`。
+- 启用 FTP 时，建议使用 `30085-30088` 作为被动端口范围。
+- 密钥和密码等敏感配置优先放在 `/etc/SFTPxy/SFTPxy.env` 或 Docker 环境变量中。
+- 不要提交本地数据库、日志、运行时密钥、发布包或私有配置覆盖文件。
 
-## License
+## 许可证
 
-SFTPxy is licensed under the [MIT License](./LICENSE).
+SFTPxy 使用 [MIT License](./LICENSE) 授权。
