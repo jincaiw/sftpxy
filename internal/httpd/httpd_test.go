@@ -35,12 +35,12 @@ import (
 	"github.com/go-chi/render"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/lithammer/shortuuid/v4"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mhale/smtpd"
 	"github.com/pkg/sftp"
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/rs/xid"
@@ -329,6 +329,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
 	os.Setenv("SFTPXY_HTTPD__MAX_UPLOAD_FILE_SIZE", "1048576000")
 	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
+	os.Setenv("TMPDIR", "/tmp")
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.WarnToConsole("error loading configuration: %v", err)
@@ -344,6 +345,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 			Type:     "eventsearcher",
 			Cmd:      filepath.Join(wdPath, "..", "..", "tests", "eventsearcher", "eventsearcher"),
 			AutoMTLS: true,
+			EnvVars:  []string{"TMPDIR"},
 		},
 	}
 	if runtime.GOOS == osWindows {
@@ -13294,12 +13296,12 @@ func TestHealthCheck(t *testing.T) {
 func TestGetWebRootMock(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	rr := executeRequest(req)
-	checkResponseCode(t, http.StatusFound, rr)
-	assert.Equal(t, webClientLoginPath, rr.Header().Get("Location"))
+	checkResponseCode(t, http.StatusOK, rr)
+	assert.Contains(t, rr.Body.String(), webLoginPath)
 	req, _ = http.NewRequest(http.MethodGet, webBasePath, nil)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusFound, rr)
-	assert.Equal(t, webClientLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, webLoginPath, rr.Header().Get("Location"))
 	req, _ = http.NewRequest(http.MethodGet, webBasePathAdmin, nil)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusFound, rr)

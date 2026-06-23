@@ -2828,8 +2828,8 @@ func TestWebAdminRedirect(t *testing.T) {
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	testServer.Config.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
-	assert.Equal(t, webAdminLoginPath, rr.Header().Get("Location"))
+	assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	assert.Contains(t, rr.Body.String(), webAdminLoginPath)
 
 	req, err = http.NewRequest(http.MethodGet, webBasePath, nil)
 	assert.NoError(t, err)
@@ -2837,6 +2837,26 @@ func TestWebAdminRedirect(t *testing.T) {
 	testServer.Config.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
 	assert.Equal(t, webAdminLoginPath, rr.Header().Get("Location"))
+}
+
+func TestWebClientRootEntry(t *testing.T) {
+	b := Binding{
+		Address:         "",
+		Port:            30081,
+		EnableWebAdmin:  false,
+		EnableWebClient: true,
+		EnableRESTAPI:   false,
+	}
+	server := newHttpdServer(b, "../static", "", CorsConfig{}, "../openapi")
+	err := server.initializeRouter()
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, webRootPath, nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	server.router.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	assert.Contains(t, rr.Body.String(), webClientLoginPath)
 }
 
 func TestParseRangeRequests(t *testing.T) {

@@ -9,8 +9,8 @@ Default service ports:
 
 | Service | URL or port |
 | --- | --- |
-| WebAdmin and REST/OpenAPI | `http://localhost:30080/web/admin/login` |
-| WebClient | `http://localhost:30081/web/client/login` |
+| WebAdmin and REST/OpenAPI | `http://localhost:30080/` |
+| WebClient | `http://localhost:30081/` |
 | SFTP | `30082` |
 | FTP passive range | `30085-30088` |
 
@@ -42,7 +42,7 @@ SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
 ./SFTPxy serve -c .
 ```
 
-Open `http://localhost:30080/web/admin/login`, sign in, then change the generated bootstrap credentials before production use.
+Open `http://localhost:30080/`, sign in, then change the generated bootstrap credentials before production use.
 
 ## Linux Single-Binary Deployment
 
@@ -119,7 +119,7 @@ docker run -d --name sftpxy \
   -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
   -v sftpxy-config:/etc/SFTPxy \
   -v sftpxy-data:/srv/SFTPxy \
-  qing1205/sftpxy:v0.2.0
+  qing1205/sftpxy:v0.2.1
 ```
 
 Docker Compose:
@@ -127,7 +127,7 @@ Docker Compose:
 ```yaml
 services:
   sftpxy:
-    image: qing1205/sftpxy:v0.2.0
+    image: qing1205/sftpxy:v0.2.1
     container_name: sftpxy
     restart: unless-stopped
     ports:
@@ -151,12 +151,12 @@ volumes:
 
 ## Release Artifacts
 
-Release `v0.2.0` provides:
+Release `v0.2.1` provides:
 
 - Linux packages and portable archives.
 - Windows installers and portable archives.
 - Source archive with vendored dependencies.
-- Docker image `qing1205/sftpxy:v0.2.0` and `qing1205/sftpxy:latest`.
+- Docker image `qing1205/sftpxy:v0.2.1` and `qing1205/sftpxy:latest`.
 
 ## Configuration Notes
 

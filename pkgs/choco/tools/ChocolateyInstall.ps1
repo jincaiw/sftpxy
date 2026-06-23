@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference  = 'Stop'
 $packageName    = 'SFTPxy'
 $softwareName   = 'SFTPxy'
-$url            = 'https://github.com/jincaiw/sftpxy/releases/download/v0.2.0/SFTPxy_v0.2.0_windows_x86_64.exe'
+$url            = 'https://github.com/jincaiw/sftpxy/releases/download/v0.2.1/SFTPxy_v0.2.1_windows_x86_64.exe'
 $checksum       = ''
 $silentArgs     = '/VERYSILENT'
 $validExitCodes = @(0)
@@ -28,7 +28,7 @@ $EnvDirPath = Join-Path -Path $DefaultDataPath -ChildPath "env.d"
 Write-Output "---------------------------"
 Write-Output ""
 Write-Output "If you have never used SFTPxy before, the web administration panel is located here:"
-Write-Output "`thttp://localhost:30080/web/admin/login"
+Write-Output "`thttp://localhost:30080/"
 Write-Output ""
 Write-Output "Default web administration port:"
 Write-Output "`t30080"

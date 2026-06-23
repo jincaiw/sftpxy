@@ -1,6 +1,6 @@
-SFTPxy (0.2.0-1) stable; urgency=medium
+SFTPxy (0.2.1-1) stable; urgency=medium
 
-  * SFTPxy v0.2.0 production release.
+  * SFTPxy v0.2.1 production release.
   * Default ports: WebAdmin/REST 30080, WebClient 30081, SFTP 30082.
   * License changed to MIT.
 

@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/pires/go-proxyproto"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -388,11 +388,13 @@ func TestDefenderIntegration(t *testing.T) {
 
 	wdPath, err := os.Getwd()
 	require.NoError(t, err)
+	os.Setenv("TMPDIR", "/tmp")
 	pluginsConfig := []plugin.Config{
 		{
 			Type:     "ipfilter",
 			Cmd:      filepath.Join(wdPath, "..", "..", "tests", "ipfilter", "ipfilter"),
 			AutoMTLS: true,
+			EnvVars:  []string{"TMPDIR"},
 		},
 	}
 	if runtime.GOOS == osWindows {

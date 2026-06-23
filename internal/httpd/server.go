@@ -15,8 +15,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-jose/go-jose/v4"
-	"github.com/rs/cors"
 	"github.com/jincaiw/sftpxy/sdk"
+	"github.com/rs/cors"
 	"github.com/unrolled/secure"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
@@ -226,10 +226,10 @@ func (s *httpdServer) initializeRouter() error {
 		if s.binding.OIDC.isEnabled() {
 			s.router.Get(webOIDCRedirectPath, s.handleOIDCRedirect)
 		}
-		if s.enableWebClient {
+		if s.defaultWebEntryPath() == webClientLoginPath {
 			s.router.Get(webRootPath, func(w http.ResponseWriter, r *http.Request) {
 				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webClientLoginPath)
+				s.handleClientWebLogin(w, r)
 			})
 			s.router.Get(webBasePath, func(w http.ResponseWriter, r *http.Request) {
 				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
@@ -238,7 +238,7 @@ func (s *httpdServer) initializeRouter() error {
 		} else {
 			s.router.Get(webRootPath, func(w http.ResponseWriter, r *http.Request) {
 				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
-				s.redirectToWebPath(w, r, webAdminLoginPath)
+				s.handleWebAdminLogin(w, r)
 			})
 			s.router.Get(webBasePath, func(w http.ResponseWriter, r *http.Request) {
 				r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
@@ -250,6 +250,13 @@ func (s *httpdServer) initializeRouter() error {
 	s.setupWebClientRoutes()
 	s.setupWebAdminRoutes()
 	return nil
+}
+
+func (s *httpdServer) defaultWebEntryPath() string {
+	if s.enableWebAdmin && (s.enableRESTAPI || s.renderOpenAPI || !s.enableWebClient) {
+		return webAdminLoginPath
+	}
+	return webClientLoginPath
 }
 
 func (s *httpdServer) setupRESTAPIRoutes() {
