@@ -1,5 +1,9 @@
 name: Docker
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   #schedule:
   #  - cron: '0 4 * * *' # everyday at 4:00 AM UTC
@@ -173,7 +177,7 @@ jobs:
             org.opencontainers.image.title=SFTPxy
             org.opencontainers.image.description=Full-featured and highly configurable file transfer server: SFTP, HTTP/S,FTP/S, WebDAV
             org.opencontainers.image.url=https://github.com/jincaiw/sftpxy
-            org.opencontainers.image.documentation=https://github.com/jincaiw/sftpxy/blob/${{ github.sha }}/docker/README.md
+            org.opencontainers.image.documentation=https://sftp.mujizi.com/
             org.opencontainers.image.source=https://github.com/jincaiw/sftpxy
             org.opencontainers.image.version=${{ steps.info.outputs.version }}
             org.opencontainers.image.created=${{ steps.info.outputs.created }}
