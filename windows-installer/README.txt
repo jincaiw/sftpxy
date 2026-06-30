@@ -32,9 +32,13 @@ the env.d directory.
 This eliminates the need to merge your changes with the default configuration file after each update.
 You can simply replace the configuration file with the default one after updating SFTPxy.
 
-Source code and documentation:
+Source code:
 
 https://github.com/jincaiw/sftpxy
+
+Documentation:
+
+https://sftp.mujizi.com/
 
 If you find a bug please open an issue:
 

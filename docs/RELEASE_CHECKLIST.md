@@ -15,6 +15,9 @@ Use this checklist for every public SFTPxy release.
 - [ ] `README.md` is the default English README.
 - [ ] `README.md` links to `README.zh-CN.md` at the top.
 - [ ] `README.zh-CN.md` links back to `README.md`.
+- [ ] GitHub Pages docs include bilingual Linux, Windows, macOS, Docker, configuration, and user manual pages.
+- [ ] GitHub Pages static HTML pages exist for all docs sections.
+- [ ] GitHub Pages uses the custom domain `sftp.mujizi.com`.
 - [ ] Linux single-binary deployment is documented.
 - [ ] systemd deployment is documented.
 - [ ] Docker deployment is documented.

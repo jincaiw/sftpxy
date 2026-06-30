@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Docker Installation Guide</title><link rel="stylesheet" href="../../assets/site.css"></head>
+<body><main>
+<header><div><h1>Docker Installation Guide / Docker 安装指南</h1><p class="muted"><a href="../../">Home</a></p></div><div class="lang"><a class="pill" href="#en">English</a><a class="pill" href="#zh">中文</a></div></header>
+<section id="en" class="card"><h2>English</h2><p>Use Docker for a quick install and simple upgrades.</p><h3>Run directly</h3><pre><code>docker run -d --name sftpxy \
+  -p 30080:30080 \
+  -p 30081:30081 \
+  -p 30082:30082 \
+  -p 30085-30088:30085-30088 \
+  -e SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+  -e SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
+  -e SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
+  -v sftpxy-config:/etc/SFTPxy \
+  -v sftpxy-data:/srv/SFTPxy \
+  qing1205/sftpxy:latest</code></pre><h3>Docker Compose</h3><pre><code>services:
+  sftpxy:
+    image: qing1205/sftpxy:latest
+    container_name: sftpxy
+    restart: unless-stopped
+    ports:
+      - "30080:30080"
+      - "30081:30081"
+      - "30082:30082"
+      - "30085-30088:30085-30088"
+    environment:
+      SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "1"
+      SFTPXY_DEFAULT_ADMIN_USERNAME: admin
+      SFTPXY_DEFAULT_ADMIN_PASSWORD: replace-with-a-strong-password
+      SFTPXY_COMMON__SECRET_MIN_ENTROPY: "0"
+    volumes:
+      - sftpxy-config:/etc/SFTPxy
+      - sftpxy-data:/srv/SFTPxy
+
+volumes:
+  sftpxy-config:
+  sftpxy-data:</code></pre></section>
+<section id="zh" class="card"><h2>中文</h2><p>使用 Docker 可以更快完成安装，也更方便升级。</p><h3>直接运行</h3><pre><code>docker run -d --name sftpxy \
+  -p 30080:30080 \
+  -p 30081:30081 \
+  -p 30082:30082 \
+  -p 30085-30088:30085-30088 \
+  -e SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+  -e SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
+  -e SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
+  -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
+  -v sftpxy-config:/etc/SFTPxy \
+  -v sftpxy-data:/srv/SFTPxy \
+  qing1205/sftpxy:latest</code></pre><h3>Docker Compose</h3><pre><code>services:
+  sftpxy:
+    image: qing1205/sftpxy:latest
+    container_name: sftpxy
+    restart: unless-stopped
+    ports:
+      - "30080:30080"
+      - "30081:30081"
+      - "30082:30082"
+      - "30085-30088:30085-30088"
+    environment:
+      SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "1"
+      SFTPXY_DEFAULT_ADMIN_USERNAME: admin
+      SFTPXY_DEFAULT_ADMIN_PASSWORD: replace-with-a-strong-password
+      SFTPXY_COMMON__SECRET_MIN_ENTROPY: "0"
+    volumes:
+      - sftpxy-config:/etc/SFTPxy
+      - sftpxy-data:/srv/SFTPxy
+
+volumes:
+  sftpxy-config:
+  sftpxy-data:</code></pre></section>
+<footer>Docs site: <span class="code">https://sftp.mujizi.com/</span></footer></main></body></html>

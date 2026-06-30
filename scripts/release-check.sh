@@ -39,12 +39,24 @@ if ! rg -q "## v${version}" CHANGELOG.md; then
   exit 1
 fi
 
-for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.service; do
+for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.service docs/.nojekyll docs/CNAME docs/assets/site.css docs/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html .github/workflows/pages.yml; do
   if [[ ! -e "${path}" ]]; then
     echo "missing required release file: ${path}" >&2
     exit 1
   fi
 done
+
+for path in docs/index.md docs/install/linux.md docs/install/windows.md docs/install/macos.md docs/install/docker.md docs/manual.md docs/configuration.md; do
+  if ! rg -q '^## English$' "${path}" || ! rg -q '^## 中文$' "${path}"; then
+    echo "docs page must be bilingual: ${path}" >&2
+    exit 1
+  fi
+done
+
+if [[ "$(tr -d '[:space:]' < docs/CNAME)" != "sftp.mujizi.com" ]]; then
+  echo "docs/CNAME must contain sftp.mujizi.com" >&2
+  exit 1
+fi
 
 for shot in docs/screenshots/webadmin-login.png docs/screenshots/webclient-login.png docs/screenshots/mobile-webadmin-login.png; do
   if [[ ! -s "${shot}" ]]; then

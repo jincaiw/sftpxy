@@ -200,7 +200,7 @@ jobs:
           mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
           echo "For documentation please take a look here:" > output/README.txt
           echo "" >> output/README.txt
-          echo "https://github.com/jincaiw/sftpxy" >> output/README.txt
+          echo "https://sftp.mujizi.com/" >> output/README.txt
           cp LICENSE output/
           cp NOTICE output/
           cp SFTPxy output/
@@ -284,7 +284,7 @@ jobs:
           mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
           echo "For documentation please take a look here:" > output/README.txt
           echo "" >> output/README.txt
-          echo "https://github.com/jincaiw/sftpxy/blob/${SFTPXY_VERSION}/README.md" >> output/README.txt
+          echo "https://sftp.mujizi.com/" >> output/README.txt
           cp LICENSE output/
           cp NOTICE output/
           cp SFTPxy.json output/
@@ -334,7 +334,7 @@ jobs:
             mkdir -p output/{init,sqlite,bash_completion,zsh_completion}
             echo "For documentation please take a look here:" > output/README.txt
             echo "" >> output/README.txt
-            echo "https://github.com/jincaiw/sftpxy/blob/${{ steps.get_version.outputs.SFTPXY_VERSION }}/README.md" >> output/README.txt
+            echo "https://sftp.mujizi.com/" >> output/README.txt
             cp LICENSE output/
             cp NOTICE output/
             cp SFTPxy.json output/

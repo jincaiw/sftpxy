@@ -1,193 +1,44 @@
 # SFTPxy
 
-[中文文档](./README.zh-CN.md)
+[中文文档](./README.zh-CN.md) | [Docs](https://sftp.mujizi.com/) | [Releases](https://github.com/jincaiw/sftpxy/releases) | [Issues](https://github.com/jincaiw/sftpxy/issues)
 
-[![CI Status](https://github.com/jincaiw/sftpxy/workflows/CI/badge.svg)](https://github.com/jincaiw/sftpxy/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+SFTPxy is a self-hosted file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends.
 
-SFTPxy is a production-ready file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends. It is designed for private infrastructure where a single binary, a systemd service, or a Docker container should be enough to run a stable transfer service.
+> If the docs site is not reachable, confirm GitHub Pages is enabled with the custom domain `sftp.mujizi.com` in repository settings.
 
-Default service ports:
+## Highlights
+
+- Single binary, installer, or Docker deployment
+- Linux, Windows, and macOS support
+- Web admin, web client, and OpenAPI
+- Easy-to-follow install and user guides
+
+## Quick start
+
+1. Download the latest release for your platform.
+2. Read the matching install guide:
+   - [Linux](https://sftp.mujizi.com/install/linux/)
+   - [Windows](https://sftp.mujizi.com/install/windows/)
+   - [macOS](https://sftp.mujizi.com/install/macos/)
+   - [Docker](https://sftp.mujizi.com/install/docker/)
+3. Start the service.
+4. Open `http://localhost:30080/`.
+
+## Default ports
 
 | Service | URL or port |
 | --- | --- |
-| WebAdmin and REST/OpenAPI | `http://localhost:30080/` |
+| WebAdmin + REST/OpenAPI | `http://localhost:30080/` |
 | WebClient | `http://localhost:30081/` |
 | SFTP | `30082` |
 | FTP passive range | `30085-30088` |
 
-The web interface defaults to Chinese (`zh-CN`). English remains available from the language selector.
+## More docs
 
-## Demo
-
-![WebAdmin login](docs/screenshots/webadmin-login.png)
-
-![WebClient login](docs/screenshots/webclient-login.png)
-
-![Mobile WebAdmin login](docs/screenshots/mobile-webadmin-login.png)
-
-## Quick Start
-
-Download the latest release from [GitHub Releases](https://github.com/jincaiw/sftpxy/releases), extract the archive for your platform, and start the service:
-
-```bash
-./SFTPxy serve -c .
-```
-
-For a first local run you can create a default administrator:
-
-```bash
-SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
-SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
-SFTPXY_DEFAULT_ADMIN_PASSWORD='change-this-password' \
-SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
-./SFTPxy serve -c .
-```
-
-Open `http://localhost:30080/`, sign in, then change the generated bootstrap credentials before production use.
-
-## Linux Single-Binary Deployment
-
-This layout keeps executable, configuration, state, and user data separate:
-
-```bash
-sudo install -d -m 0755 /etc/SFTPxy /usr/local/bin /srv/SFTPxy/data
-sudo install -d -m 0750 /var/lib/SFTPxy /var/log/SFTPxy
-
-sudo install -m 0755 SFTPxy /usr/local/bin/SFTPxy
-sudo cp SFTPxy.json /etc/SFTPxy/SFTPxy.json
-sudo cp -R templates static openapi /etc/SFTPxy/
-```
-
-Create the first admin account on the first boot:
-
-```bash
-sudo SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
-  SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
-  SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
-  /usr/local/bin/SFTPxy serve -c /etc/SFTPxy
-```
-
-After the first login, stop the temporary foreground process and run SFTPxy using systemd.
-
-## systemd Deployment
-
-Create a dedicated account:
-
-```bash
-sudo useradd --system --home /var/lib/SFTPxy --shell /usr/sbin/nologin SFTPxy
-sudo chown -R SFTPxy:SFTPxy /var/lib/SFTPxy /srv/SFTPxy /var/log/SFTPxy
-sudo chown -R root:SFTPxy /etc/SFTPxy
-sudo chmod 0750 /etc/SFTPxy
-```
-
-Install the service:
-
-```bash
-sudo cp init/SFTPxy.service /etc/systemd/system/SFTPxy.service
-sudo tee /etc/SFTPxy/SFTPxy.env >/dev/null <<'EOF'
-SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1
-SFTPXY_DEFAULT_ADMIN_USERNAME=admin
-SFTPXY_DEFAULT_ADMIN_PASSWORD=replace-with-a-strong-password
-SFTPXY_COMMON__SECRET_MIN_ENTROPY=0
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now SFTPxy
-sudo systemctl status SFTPxy
-```
-
-After the default admin is created and a permanent password is set, remove the bootstrap variables from `/etc/SFTPxy/SFTPxy.env` and restart:
-
-```bash
-sudo sed -i '/CREATE_DEFAULT_ADMIN/d;/DEFAULT_ADMIN_/d;/SECRET_MIN_ENTROPY/d' /etc/SFTPxy/SFTPxy.env
-sudo systemctl restart SFTPxy
-```
-
-## Docker Deployment
-
-The Docker image is published as `qing1205/sftpxy`.
-
-```bash
-docker run -d --name sftpxy \
-  -p 30080:30080 \
-  -p 30081:30081 \
-  -p 30082:30082 \
-  -p 30085-30088:30085-30088 \
-  -e SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
-  -e SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
-  -e SFTPXY_DEFAULT_ADMIN_PASSWORD='replace-with-a-strong-password' \
-  -e SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
-  -v sftpxy-config:/etc/SFTPxy \
-  -v sftpxy-data:/srv/SFTPxy \
-  qing1205/sftpxy:v0.2.1
-```
-
-Docker Compose:
-
-```yaml
-services:
-  sftpxy:
-    image: qing1205/sftpxy:v0.2.1
-    container_name: sftpxy
-    restart: unless-stopped
-    ports:
-      - "30080:30080"
-      - "30081:30081"
-      - "30082:30082"
-      - "30085-30088:30085-30088"
-    environment:
-      SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "1"
-      SFTPXY_DEFAULT_ADMIN_USERNAME: admin
-      SFTPXY_DEFAULT_ADMIN_PASSWORD: replace-with-a-strong-password
-      SFTPXY_COMMON__SECRET_MIN_ENTROPY: "0"
-    volumes:
-      - sftpxy-config:/etc/SFTPxy
-      - sftpxy-data:/srv/SFTPxy
-
-volumes:
-  sftpxy-config:
-  sftpxy-data:
-```
-
-## Release Artifacts
-
-Release `v0.2.1` provides:
-
-- Linux packages and portable archives.
-- Windows installers and portable archives.
-- Source archive with vendored dependencies.
-- Docker image `qing1205/sftpxy:v0.2.1` and `qing1205/sftpxy:latest`.
-
-## Standard Release Flow
-
-SFTPxy releases use semantic versions and the `vX.Y.Z` tag format. The release version is stored in `VERSION` without the leading `v`, and `internal/version/version.go` must match it.
-
-Run the local release gate before tagging:
-
-```bash
-make release-dry-run VERSION=0.2.1
-```
-
-When the dry run passes and the working tree is clean, create and push the release tag:
-
-```bash
-make release-tag VERSION=0.2.1
-make release-push VERSION=0.2.1
-```
-
-Pushing the tag starts the GitHub release workflow and the Docker workflow. See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for the full release checklist.
-
-## Configuration Notes
-
-- Keep WebAdmin and REST/OpenAPI on `30080`.
-- Keep WebClient on `30081`.
-- Keep SFTP on `30082`.
-- Use `30085-30088` for passive FTP when FTP is enabled.
-- Prefer environment variables in `/etc/SFTPxy/SFTPxy.env` or Docker environment entries for secrets.
-- Do not commit local databases, logs, runtime keys, release bundles, or private configuration overrides.
+- [User manual](https://sftp.mujizi.com/manual/)
+- [Configuration notes](https://sftp.mujizi.com/configuration/)
+- [Release checklist](./docs/RELEASE_CHECKLIST.md)
 
 ## License
 
-SFTPxy is licensed under the [MIT License](./LICENSE).
+MIT License.

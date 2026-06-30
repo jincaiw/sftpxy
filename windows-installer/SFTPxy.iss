@@ -19,7 +19,7 @@
 #endif
 #define MyAppURL "https://github.com/jincaiw/sftpxy"
 #define MyVersionInfo StringChange(MyAppVersion,"v","")
-#define DocURL "https://github.com/jincaiw/sftpxy#readme"
+#define DocURL "https://sftp.mujizi.com/"
 #define MyAppExeName "SFTPxy.exe"
 #define MyAppDir "..\output"
 #define MyOutputDir ".."
