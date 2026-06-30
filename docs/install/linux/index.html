@@ -2,25 +2,27 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linux Installation Guide</title><link rel="stylesheet" href="../../assets/site.css"></head>
 <body><main>
-<header><div><h1>Linux Installation Guide / Linux 安装指南</h1><p class="muted"><a href="../../">Home</a></p></div><div class="lang"><a class="pill" href="#en">English</a><a class="pill" href="#zh">中文</a></div></header>
-<section id="en" class="card"><h2>English</h2><p>SFTPxy runs as a portable binary or a systemd service.</p><h3>Portable run</h3><ol><li>Download the Linux archive that matches your CPU: <span class="code">linux_amd64</span> or <span class="code">linux_arm64</span>.</li><li>Extract the archive.</li><li>Start SFTPxy.</li></ol><pre><code>./SFTPxy serve -c .</code></pre><p>For a first test, create a temporary admin account:</p><pre><code>SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+<header class="site-header"><div><h1>Linux Installation Guide / Linux 安装指南</h1><p class="muted"><a href="../../">Home</a> · <a href="../../downloads/">Downloads</a> · <a href="../">Install guides</a></p></div><div class="lang"><a class="pill" href="#en">English</a><a class="pill" href="#zh">中文</a></div></header>
+<section id="en" class="card"><h2>English</h2><p>Use DEB/RPM packages when possible. Use the portable archive only when you do not want system packages.</p><h3 id="deb">DEB package: Debian / Ubuntu</h3><ol><li>Download <span class="code">SFTPxy_0.2.2-1_amd64.deb</span> from <a href="../../downloads/">Downloads</a>.</li><li>Install it:</li></ol><pre><code>sudo apt install ./SFTPxy_0.2.2-1_amd64.deb
+sudo systemctl enable --now SFTPxy
+sudo systemctl status SFTPxy</code></pre><h3 id="rpm">RPM package: RHEL / Fedora / Rocky / openSUSE</h3><ol><li>Download <span class="code">SFTPxy-0.2.2-1.x86_64.rpm</span>.</li><li>Install it:</li></ol><pre><code>sudo dnf install ./SFTPxy-0.2.2-1.x86_64.rpm
+sudo systemctl enable --now SFTPxy
+sudo systemctl status SFTPxy</code></pre><p>If your distro uses yum:</p><pre><code>sudo yum install ./SFTPxy-0.2.2-1.x86_64.rpm</code></pre><h3 id="portable">Portable archive</h3><pre><code>tar -xf SFTPxy_v0.2.2_linux_x86_64.tar.xz
+cd SFTPxy_v0.2.2_linux_x86_64
+./SFTPxy serve -c .</code></pre><h3>First login</h3><p>Open <span class="code">http://localhost:30080/</span>. If this is your first local run and no admin exists, start once with bootstrap variables:</p><pre><code>SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
 SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
 SFTPXY_DEFAULT_ADMIN_PASSWORD='change-this-password' \
 SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
-./SFTPxy serve -c .</code></pre><h3>systemd service</h3><p>Typical layout:</p><pre><code>sudo install -d -m 0755 /etc/SFTPxy /usr/local/bin /srv/SFTPxy/data
-sudo install -d -m 0750 /var/lib/SFTPxy /var/log/SFTPxy
-sudo install -m 0755 SFTPxy /usr/local/bin/SFTPxy
-sudo cp SFTPxy.json /etc/SFTPxy/SFTPxy.json
-sudo cp -R templates static openapi /etc/SFTPxy/
-sudo cp init/SFTPxy.service /etc/systemd/system/SFTPxy.service</code></pre><p>Then add <span class="code">/etc/SFTPxy/SFTPxy.env</span>, enable the service, and remove bootstrap variables after first login.</p><h3>Default paths</h3><ul><li>Config: <span class="code">/etc/SFTPxy</span> or <span class="code">/usr/local/etc/SFTPxy</span></li><li>Data: <span class="code">/var/lib/SFTPxy</span></li><li>Logs: <span class="code">/var/log/SFTPxy</span></li></ul></section>
-<section id="zh" class="card"><h2>中文</h2><p>SFTPxy 可以直接用可执行文件运行，也可以作为 systemd 服务运行。</p><h3>便携运行</h3><ol><li>下载与你的 CPU 匹配的 Linux 压缩包：<span class="code">linux_amd64</span> 或 <span class="code">linux_arm64</span>。</li><li>解压文件。</li><li>启动 SFTPxy。</li></ol><pre><code>./SFTPxy serve -c .</code></pre><p>首次测试时可临时创建管理员账号：</p><pre><code>SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
+./SFTPxy serve -c .</code></pre></section>
+<section id="zh" class="card"><h2>中文</h2><p>推荐优先使用 DEB/RPM 安装包；不想安装到系统时再使用便携压缩包。</p><h3>DEB 包：Debian / Ubuntu</h3><ol><li>从 <a href="../../downloads/">下载页</a> 获取 <span class="code">SFTPxy_0.2.2-1_amd64.deb</span>。</li><li>执行安装：</li></ol><pre><code>sudo apt install ./SFTPxy_0.2.2-1_amd64.deb
+sudo systemctl enable --now SFTPxy
+sudo systemctl status SFTPxy</code></pre><h3>RPM 包：RHEL / Fedora / Rocky / openSUSE</h3><ol><li>下载 <span class="code">SFTPxy-0.2.2-1.x86_64.rpm</span>。</li><li>执行安装：</li></ol><pre><code>sudo dnf install ./SFTPxy-0.2.2-1.x86_64.rpm
+sudo systemctl enable --now SFTPxy
+sudo systemctl status SFTPxy</code></pre><p>如果系统使用 yum：</p><pre><code>sudo yum install ./SFTPxy-0.2.2-1.x86_64.rpm</code></pre><h3>便携压缩包</h3><pre><code>tar -xf SFTPxy_v0.2.2_linux_x86_64.tar.xz
+cd SFTPxy_v0.2.2_linux_x86_64
+./SFTPxy serve -c .</code></pre><h3>首次登录</h3><p>打开 <span class="code">http://localhost:30080/</span>。如果首次本地运行且还没有管理员，可以临时使用下面变量启动：</p><pre><code>SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN=1 \
 SFTPXY_DEFAULT_ADMIN_USERNAME=admin \
 SFTPXY_DEFAULT_ADMIN_PASSWORD='change-this-password' \
 SFTPXY_COMMON__SECRET_MIN_ENTROPY=0 \
-./SFTPxy serve -c .</code></pre><h3>systemd 服务</h3><p>常见目录结构：</p><pre><code>sudo install -d -m 0755 /etc/SFTPxy /usr/local/bin /srv/SFTPxy/data
-sudo install -d -m 0750 /var/lib/SFTPxy /var/log/SFTPxy
-sudo install -m 0755 SFTPxy /usr/local/bin/SFTPxy
-sudo cp SFTPxy.json /etc/SFTPxy/SFTPxy.json
-sudo cp -R templates static openapi /etc/SFTPxy/
-sudo cp init/SFTPxy.service /etc/systemd/system/SFTPxy.service</code></pre><p>然后创建 <span class="code">/etc/SFTPxy/SFTPxy.env</span>，启用服务，首次登录后删除临时启动变量。</p><h3>默认路径</h3><ul><li>配置：<span class="code">/etc/SFTPxy</span> 或 <span class="code">/usr/local/etc/SFTPxy</span></li><li>数据：<span class="code">/var/lib/SFTPxy</span></li><li>日志：<span class="code">/var/log/SFTPxy</span></li></ul></section>
+./SFTPxy serve -c .</code></pre></section>
 <footer>Docs site: <span class="code">https://sftp.mujizi.com/</span></footer></main></body></html>

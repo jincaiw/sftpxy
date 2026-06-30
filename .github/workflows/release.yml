@@ -217,10 +217,12 @@ jobs:
           cd output
           tar cJvf ../SFTPxy_${SFTPXY_VERSION}_macOS_x86_64.tar.xz *
           cd ..
+          hdiutil create -volname "SFTPxy ${SFTPXY_VERSION} x86_64" -srcfolder output -ov -format UDZO "SFTPxy_${SFTPXY_VERSION}_macOS_x86_64.dmg"
           cp SFTPxy_arm64 output/SFTPxy
           cd output
           tar cJvf ../SFTPxy_${SFTPXY_VERSION}_macOS_arm64.tar.xz *
           cd ..
+          hdiutil create -volname "SFTPxy ${SFTPXY_VERSION} arm64" -srcfolder output -ov -format UDZO "SFTPxy_${SFTPXY_VERSION}_macOS_arm64.dmg"
         env:
           SFTPXY_VERSION: ${{ steps.get_version.outputs.VERSION }}
 
@@ -236,6 +238,20 @@ jobs:
         with:
           name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.tar.xz
           path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.tar.xz
+          retention-days: 1
+
+      - name: Upload macOS x86_64 DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_x86_64.dmg
+          path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_x86_64.dmg
+          retention-days: 1
+
+      - name: Upload macOS arm64 DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.dmg
+          path: ./SFTPxy_${{ steps.get_version.outputs.VERSION }}_macOS_arm64.dmg
           retention-days: 1
 
   prepare-linux:
@@ -466,6 +482,16 @@ jobs:
         with:
           name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_macOS_arm64.tar.xz
 
+      - name: Download macOS x86_64 DMG artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_macOS_x86_64.dmg
+
+      - name: Download macOS arm64 DMG artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: SFTPxy_${{ steps.get_version.outputs.SFTPXY_VERSION }}_macOS_arm64.dmg
+
       - name: Download Windows installer x86_64 artifact
         uses: actions/download-artifact@v8
         with:
@@ -499,6 +525,7 @@ jobs:
           mv SFTPxy_portable.zip SFTPxy_${SFTPXY_VERSION}_windows_portable.zip
           gh release view "${SFTPXY_VERSION}" >/dev/null 2>&1 || gh release create "${SFTPXY_VERSION}" -t "${SFTPXY_VERSION}" --draft
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.xz --clobber
+          gh release upload "${SFTPXY_VERSION}" SFTPxy_*.dmg --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy-*.rpm --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.deb --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.exe --clobber

@@ -39,14 +39,14 @@ if ! rg -q "## v${version}" CHANGELOG.md; then
   exit 1
 fi
 
-for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.service docs/.nojekyll docs/CNAME docs/assets/site.css docs/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html .github/workflows/pages.yml; do
+for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.service docs/.nojekyll docs/CNAME docs/assets/site.css docs/index.html docs/downloads/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html .github/workflows/pages.yml; do
   if [[ ! -e "${path}" ]]; then
     echo "missing required release file: ${path}" >&2
     exit 1
   fi
 done
 
-for path in docs/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html; do
+for path in docs/downloads/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html; do
   if ! rg -q '<h2>English</h2>' "${path}" || ! rg -q '<h2>中文</h2>' "${path}"; then
     echo "docs page must be bilingual: ${path}" >&2
     exit 1

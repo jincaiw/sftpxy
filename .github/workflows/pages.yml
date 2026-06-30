@@ -37,6 +37,7 @@ jobs:
           cp docs/CNAME _site/
           cp docs/.nojekyll _site/
           cp -R docs/assets _site/
+          cp -R docs/downloads _site/
           cp -R docs/install _site/
           cp -R docs/manual _site/
           cp -R docs/configuration _site/

@@ -1,6 +1,6 @@
 # SFTPxy
 
-[English](./README.md) | [文档](https://sftp.mujizi.com/) | [Releases](https://github.com/jincaiw/sftpxy/releases) | [Issues](https://github.com/jincaiw/sftpxy/issues)
+[English](./README.md) | [文档](https://sftp.mujizi.com/) | [下载](https://sftp.mujizi.com/downloads/) | [Releases](https://github.com/jincaiw/sftpxy/releases) | [Issues](https://github.com/jincaiw/sftpxy/issues)
 
 SFTPxy 是一个自托管文件传输服务，支持 SFTP、WebAdmin、WebClient、FTP/S、WebDAV、REST API 和可插拔存储后端。
 
@@ -15,14 +15,15 @@ SFTPxy 是一个自托管文件传输服务，支持 SFTP、WebAdmin、WebClient
 
 ## 快速开始
 
-1. 下载对应平台的最新版本。
-2. 查看安装指南：
+1. 打开 [下载页](https://sftp.mujizi.com/downloads/)。
+2. 下载对应平台安装程序：DEB/RPM、Windows EXE 或 macOS DMG。
+3. 查看安装指南：
    - [Linux](https://sftp.mujizi.com/install/linux/)
    - [Windows](https://sftp.mujizi.com/install/windows/)
    - [macOS](https://sftp.mujizi.com/install/macos/)
    - [Docker](https://sftp.mujizi.com/install/docker/)
-3. 启动服务。
-4. 打开 `http://localhost:30080/`。
+4. 启动服务。
+5. 打开 `http://localhost:30080/`。
 
 ## 默认端口
 

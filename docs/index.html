@@ -8,80 +8,62 @@
 </head>
 <body>
 <main>
-  <header>
+  <header class="site-header">
     <div>
-      <h1>SFTPxy Docs / SFTPxy 文档</h1>
-      <div class="toplinks">
-        <span class="tag">v0.2.2</span>
-        <span class="tag">Bilingual</span>
-        <a href="https://github.com/jincaiw/sftpxy/releases/latest">Latest release</a>
-        <a href="https://github.com/jincaiw/sftpxy">Source</a>
-      </div>
+      <h1>SFTPxy</h1>
+      <p class="muted">Simple self-hosted file transfer: SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs.</p>
     </div>
-    <div class="lang"><a class="pill" href="#en">English</a><a class="pill" href="#zh">中文</a></div>
+    <nav class="toplinks" aria-label="Main navigation">
+      <a href="downloads/">Downloads</a>
+      <a href="install/">Install</a>
+      <a href="manual/">Manual</a>
+      <a href="configuration/">Config</a>
+      <a href="https://github.com/jincaiw/sftpxy">GitHub</a>
+    </nav>
   </header>
 
   <section class="hero">
-    <p class="pill">Install portal / 安装入口</p>
-    <h2>Get SFTPxy running quickly on Linux, Windows, macOS, or Docker.</h2>
-    <p class="muted">Choose your platform, follow the guide, then open the web admin or web client. No source build is needed for normal use.</p>
-    <div class="actions">
-      <a class="btn" href="install/">Open install guides</a>
-      <a class="btn secondary" href="manual/">User manual</a>
-      <a class="btn secondary" href="configuration/">Configuration notes</a>
-    </div>
-  </section>
-
-  <section id="en" class="card">
-    <h2>English</h2>
-    <div class="split">
-      <div>
-        <h3>Start here</h3>
-        <ul class="list-clean">
-          <li><a href="install/linux/">Linux installation</a></li>
-          <li><a href="install/windows/">Windows installation</a></li>
-          <li><a href="install/macos/">macOS installation</a></li>
-          <li><a href="install/docker/">Docker installation</a></li>
-          <li><a href="manual/">User manual</a></li>
-          <li><a href="configuration/">Configuration notes</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3>Common URLs</h3>
-        <table>
-          <tr><th>Item</th><th>URL</th></tr>
-          <tr><td>WebAdmin</td><td><span class="code">http://localhost:30080/web/admin/login</span></td></tr>
-          <tr><td>WebClient</td><td><span class="code">http://localhost:30081/web/client/login</span></td></tr>
-          <tr><td>OpenAPI</td><td><span class="code">http://localhost:30080/openapi/</span></td></tr>
-        </table>
+    <div class="hero-copy">
+      <p class="pill">v0.2.2 · Bilingual docs / 双语文档</p>
+      <h2>Install SFTPxy in minutes.</h2>
+      <p>Download the installer for your platform, follow the short guide, then open WebAdmin at <span class="code">http://localhost:30080/</span>.</p>
+      <div class="actions">
+        <a class="btn" href="downloads/">Download installers</a>
+        <a class="btn secondary" href="install/">Installation guides</a>
       </div>
     </div>
   </section>
 
-  <section id="zh" class="card">
-    <h2>中文</h2>
-    <div class="split">
-      <div>
-        <h3>从这里开始</h3>
-        <ul class="list-clean">
-          <li><a href="install/linux/">Linux 安装</a></li>
-          <li><a href="install/windows/">Windows 安装</a></li>
-          <li><a href="install/macos/">macOS 安装</a></li>
-          <li><a href="install/docker/">Docker 安装</a></li>
-          <li><a href="manual/">用户手册</a></li>
-          <li><a href="configuration/">配置说明</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3>常用地址</h3>
-        <table>
-          <tr><th>项目</th><th>地址</th></tr>
-          <tr><td>WebAdmin</td><td><span class="code">http://localhost:30080/web/admin/login</span></td></tr>
-          <tr><td>WebClient</td><td><span class="code">http://localhost:30081/web/client/login</span></td></tr>
-          <tr><td>OpenAPI</td><td><span class="code">http://localhost:30080/openapi/</span></td></tr>
-        </table>
-      </div>
-    </div>
+  <section class="grid" aria-label="Quick links">
+    <article class="card">
+      <h3>1. Download / 下载</h3>
+      <p>Pick RPM, DEB, Windows EXE, macOS DMG, or portable archives.</p>
+      <p>选择 RPM、DEB、Windows EXE、macOS DMG 或便携压缩包。</p>
+      <a class="btn secondary" href="downloads/">Open downloads</a>
+    </article>
+    <article class="card">
+      <h3>2. Install / 安装</h3>
+      <p>Use the platform guide for copy-paste install commands.</p>
+      <p>查看平台指南，按步骤复制命令即可安装。</p>
+      <a class="btn secondary" href="install/">Open install guides</a>
+    </article>
+    <article class="card">
+      <h3>3. Use / 使用</h3>
+      <p>Manage users in WebAdmin and upload/share files in WebClient.</p>
+      <p>在 WebAdmin 管理用户，在 WebClient 上传和分享文件。</p>
+      <a class="btn secondary" href="manual/">Open manual</a>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Default service URLs / 默认服务地址</h2>
+    <table>
+      <tr><th>Service / 服务</th><th>URL or port / 地址或端口</th></tr>
+      <tr><td>WebAdmin + REST/OpenAPI</td><td><span class="code">http://localhost:30080/</span></td></tr>
+      <tr><td>WebClient</td><td><span class="code">http://localhost:30081/</span></td></tr>
+      <tr><td>SFTP</td><td><span class="code">30082</span></td></tr>
+      <tr><td>FTP passive range / FTP 被动端口</td><td><span class="code">30085-30088</span></td></tr>
+    </table>
   </section>
 
   <footer>Docs site: <span class="code">https://sftp.mujizi.com/</span></footer>

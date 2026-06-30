@@ -1,6 +1,6 @@
 # SFTPxy
 
-[中文文档](./README.zh-CN.md) | [Docs](https://sftp.mujizi.com/) | [Releases](https://github.com/jincaiw/sftpxy/releases) | [Issues](https://github.com/jincaiw/sftpxy/issues)
+[中文文档](./README.zh-CN.md) | [Docs](https://sftp.mujizi.com/) | [Downloads](https://sftp.mujizi.com/downloads/) | [Releases](https://github.com/jincaiw/sftpxy/releases) | [Issues](https://github.com/jincaiw/sftpxy/issues)
 
 SFTPxy is a self-hosted file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends.
 
@@ -15,14 +15,15 @@ Current release: `v0.2.2`.
 
 ## Quick start
 
-1. Download the latest release for your platform.
-2. Read the matching install guide:
+1. Open the [Downloads](https://sftp.mujizi.com/downloads/) page.
+2. Download the installer for your platform: DEB/RPM, Windows EXE, or macOS DMG.
+3. Read the matching install guide:
    - [Linux](https://sftp.mujizi.com/install/linux/)
    - [Windows](https://sftp.mujizi.com/install/windows/)
    - [macOS](https://sftp.mujizi.com/install/macos/)
    - [Docker](https://sftp.mujizi.com/install/docker/)
-3. Start the service.
-4. Open `http://localhost:30080/`.
+4. Start the service.
+5. Open `http://localhost:30080/`.
 
 ## Default ports
 

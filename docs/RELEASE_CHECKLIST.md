@@ -15,8 +15,9 @@ Use this checklist for every public SFTPxy release.
 - [ ] `README.md` is the default English README.
 - [ ] `README.md` links to `README.zh-CN.md` at the top.
 - [ ] `README.zh-CN.md` links back to `README.md`.
-- [ ] GitHub Pages docs include bilingual Linux, Windows, macOS, Docker, configuration, and user manual pages.
+- [ ] GitHub Pages docs include bilingual downloads, Linux, Windows, macOS, Docker, configuration, and user manual pages.
 - [ ] GitHub Pages static HTML pages exist for all docs sections.
+- [ ] Linux DEB/RPM, Windows EXE, and macOS DMG install steps are documented.
 - [ ] GitHub Pages uses the custom domain `sftp.mujizi.com`.
 - [ ] Linux single-binary deployment is documented.
 - [ ] systemd deployment is documented.
@@ -36,7 +37,7 @@ Use this checklist for every public SFTPxy release.
 - [ ] `make release-tag VERSION=X.Y.Z` creates `vX.Y.Z`.
 - [ ] `git push origin master refs/tags/vX.Y.Z` succeeds.
 - [ ] GitHub Actions release workflow completes.
-- [ ] Release assets include Linux, Windows, source, and checksums.
+- [ ] Release assets include Linux, Windows, macOS DMG, source, and checksums.
 - [ ] GitHub Release is published, not left as an unintended draft.
 
 ## Docker
