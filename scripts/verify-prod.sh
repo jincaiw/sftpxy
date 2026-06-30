@@ -22,6 +22,16 @@ fi
 echo "==> go vet"
 go vet -tags "${features}" ./...
 
+echo "==> test helpers"
+(
+  cd tests/eventsearcher
+  go build -trimpath -ldflags "-s -w" -o eventsearcher
+)
+(
+  cd tests/ipfilter
+  go build -trimpath -ldflags "-s -w" -o ipfilter
+)
+
 echo "==> go test"
 go test -tags "${features}" -p 1 -timeout 10m ./...
 

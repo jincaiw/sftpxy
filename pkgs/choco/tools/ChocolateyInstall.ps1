@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference  = 'Stop'
 $packageName    = 'SFTPxy'
 $softwareName   = 'SFTPxy'
-$url            = 'https://github.com/jincaiw/sftpxy/releases/download/v0.2.1/SFTPxy_v0.2.1_windows_x86_64.exe'
+$url            = 'https://github.com/jincaiw/sftpxy/releases/download/v0.2.2/SFTPxy_v0.2.2_windows_x86_64.exe'
 $checksum       = ''
 $silentArgs     = '/VERYSILENT'
 $validExitCodes = @(0)

@@ -4,7 +4,7 @@
 
 SFTPxy is a self-hosted file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends.
 
-> If the docs site is not reachable, confirm GitHub Pages is enabled with the custom domain `sftp.mujizi.com` in repository settings.
+Current release: `v0.2.2`.
 
 ## Highlights
 

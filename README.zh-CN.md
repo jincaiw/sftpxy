@@ -4,7 +4,7 @@
 
 SFTPxy 是一个自托管文件传输服务，支持 SFTP、WebAdmin、WebClient、FTP/S、WebDAV、REST API 和可插拔存储后端。
 
-> 如果文档站仍无法访问，请确认仓库 Settings → Pages 已启用，并且自定义域名已设置为 `sftp.mujizi.com`。
+当前版本：`v0.2.2`。
 
 ## 特点
 

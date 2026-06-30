@@ -3,13 +3,13 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
 	<metadata>
 		<id>SFTPxy</id>
-		<version>0.2.1</version>
+		<version>0.2.2</version>
 		<packageSourceUrl>https://github.com/jincaiw/sftpxy/tree/main/pkgs/choco</packageSourceUrl>
 		<owners>jincaiw</owners>
 		<title>SFTPxy</title>
 		<authors>jincaiw</authors>
 		<projectUrl>https://github.com/jincaiw/sftpxy</projectUrl>
-		<iconUrl>https://cdn.statically.io/gh/jincaiw/sftpxy/v0.2.1/static/img/logo.png</iconUrl>
+		<iconUrl>https://cdn.statically.io/gh/jincaiw/sftpxy/v0.2.2/static/img/logo.png</iconUrl>
 		<licenseUrl>https://github.com/jincaiw/sftpxy/blob/main/LICENSE</licenseUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<projectSourceUrl>https://github.com/jincaiw/sftpxy</projectSourceUrl>
@@ -32,7 +32,7 @@ You can find deployment instructions in the online documentation: https://sftp.m
 
 * This package installs SFTPxy as Windows Service.
 * After the first installation open WebAdmin at http://localhost:30080/.</description>
-		<releaseNotes>https://github.com/jincaiw/sftpxy/releases/tag/v0.2.1</releaseNotes>
+		<releaseNotes>https://github.com/jincaiw/sftpxy/releases/tag/v0.2.2</releaseNotes>
 	</metadata>
 	<files>
 		<file src="**" exclude="**\*.md;**\icon.png;**\icon.jpg;**\icon.svg" />

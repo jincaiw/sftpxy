@@ -46,8 +46,8 @@ for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.ser
   fi
 done
 
-for path in docs/index.md docs/install/linux.md docs/install/windows.md docs/install/macos.md docs/install/docker.md docs/manual.md docs/configuration.md; do
-  if ! rg -q '^## English$' "${path}" || ! rg -q '^## 中文$' "${path}"; then
+for path in docs/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html; do
+  if ! rg -q '<h2>English</h2>' "${path}" || ! rg -q '<h2>中文</h2>' "${path}"; then
     echo "docs page must be bilingual: ${path}" >&2
     exit 1
   fi
