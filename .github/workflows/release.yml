@@ -497,7 +497,7 @@ jobs:
           mv SFTPxy_windows_arm64.exe SFTPxy_${SFTPXY_VERSION}_windows_arm64.exe
           mv SFTPxy_windows_x86.exe SFTPxy_${SFTPXY_VERSION}_windows_x86.exe
           mv SFTPxy_portable.zip SFTPxy_${SFTPXY_VERSION}_windows_portable.zip
-          gh release create "${SFTPXY_VERSION}" -t "${SFTPXY_VERSION}" --draft
+          gh release view "${SFTPXY_VERSION}" >/dev/null 2>&1 || gh release create "${SFTPXY_VERSION}" -t "${SFTPXY_VERSION}" --draft
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.xz --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy-*.rpm --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.deb --clobber
