@@ -38,6 +38,7 @@ Current release: `v0.2.3`.
 
 - [User manual](https://sftp.mujizi.com/manual/)
 - [Configuration notes](https://sftp.mujizi.com/configuration/)
+- [Release card](./docs/RELEASE_CARD.md)
 - [Release checklist](./docs/RELEASE_CHECKLIST.md)
 
 ## License

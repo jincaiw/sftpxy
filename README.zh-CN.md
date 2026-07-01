@@ -38,6 +38,7 @@ SFTPxy 是一个自托管文件传输服务，支持 SFTP、WebAdmin、WebClient
 
 - [用户手册](https://sftp.mujizi.com/manual/)
 - [配置说明](https://sftp.mujizi.com/configuration/)
+- [发布操作卡](./docs/RELEASE_CARD.md)
 - [发布检查清单](./docs/RELEASE_CHECKLIST.md)
 
 ## 许可证

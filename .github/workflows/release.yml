@@ -530,6 +530,7 @@ jobs:
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.deb --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.exe --clobber
           gh release upload "${SFTPXY_VERSION}" SFTPxy_*.zip --clobber
+          gh release edit "${SFTPXY_VERSION}" --draft=false
           gh release view "${SFTPXY_VERSION}"
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
