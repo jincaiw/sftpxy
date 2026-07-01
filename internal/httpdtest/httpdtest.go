@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/render"
+
 	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
@@ -59,12 +60,12 @@ const (
 )
 
 var (
-	httpBaseURL = "http://127.0.0.1:30080"
+	httpBaseURL = "http://127.0.0.1:31080"
 	jwtToken    = ""
 )
 
 // SetBaseURL sets the base url to use for HTTP requests.
-// Default URL is "http://127.0.0.1:30080"
+// Default URL is "http://127.0.0.1:31080"
 func SetBaseURL(url string) {
 	httpBaseURL = url
 }

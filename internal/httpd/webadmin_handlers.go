@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
 	"golang.org/x/oauth2"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
 	"github.com/jincaiw/sftpxy/v2/internal/common"

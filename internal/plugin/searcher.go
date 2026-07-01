@@ -7,8 +7,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
 
+	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
@@ -44,7 +44,7 @@ func (p *searcherPlugin) initialize() error {
 	if err != nil {
 		return err
 	}
-	client := plugin.NewClient(&plugin.ClientConfig{
+	client, err := newPluginClient(&plugin.ClientConfig{
 		HandshakeConfig: eventsearcher.Handshake,
 		Plugins:         eventsearcher.PluginMap,
 		Cmd:             p.config.getCommand(),
@@ -62,7 +62,10 @@ func (p *searcherPlugin) initialize() error {
 				DisableTime: true,
 			}),
 		},
-	})
+	}, &eventsearcher.LegacyHandshake)
+	if err != nil {
+		return err
+	}
 	rpcClient, err := client.Client()
 	if err != nil {
 		logger.Debug(logSender, "", "unable to get rpc client for plugin %q: %v", p.config.Cmd, err)

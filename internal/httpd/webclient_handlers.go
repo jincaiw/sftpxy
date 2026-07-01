@@ -18,8 +18,9 @@ import (
 	"time"
 
 	"github.com/go-chi/render"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/rs/xid"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

@@ -18,10 +18,11 @@ import (
 	"time"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/jincaiw/sftpxy/sdk"
 	passwordvalidator "github.com/wagslane/go-password-validator"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"

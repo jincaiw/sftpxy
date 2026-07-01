@@ -35,8 +35,6 @@ import (
 	"github.com/go-chi/render"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/lithammer/shortuuid/v4"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mhale/smtpd"
@@ -50,6 +48,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/html"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
 	"github.com/jincaiw/sftpxy/v2/internal/common"
@@ -189,10 +190,10 @@ const (
 	webClientFileMovePath          = "/web/client/file-actions/move"
 	webClientFileCopyPath          = "/web/client/file-actions/copy"
 	jsonAPISuffix                  = "/json"
-	httpBaseURL                    = "http://127.0.0.1:30080"
+	httpBaseURL                    = "http://127.0.0.1:31080"
 	defaultRemoteAddr              = "127.0.0.1:1234"
-	sftpServerAddr                 = "127.0.0.1:30082"
-	smtpServerAddr                 = "127.0.0.1:30084"
+	sftpServerAddr                 = "127.0.0.1:31082"
+	smtpServerAddr                 = "127.0.0.1:31084"
 	httpsCert                      = `-----BEGIN CERTIFICATE-----
 MIICHTCCAaKgAwIBAgIUHnqw7QnB1Bj9oUsNpdb+ZkFPOxMwCgYIKoZIzj0EAwIw
 RTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGElu
@@ -255,7 +256,7 @@ SheorO+2We7dnFuUIFAAAACW5pY29sYUBwMQE=
 	rsa1024PubKey  = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQDGCtnziAnJTtDPwlti5iHR+BM3b2HipWSoOQQTSVZl7svhBFxAesG/Jwk7m+N+K1jklOiNXedsM0c3pcZVfxA26vBebG/QSYRuo+g07+tN/W3uqrAwEEB9IknkdNew7fu+pxZI63UqLnKNGbbfZR8+jcBhdpl04oNYqnMjXYV+qQ=="
 	redactedSecret = "[**redacted**]"
 	osWindows      = "windows"
-	oidcMockAddr   = "127.0.0.1:30083"
+	oidcMockAddr   = "127.0.0.1:31083"
 )
 
 var (
@@ -318,6 +319,10 @@ type recoveryCode struct {
 }
 
 func TestMain(m *testing.M) { //nolint:gocyclo
+	baseTempDir := os.TempDir()
+	tmpDir := filepath.Join(baseTempDir, fmt.Sprintf("SFTPxy_httpd_%d", os.Getpid()))
+	_ = os.MkdirAll(tmpDir, 0o755)
+	os.Setenv("TMPDIR", tmpDir)
 	homeBasePath = os.TempDir()
 	logfilePath := filepath.Join(configDir, "SFTPxy_api_test.log")
 	logger.InitLogger(logfilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
@@ -329,7 +334,9 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
 	os.Setenv("SFTPXY_HTTPD__MAX_UPLOAD_FILE_SIZE", "1048576000")
 	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
-	os.Setenv("TMPDIR", "/tmp")
+	if os.Getenv("SFTPXY_DATA_PROVIDER__NAME") == "" {
+		os.Setenv("SFTPXY_DATA_PROVIDER__NAME", filepath.Join(os.TempDir(), fmt.Sprintf("SFTPxy_httpd_%d.db", os.Getpid())))
+	}
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.WarnToConsole("error loading configuration: %v", err)
@@ -403,7 +410,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
 
-	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].Port = 31080
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
@@ -423,7 +430,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 30082,
+			Port: 31082,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_rsa")
@@ -462,7 +469,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 		logger.ErrorToConsole("error writing HTTPS private key: %v", err)
 		os.Exit(1)
 	}
-	httpdConf.Bindings[0].Port = 30081
+	httpdConf.Bindings[0].Port = 31081
 	httpdConf.Bindings[0].EnableHTTPS = true
 	httpdConf.Bindings[0].CertificateFile = certPath
 	httpdConf.Bindings[0].CertificateKeyFile = keyPath
@@ -552,7 +559,7 @@ func TestInitialization(t *testing.T) {
 	httpdConf.Bindings[0].ProxyAllowed = nil
 	httpdConf.Bindings[0].EnableWebAdmin = false
 	httpdConf.Bindings[0].EnableWebClient = false
-	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].Port = 31080
 	httpdConf.Bindings[0].EnableHTTPS = true
 	httpdConf.Bindings[0].ClientAuthType = 1
 	httpdConf.TokenValidation = 1
@@ -565,7 +572,7 @@ func TestInitialization(t *testing.T) {
 	httpdConf.Bindings[0].OIDC = httpd.OIDC{
 		ClientID:     "123",
 		ClientSecret: "secret",
-		ConfigURL:    "http://127.0.0.1:30083",
+		ConfigURL:    "http://127.0.0.1:31083",
 	}
 	err = httpdConf.Initialize(configDir, 0)
 	if assert.Error(t, err) {
@@ -6458,7 +6465,7 @@ func TestUserSFTPFs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "127.0.0.1:22", user.FsConfig.SFTPConfig.Endpoint)
 
-	user.FsConfig.SFTPConfig.Endpoint = "127.0.0.1:30082"
+	user.FsConfig.SFTPConfig.Endpoint = "127.0.0.1:31082"
 	user.FsConfig.SFTPConfig.DisableCouncurrentReads = true
 	user, _, err = httpdtest.UpdateUser(user, http.StatusOK, "")
 	assert.NoError(t, err)
@@ -6575,7 +6582,7 @@ func TestUserHiddenFields(t *testing.T) {
 	u5 := getTestUser()
 	u5.Username = usernames[4]
 	u5.FsConfig.Provider = sdk.SFTPFilesystemProvider
-	u5.FsConfig.SFTPConfig.Endpoint = "127.0.0.1:30082"
+	u5.FsConfig.SFTPConfig.Endpoint = "127.0.0.1:31082"
 	u5.FsConfig.SFTPConfig.Username = "sftp_user"
 	u5.FsConfig.SFTPConfig.Password = kms.NewPlainSecret("apassword")
 	u5.FsConfig.SFTPConfig.PrivateKey = kms.NewPlainSecret(sftpPrivateKey)
@@ -7270,7 +7277,7 @@ func TestUserCredentialsWithSpaces(t *testing.T) {
 func TestNamingRules(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -9465,7 +9472,7 @@ func TestHTTPSConnection(t *testing.T) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	resp, err := client.Get("https://localhost:30081" + healthzPath)
+	resp, err := client.Get("https://localhost:31081" + healthzPath)
 	if assert.Error(t, err) {
 		if !strings.Contains(err.Error(), "certificate is not valid") &&
 			!strings.Contains(err.Error(), "certificate signed by unknown authority") &&
@@ -10433,7 +10440,7 @@ func TestChangeAdminPwdInvalidJsonMock(t *testing.T) {
 func TestSMTPConfig(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -10458,7 +10465,7 @@ func TestSMTPConfig(t *testing.T) {
 
 	testReq := make(map[string]any)
 	testReq["host"] = smtpCfg.Host
-	testReq["port"] = 30084
+	testReq["port"] = 31084
 	testReq["from"] = "from@example.com"
 	asJSON, err := json.Marshal(testReq)
 	assert.NoError(t, err)
@@ -10482,7 +10489,7 @@ func TestSMTPConfig(t *testing.T) {
 	configs := dataprovider.Configs{
 		SMTP: &dataprovider.SMTPConfigs{
 			Host:     "127.0.0.1",
-			Port:     30085,
+			Port:     31085,
 			User:     "user@example.com",
 			Password: kms.NewPlainSecret(defaultPassword),
 		},
@@ -10552,7 +10559,7 @@ func TestOAuth2TokenRequest(t *testing.T) {
 	checkResponseCode(t, http.StatusBadRequest, rr)
 	assert.Contains(t, rr.Body.String(), "base redirect url is required")
 
-	testReq["base_redirect_url"] = "http://localhost:30080"
+	testReq["base_redirect_url"] = "http://localhost:31080"
 	asJSON, err = json.Marshal(testReq)
 	assert.NoError(t, err)
 	req, err = http.NewRequest(http.MethodPost, webOAuth2TokenPath, bytes.NewBuffer(asJSON))
@@ -13914,7 +13921,7 @@ func TestMaxSessions(t *testing.T) {
 	// test reset password
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -14573,7 +14580,7 @@ func TestSFTPLoopError(t *testing.T) {
 	// test reset password
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -26547,7 +26554,7 @@ func TestWebFoldersMock(t *testing.T) {
 func TestAdminForgotPassword(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -26700,7 +26707,7 @@ func TestAdminForgotPassword(t *testing.T) {
 	// not working smtp server
 	smtpCfg = smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30086,
+		Port:          31086,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -26755,7 +26762,7 @@ func TestAdminForgotPassword(t *testing.T) {
 func TestUserForgotPassword(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -26961,7 +26968,7 @@ func TestUserForgotPassword(t *testing.T) {
 func TestAPIForgotPassword(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          30084,
+		Port:          31084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -27545,7 +27552,7 @@ func startOIDCMockServer() {
 		})
 		http.HandleFunc("/auth/realms/SFTPxy/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"issuer":"http://127.0.0.1:30083/auth/realms/SFTPxy","authorization_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/auth","token_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/token","introspection_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/token/introspect","userinfo_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/userinfo","end_session_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/logout","frontchannel_logout_session_supported":true,"frontchannel_logout_supported":true,"jwks_uri":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/certs","check_session_iframe":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/login-status-iframe.html","grant_types_supported":["authorization_code","implicit","refresh_token","password","client_credentials","urn:ietf:params:oauth:grant-type:device_code","urn:openid:params:grant-type:ciba"],"response_types_supported":["code","none","id_token","token","id_token token","code id_token","code token","code id_token token"],"subject_types_supported":["public","pairwise"],"id_token_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"id_token_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"id_token_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"userinfo_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512","none"],"request_object_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512","none"],"request_object_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"request_object_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"response_modes_supported":["query","fragment","form_post","query.jwt","fragment.jwt","form_post.jwt","jwt"],"registration_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/clients-registrations/openid-connect","token_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"token_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"introspection_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"introspection_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"authorization_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"authorization_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"authorization_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"claims_supported":["aud","sub","iss","auth_time","name","given_name","family_name","preferred_username","email","acr"],"claim_types_supported":["normal"],"claims_parameter_supported":true,"scopes_supported":["openid","phone","email","web-origins","offline_access","microprofile-jwt","profile","address","roles"],"request_parameter_supported":true,"request_uri_parameter_supported":true,"require_request_uri_registration":true,"code_challenge_methods_supported":["plain","S256"],"tls_client_certificate_bound_access_tokens":true,"revocation_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/revoke","revocation_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"revocation_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"backchannel_logout_supported":true,"backchannel_logout_session_supported":true,"device_authorization_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/auth/device","backchannel_token_delivery_modes_supported":["poll","ping"],"backchannel_authentication_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/ext/ciba/auth","backchannel_authentication_request_signing_alg_values_supported":["PS384","ES384","RS384","ES256","RS256","ES512","PS256","PS512","RS512"],"require_pushed_authorization_requests":false,"pushed_authorization_request_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/ext/par/request","mtls_endpoint_aliases":{"token_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/token","revocation_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/revoke","introspection_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/token/introspect","device_authorization_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/auth/device","registration_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/clients-registrations/openid-connect","userinfo_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/userinfo","pushed_authorization_request_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/ext/par/request","backchannel_authentication_endpoint":"http://127.0.0.1:30083/auth/realms/SFTPxy/protocol/openid-connect/ext/ciba/auth"}}`)
+			fmt.Fprintf(w, `{"issuer":"http://127.0.0.1:31083/auth/realms/SFTPxy","authorization_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/auth","token_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/token","introspection_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/token/introspect","userinfo_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/userinfo","end_session_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/logout","frontchannel_logout_session_supported":true,"frontchannel_logout_supported":true,"jwks_uri":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/certs","check_session_iframe":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/login-status-iframe.html","grant_types_supported":["authorization_code","implicit","refresh_token","password","client_credentials","urn:ietf:params:oauth:grant-type:device_code","urn:openid:params:grant-type:ciba"],"response_types_supported":["code","none","id_token","token","id_token token","code id_token","code token","code id_token token"],"subject_types_supported":["public","pairwise"],"id_token_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"id_token_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"id_token_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"userinfo_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512","none"],"request_object_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512","none"],"request_object_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"request_object_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"response_modes_supported":["query","fragment","form_post","query.jwt","fragment.jwt","form_post.jwt","jwt"],"registration_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/clients-registrations/openid-connect","token_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"token_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"introspection_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"introspection_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"authorization_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"authorization_encryption_alg_values_supported":["RSA-OAEP","RSA-OAEP-256","RSA1_5"],"authorization_encryption_enc_values_supported":["A256GCM","A192GCM","A128GCM","A128CBC-HS256","A192CBC-HS384","A256CBC-HS512"],"claims_supported":["aud","sub","iss","auth_time","name","given_name","family_name","preferred_username","email","acr"],"claim_types_supported":["normal"],"claims_parameter_supported":true,"scopes_supported":["openid","phone","email","web-origins","offline_access","microprofile-jwt","profile","address","roles"],"request_parameter_supported":true,"request_uri_parameter_supported":true,"require_request_uri_registration":true,"code_challenge_methods_supported":["plain","S256"],"tls_client_certificate_bound_access_tokens":true,"revocation_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/revoke","revocation_endpoint_auth_methods_supported":["private_key_jwt","client_secret_basic","client_secret_post","tls_client_auth","client_secret_jwt"],"revocation_endpoint_auth_signing_alg_values_supported":["PS384","ES384","RS384","HS256","HS512","ES256","RS256","HS384","ES512","PS256","PS512","RS512"],"backchannel_logout_supported":true,"backchannel_logout_session_supported":true,"device_authorization_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/auth/device","backchannel_token_delivery_modes_supported":["poll","ping"],"backchannel_authentication_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/ext/ciba/auth","backchannel_authentication_request_signing_alg_values_supported":["PS384","ES384","RS384","ES256","RS256","ES512","PS256","PS512","RS512"],"require_pushed_authorization_requests":false,"pushed_authorization_request_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/ext/par/request","mtls_endpoint_aliases":{"token_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/token","revocation_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/revoke","introspection_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/token/introspect","device_authorization_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/auth/device","registration_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/clients-registrations/openid-connect","userinfo_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/userinfo","pushed_authorization_request_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/ext/par/request","backchannel_authentication_endpoint":"http://127.0.0.1:31083/auth/realms/SFTPxy/protocol/openid-connect/ext/ciba/auth"}}`)
 		})
 		http.HandleFunc("/404", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)

@@ -17,11 +17,12 @@ import (
 	"time"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
@@ -33,7 +34,7 @@ import (
 
 const (
 	logSenderTest    = "common_test"
-	httpAddr         = "127.0.0.1:30085"
+	httpAddr         = "127.0.0.1:35085"
 	osWindows        = "windows"
 	userTestUsername = "common_test_username"
 )

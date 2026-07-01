@@ -40,13 +40,14 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/config"
@@ -62,8 +63,8 @@ import (
 
 const (
 	logSender           = "sftpdTesting"
-	sftpServerAddr      = "127.0.0.1:30081"
-	sftpSrvAddr2222     = "127.0.0.1:30082"
+	sftpServerAddr      = "127.0.0.1:33081"
+	sftpSrvAddr2222     = "127.0.0.1:33082"
 	defaultUsername     = "test_user_sftp"
 	defaultPassword     = "test_password"
 	defaultSFTPUsername = "test_sftpfs_user"
@@ -169,7 +170,11 @@ var (
 	hostKeyFPs       []string
 )
 
-func TestMain(m *testing.M) {
+func TestMain(m *testing.M) { //nolint:gocyclo
+	baseTempDir := os.TempDir()
+	tmpDir := filepath.Join(baseTempDir, fmt.Sprintf("SFTPxy_sftpd_%d", os.Getpid()))
+	_ = os.MkdirAll(tmpDir, 0o755)
+	os.Setenv("TMPDIR", tmpDir)
 	logFilePath = filepath.Join(configDir, "SFTPxy_sftpd_test.log")
 	loginBannerFileName := "login_banner"
 	loginBannerFile := filepath.Join(configDir, loginBannerFileName)
@@ -184,6 +189,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_USERNAME", "admin")
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
 	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
+	if os.Getenv("SFTPXY_DATA_PROVIDER__NAME") == "" {
+		os.Setenv("SFTPXY_DATA_PROVIDER__NAME", filepath.Join(os.TempDir(), fmt.Sprintf("SFTPxy_sftpd_%d.db", os.Getpid())))
+	}
 	err = config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -241,14 +249,14 @@ func TestMain(m *testing.M) {
 	sftpdConf := config.GetSFTPDConfig()
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
-	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].Port = 33080
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
-	httpdtest.SetBaseURL("http://127.0.0.1:30080")
+	httpdtest.SetBaseURL("http://127.0.0.1:33080")
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30081,
+			Port:             33081,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -293,7 +301,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30082,
+			Port:             33082,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -312,7 +320,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30083,
+			Port:             33083,
 			ApplyProxyConfig: false,
 		},
 	}
@@ -330,7 +338,7 @@ func TestMain(m *testing.M) {
 
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30084,
+			Port:             33084,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -373,7 +381,7 @@ func TestInitialization(t *testing.T) {
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30081,
+			Port:             33081,
 			ApplyProxyConfig: true,
 		},
 		{
@@ -397,7 +405,7 @@ func TestInitialization(t *testing.T) {
 	assert.Error(t, err)
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port:             30085,
+			Port:             33085,
 			ApplyProxyConfig: true,
 		},
 	}
@@ -493,7 +501,7 @@ func TestInitialization(t *testing.T) {
 	assert.Error(t, err)
 	sftpdConf.OPKSSHPath = ""
 	sftpdConf.OPKSSHChecksum = ""
-	sftpdConf.Bindings[0].Port = 30081
+	sftpdConf.Bindings[0].Port = 33081
 	sftpdConf.RevokedUserCertsFile = "."
 	err = sftpdConf.Initialize(configDir)
 	assert.Error(t, err)
@@ -1233,7 +1241,7 @@ func TestProxyProtocol(t *testing.T) {
 		defer client.Close()
 		assert.NoError(t, checkBasicSFTP(client))
 	}
-	_, _, err = getSftpClientWithAddr(user, usePubKey, "127.0.0.1:30084")
+	_, _, err = getSftpClientWithAddr(user, usePubKey, "127.0.0.1:33084")
 	assert.Error(t, err)
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)
 	assert.NoError(t, err)
@@ -2272,7 +2280,7 @@ func TestMultiStepLoginKeyAndPwd(t *testing.T) {
 		assert.NoError(t, checkBasicSFTP(client))
 	}
 	conn, client, err = getCustomAuthSftpClient(user, authMethods, sftpSrvAddr2222)
-	if !assert.Error(t, err, "password auth is disabled on port 30082, multi-step auth must fail") {
+	if !assert.Error(t, err, "password auth is disabled on port 33082, multi-step auth must fail") {
 		client.Close()
 		conn.Close()
 	}
@@ -3318,7 +3326,7 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.Error(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:30080/web/admin/login"
+	common.Config.Actions.Hook = "http://127.0.0.1:33080/web/admin/login"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3335,7 +3343,7 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.NoError(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:30080/"
+	common.Config.Actions.Hook = "http://127.0.0.1:33080/"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3420,7 +3428,7 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.Error(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:30080/web/client/login"
+	common.Config.Actions.Hook = "http://127.0.0.1:33080/web/client/login"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3437,7 +3445,7 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.NoError(t, err)
 
-	common.Config.Actions.Hook = "http://127.0.0.1:30080/web"
+	common.Config.Actions.Hook = "http://127.0.0.1:33080/web"
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3493,7 +3501,7 @@ func TestPostConnectHook(t *testing.T) {
 		conn.Close()
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30080/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:33080/healthz"
 
 	conn, client, err = getSftpClient(u, usePubKey)
 	if assert.NoError(t, err) {
@@ -3503,7 +3511,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30080/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:33080/notfound"
 	conn, client, err = getSftpClient(u, usePubKey)
 	if !assert.Error(t, err) {
 		client.Close()
@@ -11490,7 +11498,7 @@ func getScpDownloadCommand(localPath, remotePath string, preserveTime, recursive
 		args = append(args, "-O")
 	}
 	args = append(args, "-P")
-	args = append(args, "30081")
+	args = append(args, "33081")
 	args = append(args, "-o")
 	args = append(args, "StrictHostKeyChecking=no")
 	args = append(args, "-i")
@@ -11518,7 +11526,7 @@ func getScpUploadCommand(localPath, remotePath string, preserveTime, remoteToRem
 		args = append(args, "-O")
 	}
 	args = append(args, "-P")
-	args = append(args, "30081")
+	args = append(args, "33081")
 	args = append(args, "-o")
 	args = append(args, "StrictHostKeyChecking=no")
 	args = append(args, "-o")

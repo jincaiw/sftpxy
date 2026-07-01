@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
 
 permissions:
@@ -10,12 +10,36 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.4'
+
+      - name: Install lint tools
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
   test-deploy:
     name: Test and deploy
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go: ['1.26']
+        go: ['1.26.4']
         os: [ubuntu-latest, macos-latest]
 
     steps:
@@ -75,6 +99,11 @@ jobs:
           SFTPXY_DATA_PROVIDER__DRIVER: memory
           SFTPXY_DATA_PROVIDER__NAME: ''
 
+      - name: Run SDK tests
+        run: |
+          cd sdk
+          go test ./...
+
       - name: Prepare build artifact for macOS
         if: startsWith(matrix.os, 'macos-') == true
         run: |
@@ -110,7 +139,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
 
       - name: Run test cases using SQLite provider
         run: |
@@ -142,6 +171,11 @@ jobs:
         env:
           SFTPXY_DATA_PROVIDER__DRIVER: memory
           SFTPXY_DATA_PROVIDER__NAME: ''
+
+      - name: Run SDK tests
+        run: |
+          cd sdk
+          go test ./...
 
       - name: Build
         run: |
@@ -269,7 +303,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
 
       - name: Build
         run: |
@@ -333,7 +367,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
 
       - name: Build
         run: |
@@ -554,7 +588,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
       - uses: actions/checkout@v6
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9

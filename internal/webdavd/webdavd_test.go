@@ -25,14 +25,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/minio/sio"
 	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/studio-b12/gowebdav"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/config"
@@ -49,11 +50,11 @@ import (
 
 const (
 	logSender           = "webavdTesting"
-	webDavServerAddr    = "localhost:30087"
-	webDavTLSServerAddr = "localhost:30088"
-	webDavServerPort    = 30087
-	webDavTLSServerPort = 30088
-	sftpServerAddr      = "127.0.0.1:30085"
+	webDavServerAddr    = "localhost:34087"
+	webDavTLSServerAddr = "localhost:34088"
+	webDavServerPort    = 34087
+	webDavTLSServerPort = 34088
+	sftpServerAddr      = "127.0.0.1:34085"
 	defaultUsername     = "test_user_dav"
 	defaultPassword     = "test_password"
 	osWindows           = "windows"
@@ -256,7 +257,11 @@ var (
 	caCRLPath       string
 )
 
-func TestMain(m *testing.M) {
+func TestMain(m *testing.M) { //nolint:gocyclo
+	baseTempDir := os.TempDir()
+	tmpDir := filepath.Join(baseTempDir, fmt.Sprintf("SFTPxy_webdavd_%d", os.Getpid()))
+	_ = os.MkdirAll(tmpDir, 0o755)
+	os.Setenv("TMPDIR", tmpDir)
 	logFilePath = filepath.Join(configDir, "SFTPxy_webdavd_test.log")
 	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
 	os.Setenv("SFTPXY_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
@@ -266,6 +271,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("SFTPXY_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__EXT", ".SFTPxy")
 	os.Setenv("SFTPXY_WEBDAVD__CACHE__MIME_TYPES__CUSTOM_MAPPINGS__0__MIME", "application/SFTPxy")
 	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
+	if os.Getenv("SFTPXY_DATA_PROVIDER__NAME") == "" {
+		os.Setenv("SFTPXY_DATA_PROVIDER__NAME", filepath.Join(os.TempDir(), fmt.Sprintf("SFTPxy_webdavd_%d.db", os.Getpid())))
+	}
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -334,17 +342,17 @@ func TestMain(m *testing.M) {
 
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
-	httpdConf.Bindings[0].Port = 30086
+	httpdConf.Bindings[0].Port = 34086
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
-	httpdtest.SetBaseURL("http://127.0.0.1:30086")
+	httpdtest.SetBaseURL("http://127.0.0.1:34086")
 
 	// required to test sftpfs
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 30085,
+			Port: 34085,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_ecdsa")
@@ -477,7 +485,7 @@ func TestInitialization(t *testing.T) {
 
 	cfg.Bindings = []webdavd.Binding{
 		{
-			Port:           30085,
+			Port:           34085,
 			ClientAuthType: 1,
 			EnableHTTPS:    true,
 		},
@@ -1594,10 +1602,10 @@ func TestPostConnectHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Error(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30086/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:34086/healthz"
 	assert.NoError(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30086/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:34086/notfound"
 	assert.Error(t, checkBasicFunc(client))
 
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)

@@ -18,12 +18,13 @@ import (
 	"time"
 
 	"github.com/eikenb/pipeat"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

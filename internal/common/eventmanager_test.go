@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/klauspost/compress/zip"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
@@ -1659,7 +1660,7 @@ func TestFilesystemActionErrors(t *testing.T) {
 			Provider: sdk.SFTPFilesystemProvider,
 			SFTPConfig: vfs.SFTPFsConfig{
 				BaseSFTPFsConfig: sdk.BaseSFTPFsConfig{
-					Endpoint: "127.0.0.1:30082",
+					Endpoint: "127.0.0.1:35082",
 					Username: username,
 				},
 				Password: kms.NewPlainSecret("pwd"),
@@ -1709,7 +1710,7 @@ func TestFilesystemActionErrors(t *testing.T) {
 	_, err = fn(&b)
 	assert.Error(t, err)
 	err = executeHTTPRuleAction(dataprovider.EventActionHTTPConfig{
-		Endpoint: "http://127.0.0.1:30085/",
+		Endpoint: "http://127.0.0.1:35085/",
 		Method:   http.MethodPost,
 		Parts: []dataprovider.HTTPPart{
 			{
@@ -2285,7 +2286,7 @@ func getErrorString(err error) string {
 
 func TestHTTPEndpointWithPlaceholders(t *testing.T) {
 	c := dataprovider.EventActionHTTPConfig{
-		Endpoint: "http://127.0.0.1:30080/base/url/{{.Name}}/{{.VirtualPath}}/upload",
+		Endpoint: "http://127.0.0.1:35080/base/url/{{.Name}}/{{.VirtualPath}}/upload",
 		QueryParameters: []dataprovider.KeyValue{
 			{
 				Key:   "u",
@@ -2302,7 +2303,7 @@ func TestHTTPEndpointWithPlaceholders(t *testing.T) {
 	replacer := strings.NewReplacer("{{.Name}}", name, "{{.VirtualPath}}", vPath)
 	u, err := getHTTPRuleActionEndpoint(&c, replacer)
 	assert.NoError(t, err)
-	expected := "http://127.0.0.1:30080/base/url/" + url.PathEscape(name) + "/" + url.PathEscape(vPath) +
+	expected := "http://127.0.0.1:35080/base/url/" + url.PathEscape(name) + "/" + url.PathEscape(vPath) +
 		"/upload?" + "p=" + url.QueryEscape(vPath) + "&u=" + url.QueryEscape(name)
 	assert.Equal(t, expected, u)
 

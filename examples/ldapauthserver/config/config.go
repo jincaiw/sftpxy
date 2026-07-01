@@ -3,8 +3,9 @@ package config
 import (
 	"strings"
 
-	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 	"github.com/spf13/viper"
+
+	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 )
 
 const (

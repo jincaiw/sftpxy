@@ -20,9 +20,10 @@ import (
 
 	"github.com/drakkan/webdav"
 	"github.com/eikenb/pipeat"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
@@ -1738,8 +1739,8 @@ func TestBindingGetAddress(t *testing.T) {
 	}{
 		{
 			name:    "IP address with port",
-			binding: Binding{Address: "127.0.0.1", Port: 30080},
-			want:    "127.0.0.1:30080",
+			binding: Binding{Address: "127.0.0.1", Port: 34080},
+			want:    "127.0.0.1:34080",
 		},
 		{
 			name:    "Unix socket path (no port)",

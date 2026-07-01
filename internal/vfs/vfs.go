@@ -20,9 +20,10 @@ import (
 	"time"
 
 	"github.com/eikenb/pipeat"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
 	passwordvalidator "github.com/wagslane/go-password-validator"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"

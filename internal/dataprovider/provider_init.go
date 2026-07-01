@@ -13,8 +13,9 @@ import (
 	"strings"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/jincaiw/sftpxy/sdk"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 	"github.com/jincaiw/sftpxy/v2/internal/util"

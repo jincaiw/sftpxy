@@ -15,9 +15,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-jose/go-jose/v4"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/rs/cors"
 	"github.com/unrolled/secure"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
 	"github.com/jincaiw/sftpxy/v2/internal/common"

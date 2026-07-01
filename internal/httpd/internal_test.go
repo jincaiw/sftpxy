@@ -28,14 +28,15 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jose/go-jose/v4"
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
-	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 	"github.com/klauspost/compress/zip"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
 	"github.com/jincaiw/sftpxy/v2/internal/common"
@@ -982,7 +983,7 @@ func TestTokenSignatureValidation(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:         "",
-			Port:            30080,
+			Port:            31080,
 			EnableWebAdmin:  true,
 			EnableWebClient: true,
 			EnableRESTAPI:   true,
@@ -1345,7 +1346,7 @@ func TestCSRFToken(t *testing.T) {
 
 	r, err := GetHTTPRouter(Binding{
 		Address:         "",
-		Port:            30080,
+		Port:            31080,
 		EnableWebAdmin:  true,
 		EnableWebClient: true,
 		EnableRESTAPI:   true,
@@ -1731,7 +1732,7 @@ func TestCreateTokenError(t *testing.T) {
 func TestAPIKeyAuthForbidden(t *testing.T) {
 	r, err := GetHTTPRouter(Binding{
 		Address:         "",
-		Port:            30080,
+		Port:            31080,
 		EnableWebAdmin:  true,
 		EnableWebClient: true,
 		EnableRESTAPI:   true,
@@ -1759,7 +1760,7 @@ func TestJWTTokenValidation(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:         "",
-			Port:            30080,
+			Port:            31080,
 			EnableWebAdmin:  true,
 			EnableWebClient: true,
 			EnableRESTAPI:   true,
@@ -2480,7 +2481,7 @@ func TestProxyHeaders(t *testing.T) {
 	validForwardedFor := "172.19.2.6"
 	b := Binding{
 		Address:             "",
-		Port:                30080,
+		Port:                31080,
 		EnableWebAdmin:      true,
 		EnableWebClient:     false,
 		EnableRESTAPI:       true,
@@ -2651,7 +2652,7 @@ func TestRecoverer(t *testing.T) {
 	recoveryPath := "/recovery"
 	b := Binding{
 		Address:         "",
-		Port:            30080,
+		Port:            31080,
 		EnableWebAdmin:  true,
 		EnableWebClient: false,
 		EnableRESTAPI:   true,
@@ -2813,7 +2814,7 @@ func TestZipErrors(t *testing.T) {
 func TestWebAdminRedirect(t *testing.T) {
 	b := Binding{
 		Address:         "",
-		Port:            30080,
+		Port:            31080,
 		EnableWebAdmin:  true,
 		EnableWebClient: false,
 		EnableRESTAPI:   true,
@@ -2842,7 +2843,7 @@ func TestWebAdminRedirect(t *testing.T) {
 func TestWebClientRootEntry(t *testing.T) {
 	b := Binding{
 		Address:         "",
-		Port:            30081,
+		Port:            31081,
 		EnableWebAdmin:  false,
 		EnableWebClient: true,
 		EnableRESTAPI:   false,
@@ -2860,7 +2861,7 @@ func TestWebClientRootEntry(t *testing.T) {
 }
 
 func TestParseRangeRequests(t *testing.T) {
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-24"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-24"
 	fileSize := int64(169740)
 	rangeHeader := "bytes=24-24"
 	offset, size, err := parseRangeRequest(rangeHeader[6:], fileSize)
@@ -2868,56 +2869,56 @@ func TestParseRangeRequests(t *testing.T) {
 	resp := fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 24-24/169740", resp)
 	require.Equal(t, int64(1), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=24-"
 	rangeHeader = "bytes=24-"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 24-169739/169740", resp)
 	require.Equal(t, int64(169716), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=-1"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=-1"
 	rangeHeader = "bytes=-1"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 169739-169739/169740", resp)
 	require.Equal(t, int64(1), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=-100"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=-100"
 	rangeHeader = "bytes=-100"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 169640-169739/169740", resp)
 	require.Equal(t, int64(100), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-30"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-30"
 	rangeHeader = "bytes=20-30"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-30/169740", resp)
 	require.Equal(t, int64(11), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169739"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169739"
 	rangeHeader = "bytes=20-169739"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169740"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169740"
 	rangeHeader = "bytes=20-169740"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	// curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169741"
+	// curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=20-169741"
 	rangeHeader = "bytes=20-169741"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
 	resp = fmt.Sprintf("bytes %d-%d/%d", offset, offset+size-1, fileSize)
 	assert.Equal(t, "bytes 20-169739/169740", resp)
 	require.Equal(t, int64(169720), size)
-	//curl --verbose  "http://127.0.0.1:30080/static/css/sb-admin-2.min.css" -H "Range: bytes=0-" > /dev/null
+	//curl --verbose  "http://127.0.0.1:31080/static/css/sb-admin-2.min.css" -H "Range: bytes=0-" > /dev/null
 	rangeHeader = "bytes=0-"
 	offset, size, err = parseRangeRequest(rangeHeader[6:], fileSize)
 	require.NoError(t, err)
@@ -4037,7 +4038,7 @@ func TestDisabledAdminLoginMethods(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:              "",
-			Port:                 30080,
+			Port:                 31080,
 			EnableWebAdmin:       true,
 			EnableWebClient:      true,
 			EnableRESTAPI:        true,
@@ -4093,7 +4094,7 @@ func TestDisabledUserLoginMethods(t *testing.T) {
 	server := httpdServer{
 		binding: Binding{
 			Address:              "",
-			Port:                 30080,
+			Port:                 31080,
 			EnableWebAdmin:       true,
 			EnableWebClient:      true,
 			EnableRESTAPI:        true,
@@ -4366,8 +4367,8 @@ func TestValidateBaseURL(t *testing.T) {
 		},
 		{
 			name:        "Remove multiple trailing slashes",
-			inputURL:    "http://192.168.1.100:30080///",
-			expectedURL: "http://192.168.1.100:30080",
+			inputURL:    "http://192.168.1.100:31080///",
+			expectedURL: "http://192.168.1.100:31080",
 			expectErr:   false,
 		},
 		{

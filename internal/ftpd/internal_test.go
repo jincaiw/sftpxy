@@ -17,10 +17,11 @@ import (
 
 	"github.com/eikenb/pipeat"
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pires/go-proxyproto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
@@ -414,7 +415,7 @@ func TestInitialization(t *testing.T) {
 	certMgr = nil
 
 	binding := Binding{
-		Port: 30081,
+		Port: 32081,
 	}
 	c := &Configuration{
 		Bindings:           []Binding{binding},
@@ -452,7 +453,7 @@ func TestInitialization(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid active_connections_security")
 	}
 	binding = Binding{
-		Port:           30081,
+		Port:           32081,
 		ForcePassiveIP: "192.168.1",
 	}
 	server = NewServer(c, configDir, binding, 0)
@@ -476,7 +477,7 @@ func TestInitialization(t *testing.T) {
 	assert.NoError(t, err)
 
 	binding = Binding{
-		Port:           30081,
+		Port:           32081,
 		ClientAuthType: 1,
 	}
 	assert.Equal(t, util.I18nFTPTLSDisabled, binding.GetTLSDescription())
@@ -508,7 +509,7 @@ func TestServerGetSettings(t *testing.T) {
 	oldMgr := certMgr
 
 	binding := Binding{
-		Port:             30081,
+		Port:             32081,
 		ApplyProxyConfig: true,
 	}
 	c := &Configuration{
@@ -537,7 +538,7 @@ func TestServerGetSettings(t *testing.T) {
 	common.Config.ProxyProtocol = 1
 	_, err = server.GetSettings()
 	assert.Error(t, err)
-	server.binding.Port = 30081
+	server.binding.Port = 32081
 
 	assert.Equal(t, util.I18nFTPTLSDisabled, binding.GetTLSDescription())
 	_, err = server.GetTLSConfig()
@@ -569,7 +570,7 @@ func TestServerGetSettings(t *testing.T) {
 	c.CertificateFile = certPath
 	c.CertificateKeyFile = keyPath
 	server = NewServer(c, configDir, binding, 0)
-	server.binding.Port = 30089
+	server.binding.Port = 32089
 	settings, err = server.GetSettings()
 	assert.NoError(t, err)
 	assert.NotNil(t, settings.Listener)
@@ -593,7 +594,7 @@ func TestUserInvalidParams(t *testing.T) {
 		},
 	}
 	binding := Binding{
-		Port: 30081,
+		Port: 32081,
 	}
 	c := &Configuration{
 		Bindings: []Binding{binding},

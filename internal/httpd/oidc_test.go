@@ -20,11 +20,12 @@ import (
 	"unsafe"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
@@ -35,7 +36,7 @@ import (
 )
 
 const (
-	oidcMockAddr = "127.0.0.1:30083"
+	oidcMockAddr = "127.0.0.1:31083"
 )
 
 type mockTokenSource struct {
@@ -94,7 +95,7 @@ func TestOIDCInitialization(t *testing.T) {
 		ClientID:        "SFTPxy-client",
 		ClientSecret:    util.GenerateUniqueID(),
 		ConfigURL:       fmt.Sprintf("http://%v/", oidcMockAddr),
-		RedirectBaseURL: "http://127.0.0.1:30080/",
+		RedirectBaseURL: "http://127.0.0.1:31080/",
 		UsernameField:   "preferred_username",
 		RoleField:       "SFTPxy_role",
 	}
@@ -119,7 +120,7 @@ func TestOIDCInitialization(t *testing.T) {
 	config.ConfigURL = fmt.Sprintf("http://%v/auth/realms/SFTPxy", oidcMockAddr)
 	err = config.initialize()
 	assert.NoError(t, err)
-	assert.Equal(t, "http://127.0.0.1:30080"+webOIDCRedirectPath, config.getRedirectURL())
+	assert.Equal(t, "http://127.0.0.1:31080"+webOIDCRedirectPath, config.getRedirectURL())
 }
 
 func TestOIDCLoginLogout(t *testing.T) {
@@ -845,7 +846,7 @@ func TestOIDCLogoutErrors(t *testing.T) {
 	server.logoutFromOIDCOP("")
 	server.binding.OIDC.providerLogoutURL = "http://foo\x7f.com/"
 	server.doOIDCFromLogout("")
-	server.binding.OIDC.providerLogoutURL = "http://127.0.0.1:30089"
+	server.binding.OIDC.providerLogoutURL = "http://127.0.0.1:31089"
 	server.doOIDCFromLogout("")
 }
 
@@ -924,7 +925,7 @@ func TestOIDCToken(t *testing.T) {
 	user.FsConfig.Provider = sdk.SFTPFilesystemProvider
 	user.FsConfig.SFTPConfig = vfs.SFTPFsConfig{
 		BaseSFTPFsConfig: sdk.BaseSFTPFsConfig{
-			Endpoint: "127.0.0.1:30082",
+			Endpoint: "127.0.0.1:31082",
 			Username: username,
 		},
 		Password: kms.NewPlainSecret("np"),
@@ -1744,7 +1745,7 @@ func getTestOIDCServer() *httpdServer {
 				ClientID:        "SFTPxy-client",
 				ClientSecret:    "jRsmE0SWnuZjP7djBqNq0mrf8QN77j2c",
 				ConfigURL:       fmt.Sprintf("http://%v/auth/realms/SFTPxy", oidcMockAddr),
-				RedirectBaseURL: "http://127.0.0.1:30080/",
+				RedirectBaseURL: "http://127.0.0.1:31080/",
 				UsernameField:   "preferred_username",
 				RoleField:       "SFTPxy_role",
 				ImplicitRoles:   false,

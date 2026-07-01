@@ -44,9 +44,20 @@ const (
 )
 
 // Handshake is a common handshake that is shared by plugin and host.
+const (
+	MagicCookieKey       = "SFTPXY_PLUGIN_NOTIFIER"
+	LegacyMagicCookieKey = "SFTPGO_PLUGIN_NOTIFIER"
+)
+
 var Handshake = plugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "SFTPGO_PLUGIN_NOTIFIER",
+	MagicCookieKey:   MagicCookieKey,
+	MagicCookieValue: "c499b98b-cd59-4df2-92b3-6268817f4d80",
+}
+
+var LegacyHandshake = plugin.HandshakeConfig{
+	ProtocolVersion:  1,
+	MagicCookieKey:   LegacyMagicCookieKey,
 	MagicCookieValue: "c499b98b-cd59-4df2-92b3-6268817f4d80",
 }
 

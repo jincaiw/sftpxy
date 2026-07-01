@@ -39,6 +39,12 @@ if ! rg -q "## v${version}" CHANGELOG.md; then
   exit 1
 fi
 
+openapi_version="$(sed -n 's/^  version: \(.*\)$/\1/p' openapi/openapi.yaml | head -n 1)"
+if [[ "${openapi_version}" != "v${version}" ]]; then
+  echo "openapi/openapi.yaml contains ${openapi_version}, expected v${version}" >&2
+  exit 1
+fi
+
 for path in README.md README.zh-CN.md LICENSE NOTICE SFTPxy.json init/SFTPxy.service docs/.nojekyll docs/CNAME docs/assets/site.css docs/index.html docs/downloads/index.html docs/install/index.html docs/install/linux/index.html docs/install/windows/index.html docs/install/macos/index.html docs/install/docker/index.html docs/manual/index.html docs/configuration/index.html .github/workflows/pages.yml; do
   if [[ ! -e "${path}" ]]; then
     echo "missing required release file: ${path}" >&2
@@ -70,8 +76,18 @@ if ! rg -q '\[中文文档\]\(\./README\.zh-CN\.md\)' README.md; then
   exit 1
 fi
 
+if ! rg -q "Current release: \`v${version}\`\." README.md; then
+  echo "README.md must mention current release v${version}" >&2
+  exit 1
+fi
+
 if ! rg -q '\[English\]\(\./README\.md\)' README.zh-CN.md; then
   echo "README.zh-CN.md must link back to README.md" >&2
+  exit 1
+fi
+
+if ! rg -q "当前版本：\`v${version}\`。" README.zh-CN.md; then
+  echo "README.zh-CN.md must mention current release v${version}" >&2
   exit 1
 fi
 

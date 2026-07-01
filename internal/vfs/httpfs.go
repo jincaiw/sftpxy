@@ -20,9 +20,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
 
+	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 	"github.com/jincaiw/sftpxy/v2/internal/metric"

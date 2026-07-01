@@ -16,8 +16,9 @@ import (
 	"time"
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/pkg/sftp"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"

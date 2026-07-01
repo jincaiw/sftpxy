@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 )
 
 func getSFTPxyUser(entry *ldap.Entry, username string) (SFTPxyUser, error) {

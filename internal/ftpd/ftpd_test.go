@@ -24,8 +24,6 @@ import (
 	"time"
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/jincaiw/sftpxy/sdk"
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"github.com/jlaffaye/ftp"
 	"github.com/pkg/sftp"
 	"github.com/pquerna/otp"
@@ -34,6 +32,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/config"
@@ -49,10 +50,10 @@ import (
 
 const (
 	logSender               = "ftpdTesting"
-	ftpServerAddr           = "127.0.0.1:30081"
-	sftpServerAddr          = "127.0.0.1:30082"
-	ftpSrvAddrTLS           = "127.0.0.1:30083" // ftp server with implicit tls
-	ftpSrvAddrTLSResumption = "127.0.0.1:30084" // ftp server with implicit tls
+	ftpServerAddr           = "127.0.0.1:32081"
+	sftpServerAddr          = "127.0.0.1:32082"
+	ftpSrvAddrTLS           = "127.0.0.1:32083" // ftp server with implicit tls
+	ftpSrvAddrTLSResumption = "127.0.0.1:32084" // ftp server with implicit tls
 	defaultUsername         = "test_user_ftp"
 	defaultPassword         = "test_password"
 	osWindows               = "windows"
@@ -234,7 +235,7 @@ ubwF00Drdvk2+kDZfxIM137nBiy7wgCJi2Ksm5ihN3dUF6Q0oNPl
 	testDLFileName        = "test_download_ftp.dat"
 	tlsClient1Username    = "client1"
 	tlsClient2Username    = "client2"
-	httpFsPort            = 30086
+	httpFsPort            = 32086
 	defaultHTTPFsUsername = "httpfs_ftp_user"
 	emptyPwdPlaceholder   = "empty"
 )
@@ -255,6 +256,10 @@ var (
 )
 
 func TestMain(m *testing.M) { //nolint:gocyclo
+	baseTempDir := os.TempDir()
+	tmpDir := filepath.Join(baseTempDir, fmt.Sprintf("SFTPxy_ftpd_%d", os.Getpid()))
+	_ = os.MkdirAll(tmpDir, 0o755)
+	os.Setenv("TMPDIR", tmpDir)
 	logFilePath = filepath.Join(configDir, "SFTPxy_ftpd_test.log")
 	bannerFileName := "banner_file"
 	bannerFile := filepath.Join(configDir, bannerFileName)
@@ -273,6 +278,9 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_USERNAME", "admin")
 	os.Setenv("SFTPXY_DEFAULT_ADMIN_PASSWORD", "password")
 	os.Setenv("SFTPXY_COMMON__SECRET_MIN_ENTROPY", "0")
+	if os.Getenv("SFTPXY_DATA_PROVIDER__NAME") == "" {
+		os.Setenv("SFTPXY_DATA_PROVIDER__NAME", filepath.Join(os.TempDir(), fmt.Sprintf("SFTPxy_ftpd_%d.db", os.Getpid())))
+	}
 	err = config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -331,16 +339,16 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
-	httpdConf.Bindings[0].Port = 30080
+	httpdConf.Bindings[0].Port = 32080
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
-	httpdtest.SetBaseURL("http://127.0.0.1:30080")
+	httpdtest.SetBaseURL("http://127.0.0.1:32080")
 
 	ftpdConf := config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:               30081,
+			Port:               32081,
 			ClientAuthType:     2,
 			CertificateFile:    certPath,
 			CertificateKeyFile: keyPath,
@@ -357,7 +365,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 30082,
+			Port: 32082,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_ed25519")
@@ -406,7 +414,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf = config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:    30083,
+			Port:    32083,
 			TLSMode: 2,
 		},
 	}
@@ -432,7 +440,7 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf = config.GetFTPDConfig()
 	ftpdConf.Bindings = []ftpd.Binding{
 		{
-			Port:               30084,
+			Port:               32084,
 			CertificateFile:    certPath,
 			CertificateKeyFile: keyPath,
 			TLSMode:            1,
@@ -484,7 +492,7 @@ func TestInitializationFailure(t *testing.T) {
 			Port: 0,
 		},
 		{
-			Port: 30081,
+			Port: 32081,
 		},
 	}
 	ftpdConf.BannerFile = "a-missing-file"
@@ -1637,7 +1645,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30080/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:32080/healthz"
 
 	client, err = getFTPClient(user, false, nil)
 	if assert.NoError(t, err) {
@@ -1647,7 +1655,7 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	common.Config.PostConnectHook = "http://127.0.0.1:30080/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:32080/notfound"
 
 	client, err = getFTPClient(user, true, nil)
 	if !assert.Error(t, err) {

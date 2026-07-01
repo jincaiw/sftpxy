@@ -54,7 +54,7 @@ func TestInitialization(t *testing.T) {
 	err = common.Initialize(commonConfig, 0)
 	require.NoError(t, err)
 	c := Conf{
-		BindPort:       30089,
+		BindPort:       36089,
 		BindAddress:    "invalid address",
 		EnableProfiler: false,
 	}
@@ -99,7 +99,7 @@ func TestInitialization(t *testing.T) {
 
 func TestShouldBind(t *testing.T) {
 	c := Conf{
-		BindPort:       30089,
+		BindPort:       36089,
 		EnableProfiler: false,
 	}
 	require.True(t, c.ShouldBind())

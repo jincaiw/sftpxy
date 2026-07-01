@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/jincaiw/sftpxy/sdk/plugin/auth"
 
+	"github.com/jincaiw/sftpxy/sdk/plugin/auth"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
 
@@ -103,7 +103,7 @@ func (p *authPlugin) initialize() error {
 	if err != nil {
 		return err
 	}
-	client := plugin.NewClient(&plugin.ClientConfig{
+	client, err := newPluginClient(&plugin.ClientConfig{
 		HandshakeConfig: auth.Handshake,
 		Plugins:         auth.PluginMap,
 		Cmd:             p.config.getCommand(),
@@ -121,7 +121,10 @@ func (p *authPlugin) initialize() error {
 				DisableTime: true,
 			}),
 		},
-	})
+	}, &auth.LegacyHandshake)
+	if err != nil {
+		return err
+	}
 	rpcClient, err := client.Client()
 	if err != nil {
 		logger.Debug(logSender, "", "unable to get rpc client for auth plugin %q: %v", p.config.Cmd, err)

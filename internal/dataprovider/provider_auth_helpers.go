@@ -21,9 +21,10 @@ import (
 	"time"
 
 	"github.com/go-chi/render"
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/rs/xid"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/command"
 	"github.com/jincaiw/sftpxy/v2/internal/httpclient"

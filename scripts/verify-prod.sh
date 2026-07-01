@@ -35,6 +35,12 @@ echo "==> test helpers"
 echo "==> go test"
 go test -tags "${features}" -p 1 -timeout 10m ./...
 
+echo "==> sdk test"
+(
+  cd sdk
+  go test ./...
+)
+
 echo "==> production build"
 mkdir -p build/verify
 go build -trimpath -tags "${features}" -ldflags "${ldflags}" -o build/verify/SFTPxy .

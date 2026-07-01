@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/jincaiw/sftpxy/sdk/plugin/ipfilter"
 )
 

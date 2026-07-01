@@ -16,10 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
 	fscopy "github.com/otiai10/copy"
 	"github.com/pkg/sftp"
 	"github.com/rs/xid"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )

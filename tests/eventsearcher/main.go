@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
 )
 

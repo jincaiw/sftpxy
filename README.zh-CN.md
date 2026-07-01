@@ -4,7 +4,7 @@
 
 SFTPxy 是一个自托管文件传输服务，支持 SFTP、WebAdmin、WebClient、FTP/S、WebDAV、REST API 和可插拔存储后端。
 
-当前版本：`v0.2.2`。
+当前版本：`v0.2.3`。
 
 ## 特点
 

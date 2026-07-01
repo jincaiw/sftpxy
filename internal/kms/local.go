@@ -9,8 +9,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	"gocloud.dev/secrets/localsecrets"
+
+	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 )
 
 func init() {

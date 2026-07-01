@@ -2,6 +2,12 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.3 - 2026-07-01
+
+- Remove the remaining visible migration-brand residues from the release notes.
+- Add release-oriented tests for version sync and plugin handshake compatibility.
+- Finish the lint and vulnerability checks in CI and the local release gate.
+
 ## v0.2.2 - 2026-06-30
 
 - Simplify the default English README and keep the Chinese README linked at the top.
@@ -18,6 +24,6 @@ All notable SFTPxy release changes are tracked here.
 
 ## v0.2.0 - 2026-06-22
 
-- Establish the SFTPxy release baseline after the SFTPGo to SFTPxy migration.
+- Establish the SFTPxy release baseline after the migration.
 - Publish MIT-licensed release artifacts.
 - Document Linux single-binary, systemd, and Docker deployment paths.

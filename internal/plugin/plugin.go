@@ -20,6 +20,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/jincaiw/sftpxy/sdk/plugin/auth"
 	"github.com/jincaiw/sftpxy/sdk/plugin/eventsearcher"
 	"github.com/jincaiw/sftpxy/sdk/plugin/ipfilter"
@@ -42,6 +43,49 @@ var (
 	// ErrNoSearcher defines the error to return for events searches if no plugin is configured
 	ErrNoSearcher = errors.New("no events searcher plugin defined")
 )
+
+func cloneCommand(cmd *exec.Cmd) *exec.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	cloned := exec.Command(cmd.Path, cmd.Args[1:]...)
+	cloned.Args = append([]string(nil), cmd.Args...)
+	cloned.Env = append([]string(nil), cmd.Env...)
+	cloned.Dir = cmd.Dir
+	cloned.Stdin = cmd.Stdin
+	cloned.Stdout = cmd.Stdout
+	cloned.Stderr = cmd.Stderr
+	cloned.ExtraFiles = append([]*os.File(nil), cmd.ExtraFiles...)
+	cloned.SysProcAttr = cmd.SysProcAttr
+	cloned.Cancel = cmd.Cancel
+	cloned.WaitDelay = cmd.WaitDelay
+	return cloned
+}
+
+func newPluginClient(clientConfig *plugin.ClientConfig, legacyHandshake *plugin.HandshakeConfig) (*plugin.Client, error) {
+	config := *clientConfig
+	config.Cmd = cloneCommand(clientConfig.Cmd)
+	client := plugin.NewClient(&config)
+	if _, err := client.Client(); err == nil {
+		return client, nil
+	} else {
+		client.Kill()
+		if legacyHandshake == nil || legacyHandshake.MagicCookieKey == clientConfig.MagicCookieKey {
+			return nil, err
+		}
+	}
+
+	legacyConfig := *clientConfig
+	legacyConfig.Cmd = cloneCommand(clientConfig.Cmd)
+	legacyConfig.HandshakeConfig = *legacyHandshake
+	legacyClient := plugin.NewClient(&legacyConfig)
+	if _, legacyErr := legacyClient.Client(); legacyErr == nil {
+		return legacyClient, nil
+	} else {
+		legacyClient.Kill()
+		return nil, legacyErr
+	}
+}
 
 // Renderer defines the interface for generic objects rendering
 type Renderer interface {
@@ -76,7 +120,7 @@ type Config struct {
 	// variable, set to "*" to pass all environment variables. If empty, the
 	// prefix is returned as the plugin name in uppercase with "-" replaced with
 	// "_" and a trailing "_". For example if the plugin name is
-	// SFTPxy-plugin-eventsearch the prefix will be SFTPXY_PLUGIN_EVENTSEARCH_
+	// SFTPxy-plugin-eventsearcher the prefix will be SFTPXY_PLUGIN_EVENTSEARCHER_
 	EnvPrefix string `json:"env_prefix" mapstructure:"env_prefix"`
 	// Additional environment variable names to pass from the SFTPxy process
 	// environment to the plugin.

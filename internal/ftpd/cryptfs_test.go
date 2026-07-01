@@ -14,9 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/minio/sio"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

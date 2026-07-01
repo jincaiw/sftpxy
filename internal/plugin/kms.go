@@ -9,9 +9,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+
 	sdkkms "github.com/jincaiw/sftpxy/sdk/kms"
 	kmsplugin "github.com/jincaiw/sftpxy/sdk/plugin/kms"
-
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 )
@@ -66,7 +66,7 @@ func (p *kmsPlugin) initialize() error {
 	if err != nil {
 		return err
 	}
-	client := plugin.NewClient(&plugin.ClientConfig{
+	client, err := newPluginClient(&plugin.ClientConfig{
 		HandshakeConfig: kmsplugin.Handshake,
 		Plugins:         kmsplugin.PluginMap,
 		Cmd:             p.config.getCommand(),
@@ -84,7 +84,10 @@ func (p *kmsPlugin) initialize() error {
 				DisableTime: true,
 			}),
 		},
-	})
+	}, &kmsplugin.LegacyHandshake)
+	if err != nil {
+		return err
+	}
 	rpcClient, err := client.Client()
 	if err != nil {
 		logger.Debug(logSender, "", "unable to get rpc client for kms plugin %q: %v", p.config.Cmd, err)

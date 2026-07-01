@@ -21,15 +21,20 @@ ARG COMMIT_SHA
 ARG FEATURES
 
 COPY . .
+RUN mkdir -p /workspace/plugins
 
 RUN set -xe && \
     export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} && \
     go build $(if [ -n "${FEATURES}" ]; then echo "-tags ${FEATURES}"; fi) -trimpath -ldflags "-s -w -X github.com/jincaiw/sftpxy/v2/internal/version.commit=${COMMIT_SHA} -X github.com/jincaiw/sftpxy/v2/internal/version.date=`date -u +%FT%TZ`" -v -o SFTPxy
 
-# Set to "true" to download the "official" plugins in /usr/local/bin
+# Set to "true" to download the "official" plugins
 ARG DOWNLOAD_PLUGINS=false
 
-RUN if [ "${DOWNLOAD_PLUGINS}" = "true" ]; then apt-get update && apt-get install --no-install-recommends -y curl && ./docker/scripts/download-plugins.sh; fi
+RUN if [ "${DOWNLOAD_PLUGINS}" = "true" ]; then \
+      apt-get update && apt-get install --no-install-recommends -y curl && \
+      ./docker/scripts/download-plugins.sh && \
+      cp /usr/local/bin/SFTPxy-plugin-* /workspace/plugins/; \
+    fi
 
 FROM debian:trixie-slim
 
@@ -51,7 +56,8 @@ COPY --from=builder /workspace/SFTPxy.json /etc/SFTPxy/SFTPxy.json
 COPY --from=builder /workspace/templates /usr/share/SFTPxy/templates
 COPY --from=builder /workspace/static /usr/share/SFTPxy/static
 COPY --from=builder /workspace/openapi /usr/share/SFTPxy/openapi
-COPY --from=builder /workspace/SFTPxy /usr/local/bin/SFTPxy-plugin-* /usr/local/bin/
+COPY --from=builder /workspace/SFTPxy /usr/local/bin/
+COPY --from=builder /workspace/plugins/ /usr/local/bin/
 
 # Log to the stdout so the logs will be available using docker logs
 ENV SFTPXY_LOG_FILE_PATH=""

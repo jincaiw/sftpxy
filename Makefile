@@ -1,10 +1,14 @@
 VERSION ?= $(shell cat VERSION)
 
-.PHONY: help version-check verify-prod release-check release-bundle docker-build release-dry-run release-tag release-push clean-release
+.PHONY: help ci lint vulncheck sync-version version-check verify-prod release-check release-bundle docker-build release-dry-run release-tag release-push clean-release
 
 help:
 	@echo "SFTPxy release targets"
 	@echo "  make version-check VERSION=$(VERSION)"
+	@echo "  make ci VERSION=$(VERSION)"
+	@echo "  make lint"
+	@echo "  make vulncheck"
+	@echo "  make sync-version VERSION=$(VERSION)"
 	@echo "  make verify-prod VERSION=$(VERSION)"
 	@echo "  make release-bundle VERSION=$(VERSION)"
 	@echo "  make docker-build VERSION=$(VERSION)"
@@ -16,6 +20,18 @@ version-check:
 	@scripts/release-check.sh "$(VERSION)"
 
 release-check: version-check
+
+ci: lint vulncheck verify-prod
+	@echo "CI checks completed for v$(VERSION)"
+
+sync-version:
+	@scripts/sync-version.sh "$(VERSION)"
+
+lint:
+	@golangci-lint run ./...
+
+vulncheck:
+	@govulncheck ./...
 
 verify-prod:
 	@scripts/verify-prod.sh "$(VERSION)"

@@ -10,9 +10,10 @@ import (
 
 	unixcrypt "github.com/nathanaelle/password/v2"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/jincaiw/sftpxy/ldapauthserver/logger"
 	"github.com/jincaiw/sftpxy/ldapauthserver/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const (

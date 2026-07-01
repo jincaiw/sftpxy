@@ -20,10 +20,11 @@ import (
 
 	"github.com/drakkan/webdav"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 	"github.com/rs/cors"
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
+
+	"github.com/jincaiw/sftpxy/sdk/plugin/notifier"
 
 	"github.com/jincaiw/sftpxy/v2/internal/common"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"

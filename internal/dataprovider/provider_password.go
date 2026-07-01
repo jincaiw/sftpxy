@@ -14,11 +14,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"slices"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/GehirnInc/crypt"
 	"github.com/GehirnInc/crypt/apr1_crypt"
@@ -26,9 +27,10 @@ import (
 	"github.com/GehirnInc/crypt/sha256_crypt"
 	"github.com/GehirnInc/crypt/sha512_crypt"
 	"github.com/alexedwards/argon2id"
-	"github.com/jincaiw/sftpxy/sdk"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
 	"github.com/jincaiw/sftpxy/v2/internal/mfa"

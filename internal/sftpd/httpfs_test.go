@@ -15,9 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jincaiw/sftpxy/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jincaiw/sftpxy/sdk"
 
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
 	"github.com/jincaiw/sftpxy/v2/internal/httpdtest"
@@ -26,7 +27,7 @@ import (
 )
 
 const (
-	httpFsPort            = 30086
+	httpFsPort            = 33086
 	defaultHTTPFsUsername = "httpfs_user"
 )
 
