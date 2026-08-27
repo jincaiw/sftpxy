@@ -2,6 +2,12 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.4 - 2026-08-27
+
+- Update the Go toolchain used by development and release workflows to Go 1.26.6.
+- Update gRPC and Go module dependencies to address reachable security advisories.
+- Verify the server, SDK, plugins, WebAdmin, WebClient, SFTP, FTP/S, WebDAV, REST API, and production build paths.
+
 ## v0.2.3 - 2026-07-01
 
 - Remove the remaining visible migration-brand residues from the release notes.
