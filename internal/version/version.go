@@ -6,7 +6,7 @@ package version
 import "strings"
 
 const (
-	version = "0.2.8"
+	version = "0.2.9"
 	appName = "SFTPxy"
 )
 
