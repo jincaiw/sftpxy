@@ -3174,8 +3174,9 @@ func TestEventRuleValidation(t *testing.T) {
 			Month:      "*",
 		},
 	}
-	_, resp, err = httpdtest.AddEventRule(rule, http.StatusInternalServerError)
+	_, resp, err = httpdtest.AddEventRule(rule, http.StatusBadRequest)
 	assert.NoError(t, err, string(resp))
+	assert.Contains(t, string(resp), "does not exist")
 	rule.Trigger = dataprovider.EventTriggerIDPLogin
 	rule.Conditions.IDPLoginEvent = 100
 	_, resp, err = httpdtest.AddEventRule(rule, http.StatusBadRequest)
@@ -9741,7 +9742,7 @@ func TestEventRuleErrorsMock(t *testing.T) {
 	assert.NoError(t, err)
 	setBearerForReq(req, token)
 	rr = executeRequest(req)
-	checkResponseCode(t, http.StatusInternalServerError, rr)
+	checkResponseCode(t, http.StatusBadRequest, rr)
 
 	_, err = httpdtest.RemoveEventRule(rule, http.StatusOK)
 	assert.NoError(t, err)

@@ -3410,6 +3410,14 @@ func generateEventRuleActionsMapping(ctx context.Context, rule *EventRule, dbHan
 		if err != nil {
 			return err
 		}
+		var actionName string
+		err = dbHandle.QueryRowContext(ctx, getEventActionNameQuery(), action.Name).Scan(&actionName)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return util.NewValidationError(fmt.Sprintf("action %q does not exist", action.Name))
+			}
+			return err
+		}
 		q = getAddRuleActionMappingQuery()
 		_, err = dbHandle.ExecContext(ctx, q, rule.Name, action.Name, action.Order, options)
 		if err != nil {

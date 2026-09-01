@@ -1032,6 +1032,10 @@ func getEventActionByNameQuery() string {
 		sqlPlaceholders[0])
 }
 
+func getEventActionNameQuery() string {
+	return fmt.Sprintf(`SELECT name FROM %s WHERE name = %s`, sqlTableEventsActions, sqlPlaceholders[0])
+}
+
 func getAddEventActionQuery() string {
 	return fmt.Sprintf(`INSERT INTO %s (name,description,type,options) VALUES (%s,%s,%s,%s)`,
 		sqlTableEventsActions, sqlPlaceholders[0], sqlPlaceholders[1], sqlPlaceholders[2], sqlPlaceholders[3])
