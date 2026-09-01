@@ -1200,7 +1200,7 @@ func (p *MemoryProvider) addActionsToRule(rule *EventRule) {
 func (p *MemoryProvider) addRuleToActionMapping(ruleName, actionName string) error {
 	a, err := p.actionExistsInternal(actionName)
 	if err != nil {
-		return util.NewGenericError(fmt.Sprintf("action %q does not exist", actionName))
+		return util.NewValidationError(fmt.Sprintf("action %q does not exist", actionName))
 	}
 	if !slices.Contains(a.Rules, ruleName) {
 		a.Rules = append(a.Rules, ruleName)

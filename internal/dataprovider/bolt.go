@@ -3450,7 +3450,7 @@ func (p *BoltProvider) removeUserFromRole(username, roleName string, bucket *bol
 func (p *BoltProvider) addRuleToActionMapping(ruleName, actionName string, bucket *bolt.Bucket) error {
 	a := bucket.Get([]byte(actionName))
 	if a == nil {
-		return util.NewGenericError(fmt.Sprintf("action %q does not exist", actionName))
+		return util.NewValidationError(fmt.Sprintf("action %q does not exist", actionName))
 	}
 	var action BaseEventAction
 	err := json.Unmarshal(a, &action)
