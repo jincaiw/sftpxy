@@ -535,6 +535,10 @@ func TestInitialization(t *testing.T) {
 	err = httpdConf.Initialize(configDir, isShared)
 	assert.Error(t, err)
 	httpdConf = config.GetHTTPDConfig()
+	// GetHTTPDConfig returns a copy: truncate the bindings again, the second
+	// default WebClient binding on port 30081 must not be started by the
+	// Initialize calls below or it will race with the expected errors
+	httpdConf.Bindings = httpdConf.Bindings[:1]
 	httpdConf.TemplatesPath = defaultTemplatesPath
 	httpdConf.CertificateFile = invalidFile
 	httpdConf.CertificateKeyFile = invalidFile

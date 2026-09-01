@@ -663,12 +663,21 @@ func (c *Conf) Initialize(configDir string, isShared int) error {
 	c.setTokenValidationMode()
 	startCleanupTicker(10 * time.Minute)
 
+	// validate all the bindings before starting any server: if a later
+	// binding fails validation, the servers for the earlier ones would
+	// keep running and leak their listeners
 	for _, binding := range c.Bindings {
 		if !binding.IsValid() {
 			continue
 		}
 		if err := binding.check(); err != nil {
 			return err
+		}
+	}
+
+	for _, binding := range c.Bindings {
+		if !binding.IsValid() {
+			continue
 		}
 
 		go func(b Binding) {

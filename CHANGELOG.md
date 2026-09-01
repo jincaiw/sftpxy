@@ -2,6 +2,11 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.8 - 2026-09-01
+
+- Fix a flaky TestInitialization in the HTTPD tests: the second default WebClient binding on port 30081 was reintroduced when the test re-fetched the configuration copy, leaked a listener, and then raced with the expected validation errors.
+- Validate all HTTPD bindings before starting any server: previously, when a later binding failed validation the servers for the earlier bindings were already running and leaked their listeners.
+
 ## v0.2.7 - 2026-09-01
 
 - Fix flaky transfers checker tests: the periodic background transfer check scheduled by the test setup could still be in flight while a test invoked its own synchronous check, which was then skipped by the "previous check still running" guard. Stopping the event scheduler in the affected tests and waiting for running jobs on scheduler shutdown makes the checks deterministic.
