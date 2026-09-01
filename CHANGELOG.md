@@ -2,6 +2,14 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.6 - 2026-09-01
+
+- Return a 400 validation error when an event rule references a non-existent action for Bolt and memory data providers, aligning their behavior with the SQL providers.
+- Update golang.org/x/crypto to v0.55.0 to fix the GO-2026-6303 ssh vulnerability reported by govulncheck.
+- Fix a flaky TestInitialization in the HTTPD tests: the second WebClient binding from the default config leaked a listener on port 30081 and made subsequent assertions race against bind errors.
+- Increase the schema creation and migration timeout to 5 minutes so a cold CockroachDB instance can finish the initial DDL instead of failing at the previous 60 seconds deadline.
+- Fix the Windows CI job failing at the "Initialize data provider" step when no previous SFTPxy.db file exists to remove.
+
 ## v0.2.5 - 2026-08-31
 
 - Return a 400 validation error instead of a raw 500 database error when an event rule references a non-existent action (SQL providers).
