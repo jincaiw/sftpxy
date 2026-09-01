@@ -2,6 +2,12 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.5 - 2026-08-31
+
+- Return a 400 validation error instead of a raw 500 database error when an event rule references a non-existent action (SQL providers).
+- Add an integration test for the scheduled data retention cleanup covering the 72-hour mtime boundary and subdirectory recursion.
+- Add the release SOP, event manager guide, 3-day retention guide, and the full-stack QA test report.
+
 ## v0.2.4 - 2026-08-27
 
 - Update the Go toolchain used by development and release workflows to Go 1.26.6.

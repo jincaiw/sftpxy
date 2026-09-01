@@ -206,10 +206,10 @@ func TestScheduledCleanupFilesOlderThan3Days(t *testing.T) {
 
 	now := time.Now()
 	files := []struct {
-		name     string
-		path     string
-		modTime  time.Time
-		deleted  bool
+		name    string
+		path    string
+		modTime time.Time
+		deleted bool
 	}{
 		{name: "old_4days.txt", path: homeDir, modTime: now.Add(-96 * time.Hour), deleted: true},
 		{name: "old_73h.txt", path: homeDir, modTime: now.Add(-73 * time.Hour), deleted: true},
@@ -245,6 +245,8 @@ func TestScheduledCleanupFilesOlderThan3Days(t *testing.T) {
 	require.NoError(t, err)
 
 	// Rule: daily schedule at 03:00
+	startEventScheduler()
+	defer stopEventScheduler()
 	rule := &dataprovider.EventRule{
 		Name:    "daily_cleanup_3_days",
 		Status:  1,
