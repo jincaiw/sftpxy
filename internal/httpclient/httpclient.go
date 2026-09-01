@@ -182,7 +182,12 @@ func GetHTTPClient() *http.Client {
 func GetRetraybleHTTPClient() *retryablehttp.Client {
 	client := retryablehttp.NewClient()
 	client.HTTPClient.Timeout = time.Duration(httpConfig.Timeout * float64(time.Second))
-	client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = httpConfig.customTransport.TLSClientConfig
+	// net/http mutates Transport.TLSClientConfig on first use (e.g. appending
+	// ALPN protocols), so each client must get its own copy: sharing the
+	// configured TLS config across concurrent clients is racy.
+	if httpConfig.customTransport != nil && httpConfig.customTransport.TLSClientConfig != nil {
+		client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = httpConfig.customTransport.TLSClientConfig.Clone()
+	}
 	client.Logger = &logger.LeveledLogger{Sender: "RetryableHTTPClient"}
 	client.RetryWaitMin = time.Duration(httpConfig.RetryWaitMin) * time.Second
 	client.RetryWaitMax = time.Duration(httpConfig.RetryWaitMax) * time.Second

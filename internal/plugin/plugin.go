@@ -37,8 +37,13 @@ const (
 )
 
 var (
-	// Handler defines the plugins manager
-	Handler         Manager
+	// Handler defines the plugins manager. It is a stable singleton: the
+	// variable itself is never re-assigned because tests re-initialize the
+	// plugins repeatedly while goroutines from previous initializations may
+	// still access plugin.Handler; the state is reset in place instead.
+	Handler = Manager{
+		concurrencyGuard: make(chan struct{}, 250),
+	}
 	pluginsLogLevel = hclog.Debug
 	// ErrNoSearcher defines the error to return for events searches if no plugin is configured
 	ErrNoSearcher = errors.New("no events searcher plugin defined")
@@ -195,35 +200,32 @@ type Manager struct {
 	closed atomic.Bool
 	done   chan bool
 	// List of configured plugins
-	Configs          []Config `json:"plugins" mapstructure:"plugins"`
-	notifLock        sync.RWMutex
-	notifiers        []*notifierPlugin
-	kmsLock          sync.RWMutex
-	kms              []*kmsPlugin
-	authLock         sync.RWMutex
-	auths            []*authPlugin
-	searcherLock     sync.RWMutex
-	searcher         *searcherPlugin
-	ipFilterLock     sync.RWMutex
-	filter           *ipFilterPlugin
-	authScopes       int
-	hasSearcher      bool
-	hasNotifiers     bool
-	hasAuths         bool
-	hasIPFilter      bool
+	Configs      []Config `json:"plugins" mapstructure:"plugins"`
+	notifLock    sync.RWMutex
+	notifiers    []*notifierPlugin
+	kmsLock      sync.RWMutex
+	kms          []*kmsPlugin
+	authLock     sync.RWMutex
+	auths        []*authPlugin
+	searcherLock sync.RWMutex
+	searcher     *searcherPlugin
+	ipFilterLock sync.RWMutex
+	filter       *ipFilterPlugin
+	// authScopes, has* flags and closed are accessed atomically: they are
+	// written when the plugins are (re-)initialized while goroutines from
+	// previous initializations may still read them
+	authScopes       atomic.Int64
+	hasSearcher      atomic.Bool
+	hasNotifiers     atomic.Bool
+	hasAuths         atomic.Bool
+	hasIPFilter      atomic.Bool
 	concurrencyGuard chan struct{}
 }
 
 // Initialize initializes the configured plugins
 func Initialize(configs []Config, logLevel string) error {
 	logger.Debug(logSender, "", "initialize")
-	Handler = Manager{
-		Configs:          configs,
-		done:             make(chan bool),
-		authScopes:       -1,
-		concurrencyGuard: make(chan struct{}, 250),
-	}
-	Handler.closed.Store(false)
+	Handler.reset(configs)
 	setLogLevel(logLevel)
 	if len(configs) == 0 {
 		return nil
@@ -238,6 +240,40 @@ func Initialize(configs []Config, logLevel string) error {
 
 	startCheckTicker()
 	return nil
+}
+
+// reset re-initializes the manager state in place. Replacing the whole
+// Handler value would race with goroutines from previous initializations
+// still reading it, so each field is reset under its own lock (or atomically).
+func (m *Manager) reset(configs []Config) {
+	m.Configs = configs
+	m.done = make(chan bool)
+	m.authScopes.Store(-1)
+	m.closed.Store(false)
+	m.hasSearcher.Store(false)
+	m.hasNotifiers.Store(false)
+	m.hasAuths.Store(false)
+	m.hasIPFilter.Store(false)
+
+	m.notifLock.Lock()
+	m.notifiers = nil
+	m.notifLock.Unlock()
+
+	m.kmsLock.Lock()
+	m.kms = nil
+	m.kmsLock.Unlock()
+
+	m.authLock.Lock()
+	m.auths = nil
+	m.authLock.Unlock()
+
+	m.searcherLock.Lock()
+	m.searcher = nil
+	m.searcherLock.Unlock()
+
+	m.ipFilterLock.Lock()
+	m.filter = nil
+	m.ipFilterLock.Unlock()
 }
 
 func initializePlugins() error {
@@ -268,10 +304,10 @@ func initializePlugins() error {
 				return err
 			}
 			Handler.auths = append(Handler.auths, plugin)
-			if Handler.authScopes == -1 {
-				Handler.authScopes = config.AuthOptions.Scope
+			if authScopes := Handler.authScopes.Load(); authScopes == -1 {
+				Handler.authScopes.Store(int64(config.AuthOptions.Scope))
 			} else {
-				Handler.authScopes |= config.AuthOptions.Scope
+				Handler.authScopes.Store(authScopes | int64(config.AuthOptions.Scope))
 			}
 		case eventsearcher.PluginName:
 			plugin, err := newSearcherPlugin(config)
@@ -296,10 +332,10 @@ func initializePlugins() error {
 func (m *Manager) validateConfigs() error {
 	kmsSchemes := make(map[string]bool)
 	kmsEncryptions := make(map[string]bool)
-	m.hasSearcher = false
-	m.hasNotifiers = false
-	m.hasAuths = false
-	m.hasIPFilter = false
+	m.hasSearcher.Store(false)
+	m.hasNotifiers.Store(false)
+	m.hasAuths.Store(false)
+	m.hasIPFilter.Store(false)
 
 	for _, config := range m.Configs {
 		switch config.Type {
@@ -313,16 +349,16 @@ func (m *Manager) validateConfigs() error {
 			kmsSchemes[config.KMSOptions.Scheme] = true
 			kmsEncryptions[config.KMSOptions.EncryptedStatus] = true
 		case eventsearcher.PluginName:
-			if m.hasSearcher {
+			if m.hasSearcher.Load() {
 				return errors.New("only one eventsearcher plugin can be defined")
 			}
-			m.hasSearcher = true
+			m.hasSearcher.Store(true)
 		case notifier.PluginName:
-			m.hasNotifiers = true
+			m.hasNotifiers.Store(true)
 		case auth.PluginName:
-			m.hasAuths = true
+			m.hasAuths.Store(true)
 		case ipfilter.PluginName:
-			m.hasIPFilter = true
+			m.hasIPFilter.Store(true)
 		}
 	}
 	return nil
@@ -330,12 +366,12 @@ func (m *Manager) validateConfigs() error {
 
 // HasAuthenticators returns true if there is at least an auth plugin
 func (m *Manager) HasAuthenticators() bool {
-	return m.hasAuths
+	return m.hasAuths.Load()
 }
 
 // HasNotifiers returns true if there is at least a notifier plugin
 func (m *Manager) HasNotifiers() bool {
-	return m.hasNotifiers
+	return m.hasNotifiers.Load()
 }
 
 // NotifyFsEvent sends the fs event notifications using any defined notifier plugins
@@ -360,7 +396,7 @@ func (m *Manager) NotifyProviderEvent(event *notifier.ProviderEvent, object Rend
 
 // NotifyLogEvent sends the log event notifications using any defined notifier plugins
 func (m *Manager) NotifyLogEvent(event notifier.LogEventType, protocol, username, ip, role string, err error) {
-	if !m.hasNotifiers {
+	if !m.hasNotifiers.Load() {
 		return
 	}
 	m.notifLock.RLock()
@@ -393,12 +429,12 @@ func (m *Manager) NotifyLogEvent(event notifier.LogEventType, protocol, username
 
 // HasSearcher returns true if an event searcher plugin is defined
 func (m *Manager) HasSearcher() bool {
-	return m.hasSearcher
+	return m.hasSearcher.Load()
 }
 
 // SearchFsEvents returns the filesystem events matching the specified filters
 func (m *Manager) SearchFsEvents(searchFilters *eventsearcher.FsEventSearch) ([]byte, error) {
-	if !m.hasSearcher {
+	if !m.hasSearcher.Load() {
 		return nil, ErrNoSearcher
 	}
 	m.searcherLock.RLock()
@@ -410,7 +446,7 @@ func (m *Manager) SearchFsEvents(searchFilters *eventsearcher.FsEventSearch) ([]
 
 // SearchProviderEvents returns the provider events matching the specified filters
 func (m *Manager) SearchProviderEvents(searchFilters *eventsearcher.ProviderEventSearch) ([]byte, error) {
-	if !m.hasSearcher {
+	if !m.hasSearcher.Load() {
 		return nil, ErrNoSearcher
 	}
 	m.searcherLock.RLock()
@@ -422,7 +458,7 @@ func (m *Manager) SearchProviderEvents(searchFilters *eventsearcher.ProviderEven
 
 // SearchLogEvents returns the log events matching the specified filters
 func (m *Manager) SearchLogEvents(searchFilters *eventsearcher.LogEventSearch) ([]byte, error) {
-	if !m.hasSearcher {
+	if !m.hasSearcher.Load() {
 		return nil, ErrNoSearcher
 	}
 	m.searcherLock.RLock()
@@ -435,7 +471,7 @@ func (m *Manager) SearchLogEvents(searchFilters *eventsearcher.LogEventSearch) (
 // IsIPBanned returns true if the IP filter plugin does not allow the specified ip.
 // If no IP filter plugin is defined this method returns false
 func (m *Manager) IsIPBanned(ip, protocol string) bool {
-	if !m.hasIPFilter {
+	if !m.hasIPFilter.Load() {
 		return false
 	}
 
@@ -453,7 +489,7 @@ func (m *Manager) IsIPBanned(ip, protocol string) bool {
 
 // ReloadFilter sends a reload request to the IP filter plugin
 func (m *Manager) ReloadFilter() {
-	if !m.hasIPFilter {
+	if !m.hasIPFilter.Load() {
 		return
 	}
 	m.ipFilterLock.RLock()
@@ -483,10 +519,11 @@ func (m *Manager) kmsDecrypt(secret kms.BaseSecret, url string, masterKey string
 
 // HasAuthScope returns true if there is an auth plugin that support the specified scope
 func (m *Manager) HasAuthScope(scope int) bool {
-	if m.authScopes == -1 {
+	authScopes := m.authScopes.Load()
+	if authScopes == -1 {
 		return false
 	}
-	return m.authScopes&scope != 0
+	return authScopes&int64(scope) != 0
 }
 
 // Authenticate tries to authenticate the specified user using an external plugin
@@ -641,7 +678,7 @@ func (m *Manager) checkCrashedPlugins() {
 	}
 	m.authLock.RUnlock()
 
-	if m.hasSearcher {
+	if m.hasSearcher.Load() {
 		m.searcherLock.RLock()
 		if m.searcher.exited() {
 			defer func(cfg Config) {
@@ -651,7 +688,7 @@ func (m *Manager) checkCrashedPlugins() {
 		m.searcherLock.RUnlock()
 	}
 
-	if m.hasIPFilter {
+	if m.hasIPFilter.Load() {
 		m.ipFilterLock.RLock()
 		if m.filter.exited() {
 			defer func(cfg Config) {
@@ -782,14 +819,14 @@ func (m *Manager) Cleanup() {
 	}
 	m.authLock.Unlock()
 
-	if m.hasSearcher {
+	if m.hasSearcher.Load() {
 		m.searcherLock.Lock()
 		logger.Debug(logSender, "", "cleanup searcher plugin %v", m.searcher.config.Cmd)
 		m.searcher.cleanup()
 		m.searcherLock.Unlock()
 	}
 
-	if m.hasIPFilter {
+	if m.hasIPFilter.Load() {
 		m.ipFilterLock.Lock()
 		logger.Debug(logSender, "", "cleanup IP filter plugin %v", m.filter.config.Cmd)
 		m.filter.cleanup()
@@ -813,13 +850,17 @@ func setLogLevel(logLevel string) {
 func startCheckTicker() {
 	logger.Debug(logSender, "", "start plugins checker")
 
+	// capture the done channel once: reading Handler.done inside the loop
+	// would race with a subsequent re-initialization replacing the channel
+	done := Handler.done
+
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case <-Handler.done:
+			case <-done:
 				logger.Debug(logSender, "", "handler done, stop plugins checker")
 				return
 			case <-ticker.C:

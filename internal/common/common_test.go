@@ -1283,34 +1283,42 @@ func TestStartupHook(t *testing.T) {
 }
 
 func TestPostDisconnectHook(t *testing.T) {
-	Config.PostDisconnectHook = "http://127.0.0.1/"
+	// the writes must be synchronized because checkPostDisconnectHook
+	// executes the hook in a background goroutine that reads
+	// Config.PostDisconnectHook under configMutex
+	setHook := func(hook string) {
+		ConfigLock()
+		Config.PostDisconnectHook = hook
+		ConfigUnlock()
+	}
+	setHook("http://127.0.0.1/")
 
 	remoteAddr := "127.0.0.1:80"
 	Config.checkPostDisconnectHook(remoteAddr, ProtocolHTTP, "", "", time.Now())
 	Config.checkPostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 
-	Config.PostDisconnectHook = "http://bar\x7f.com/"
+	setHook("http://bar\x7f.com/")
 	Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 
-	Config.PostDisconnectHook = fmt.Sprintf("http://%v", httpAddr)
+	setHook(fmt.Sprintf("http://%v", httpAddr))
 	Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 
-	Config.PostDisconnectHook = "relativePath"
+	setHook("relativePath")
 	Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 
 	if runtime.GOOS == osWindows {
-		Config.PostDisconnectHook = "C:\\a\\bad\\command"
+		setHook("C:\\a\\bad\\command")
 		Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 	} else {
-		Config.PostDisconnectHook = "/invalid/path"
+		setHook("/invalid/path")
 		Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 
 		hookCmd, err := exec.LookPath("true")
 		assert.NoError(t, err)
-		Config.PostDisconnectHook = hookCmd
+		setHook(hookCmd)
 		Config.executePostDisconnectHook(remoteAddr, ProtocolSFTP, "", "", time.Now())
 	}
-	Config.PostDisconnectHook = ""
+	setHook("")
 }
 
 func TestPostConnectHook(t *testing.T) {

@@ -306,10 +306,12 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 		},
 	}
 	sftpdConf.PasswordAuthentication = false
+	common.ConfigLock()
 	common.Config.ProxyProtocol = 1
+	common.ConfigUnlock()
 	go func(cfg sftpd.Configuration) {
 		logger.Debug(logSender, "", "initializing SFTP server with config %+v and proxy protocol %v",
-			sftpdConf, common.Config.ProxyProtocol)
+			cfg, common.Config.ProxyProtocol)
 		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start SFTP server with proxy protocol 1: %v", err)
 			os.Exit(1)
@@ -343,18 +345,23 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 		},
 	}
 	sftpdConf.PasswordAuthentication = true
+	common.ConfigLock()
 	common.Config.ProxyProtocol = 2
-	go func() {
+	common.ConfigUnlock()
+	go func(cfg sftpd.Configuration) {
 		logger.Debug(logSender, "", "initializing SFTP server with config %+v and proxy protocol %v",
-			sftpdConf, common.Config.ProxyProtocol)
-		if err := sftpdConf.Initialize(configDir); err != nil {
+			cfg, common.Config.ProxyProtocol)
+		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start SFTP server with proxy protocol 2: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(sftpdConf)
 
 	waitTCPListening(sftpdConf.Bindings[0].GetAddress())
-	getHostKeysFingerprints(sftpdConf.HostKeys)
+	// the server configurations are passed by value to the goroutines above,
+	// so the generated default host keys are not written back to sftpdConf:
+	// read the fingerprints from the server status instead
+	getHostKeysFingerprintsFromStatus()
 	startHTTPFs()
 
 	exitCode := m.Run()
@@ -409,9 +416,13 @@ func TestInitialization(t *testing.T) {
 			ApplyProxyConfig: true,
 		},
 	}
+	common.ConfigLock()
 	common.Config.ProxyProtocol = 1
+	common.ConfigUnlock()
 	assert.True(t, sftpdConf.Bindings[0].HasProxy())
+	common.ConfigLock()
 	common.Config.ProxyProtocol = 0
+	common.ConfigUnlock()
 	sftpdConf.Bindings[0].Port = 0
 	sftpdConf.HostKeys = []string{"."}
 	err = sftpdConf.Initialize(configDir)
@@ -945,7 +956,10 @@ func TestRateLimiter(t *testing.T) {
 	cfg.RateLimitersConfig = []common.RateLimiterConfig{
 		{
 			Average:   1,
-			Period:    1000,
+			// use a long period so that no token is refilled while the test
+			// runs: with a short period the limiter could allow the next
+			// connection again, making the test timing-dependent
+			Period:    60000,
 			Burst:     1,
 			Type:      1,
 			Protocols: []string{common.ProtocolSSH},
@@ -1138,8 +1152,13 @@ func TestOpenReadWritePerm(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 0
+	common.ConfigUnlock()
 
 	usePubKey := true
 	numLogins := 50
@@ -1225,7 +1244,9 @@ func TestConcurrency(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestProxyProtocol(t *testing.T) {
@@ -3274,11 +3295,15 @@ func TestPreDownloadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreDownload}
 	common.Config.Actions.Hook = preDownloadPath
+	common.ConfigUnlock()
 
 	usePubKey := true
 	u := getTestUser(usePubKey)
@@ -3326,7 +3351,9 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.Error(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.Hook = "http://127.0.0.1:23080/web/admin/login"
+	common.ConfigUnlock()
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3343,7 +3370,9 @@ func TestPreDownloadHook(t *testing.T) {
 	err = scpDownload(localDownloadPath, remoteSCPDownPath, false, false)
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.Hook = "http://127.0.0.1:23080/"
+	common.ConfigUnlock()
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3369,19 +3398,25 @@ func TestPreDownloadHook(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPreUploadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreUpload}
 	common.Config.Actions.Hook = preUploadPath
+	common.ConfigUnlock()
 
 	usePubKey := true
 	u := getTestUser(usePubKey)
@@ -3428,7 +3463,9 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.Error(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.Hook = "http://127.0.0.1:23080/web/client/login"
+	common.ConfigUnlock()
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3445,7 +3482,9 @@ func TestPreUploadHook(t *testing.T) {
 	err = scpUpload(testFilePath, remoteSCPUpPath, true, false)
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.Hook = "http://127.0.0.1:23080/web"
+	common.ConfigUnlock()
 
 	conn, client, err = getSftpClient(user, usePubKey)
 	if assert.NoError(t, err) {
@@ -3470,15 +3509,19 @@ func TestPreUploadHook(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPostConnectHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigLock()
 	common.Config.PostConnectHook = postConnectPath
+	common.ConfigUnlock()
 
 	usePubKey := true
 	u := getTestUser(usePubKey)
@@ -3501,7 +3544,9 @@ func TestPostConnectHook(t *testing.T) {
 		conn.Close()
 	}
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:23080/healthz"
+	common.ConfigUnlock()
 
 	conn, client, err = getSftpClient(u, usePubKey)
 	if assert.NoError(t, err) {
@@ -3511,7 +3556,9 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:23080/notfound"
+	common.ConfigUnlock()
 	conn, client, err = getSftpClient(u, usePubKey)
 	if !assert.Error(t, err) {
 		client.Close()
@@ -3523,7 +3570,9 @@ func TestPostConnectHook(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = ""
+	common.ConfigUnlock()
 }
 
 func TestCheckPwdHook(t *testing.T) {
@@ -4393,8 +4442,13 @@ func TestQuotaDisabledError(t *testing.T) {
 
 //nolint:dupl
 func TestMaxConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxTotalConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -4423,13 +4477,20 @@ func TestMaxConnections(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = oldValue
+	common.ConfigUnlock()
 }
 
 //nolint:dupl
 func TestMaxPerHostConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -4458,12 +4519,19 @@ func TestMaxPerHostConnections(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMaxTransfers(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 2
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -4530,7 +4598,9 @@ func TestMaxTransfers(t *testing.T) {
 		return common.Connections.GetTotalTransfers() == 0
 	}, 1000*time.Millisecond, 50*time.Millisecond)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMaxSessions(t *testing.T) {
@@ -9939,8 +10009,13 @@ func TestSSHCommandMaxTransfers(t *testing.T) {
 	if len(gitPath) == 0 || len(sshPath) == 0 || runtime.GOOS == osWindows {
 		t.Skip("git and/or ssh command not found or OS is windows, unable to execute this test")
 	}
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 2
+	common.ConfigUnlock()
 
 	usePubKey := true
 	u := getTestUser(usePubKey)
@@ -9987,7 +10062,9 @@ func TestSSHCommandMaxTransfers(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 // Start SCP tests
@@ -11050,10 +11127,12 @@ func TestSCPErrors(t *testing.T) {
 	_, _, err = httpdtest.UpdateUser(user, http.StatusOK, "")
 	assert.NoError(t, err)
 	cmd := getScpDownloadCommand(localPath, remoteDownPath, false, false)
-	go func() {
-		err := cmd.Run()
+	err = cmd.Start()
+	assert.NoError(t, err)
+	go func(c *exec.Cmd) {
+		err := c.Wait()
 		assert.Error(t, err, "SCP download must fail")
-	}()
+	}(cmd)
 	waitForActiveTransfers(t)
 	// wait some additional arbitrary time to wait for transfer activity to happen
 	// it is need to reach all the code in CheckIdleConnections
@@ -11063,10 +11142,12 @@ func TestSCPErrors(t *testing.T) {
 	assert.Eventually(t, func() bool { return len(common.Connections.GetStats("")) == 0 }, 2*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 	cmd = getScpUploadCommand(testFilePath, remoteUpPath, false, false)
-	go func() {
-		err := cmd.Run()
+	err = cmd.Start()
+	assert.NoError(t, err)
+	go func(c *exec.Cmd) {
+		err := c.Wait()
 		assert.Error(t, err, "SCP upload must fail")
-	}()
+	}(cmd)
 	waitForActiveTransfers(t)
 	// wait some additional arbitrary time to wait for transfer activity to happen
 	// it is need to reach all the code in CheckIdleConnections
@@ -11720,27 +11801,13 @@ func printLatestLogs(maxNumberOfLines int) {
 	}
 }
 
-func getHostKeyFingerprint(name string) (string, error) {
-	privateBytes, err := os.ReadFile(name)
-	if err != nil {
-		return "", err
+func getHostKeysFingerprintsFromStatus() {
+	for _, k := range sftpd.GetStatus().HostKeys {
+		hostKeyFPs = append(hostKeyFPs, k.Fingerprint)
 	}
-
-	private, err := ssh.ParsePrivateKey(privateBytes)
-	if err != nil {
-		return "", err
-	}
-	return ssh.FingerprintSHA256(private.PublicKey()), nil
-}
-
-func getHostKeysFingerprints(hostKeys []string) {
-	for _, k := range hostKeys {
-		fp, err := getHostKeyFingerprint(filepath.Join(configDir, k))
-		if err != nil {
-			logger.ErrorToConsole("unable to get fingerprint for host key %q: %v", k, err)
-			os.Exit(1)
-		}
-		hostKeyFPs = append(hostKeyFPs, fp)
+	if len(hostKeyFPs) == 0 {
+		logger.ErrorToConsole("unable to get host keys fingerprints from server status")
+		os.Exit(1)
 	}
 }
 

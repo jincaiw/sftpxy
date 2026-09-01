@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jincaiw/sftpxy/v2/internal/acme"
@@ -170,7 +171,9 @@ const (
 )
 
 var (
-	certMgr                        *common.CertManager
+	// certMgr is stored atomically: tests re-initialize the server in a
+	// goroutine while ReloadCertificateMgr may be called concurrently
+	certMgr                        atomic.Pointer[common.CertManager]
 	cleanupTicker                  *time.Ticker
 	cleanupDone                    chan bool
 	invalidatedJWTTokens           tokenManager
@@ -640,7 +643,7 @@ func (c *Conf) Initialize(configDir string, isShared int) error {
 		if err := mgr.LoadCRLs(); err != nil {
 			return err
 		}
-		certMgr = mgr
+		certMgr.Store(mgr)
 	}
 
 	passphrase, err := util.ResolveConfigValue(c.SigningPassphrase, c.SigningPassphraseFile, configDir)

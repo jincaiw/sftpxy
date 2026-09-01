@@ -1113,7 +1113,10 @@ func TestRateLimiter(t *testing.T) {
 	cfg.RateLimitersConfig = []common.RateLimiterConfig{
 		{
 			Average:   1,
-			Period:    1000,
+			// use a long period so that no token is refilled while the test
+			// runs: with a short period the limiter could allow the next
+			// request again, making the test timing-dependent
+			Period:    60000,
 			Burst:     3,
 			Type:      1,
 			Protocols: []string{common.ProtocolWebDAV},
@@ -1489,11 +1492,15 @@ func TestPreDownloadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreDownload}
 	common.Config.Actions.Hook = preDownloadPath
+	common.ConfigUnlock()
 
 	user, _, err := httpdtest.AddUser(getTestUser(), http.StatusCreated)
 	assert.NoError(t, err)
@@ -1530,22 +1537,28 @@ func TestPreDownloadHook(t *testing.T) {
 		1*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreDownload}
 	common.Config.Actions.Hook = preDownloadPath
 
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPreUploadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreUpload}
 	common.Config.Actions.Hook = preUploadPath
+	common.ConfigUnlock()
 
 	user, _, err := httpdtest.AddUser(getTestUser(), http.StatusCreated)
 	assert.NoError(t, err)
@@ -1581,15 +1594,19 @@ func TestPreUploadHook(t *testing.T) {
 		1*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPostConnectHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigLock()
 	common.Config.PostConnectHook = postConnectPath
+	common.ConfigUnlock()
 
 	u := getTestUser()
 	user, _, err := httpdtest.AddUser(u, http.StatusCreated)
@@ -1602,10 +1619,14 @@ func TestPostConnectHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Error(t, checkBasicFunc(client))
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:24086/healthz"
+	common.ConfigUnlock()
 	assert.NoError(t, checkBasicFunc(client))
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:24086/notfound"
+	common.ConfigUnlock()
 	assert.Error(t, checkBasicFunc(client))
 
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)
@@ -1613,12 +1634,19 @@ func TestPostConnectHook(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = ""
+	common.ConfigUnlock()
 }
 
 func TestMaxConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxTotalConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1645,12 +1673,19 @@ func TestMaxConnections(t *testing.T) {
 		1*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMaxPerHostConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1678,12 +1713,19 @@ func TestMaxPerHostConnections(t *testing.T) {
 		1*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMaxTransfers(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 2
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1747,7 +1789,9 @@ func TestMaxTransfers(t *testing.T) {
 		1*time.Second, 100*time.Millisecond)
 	assert.Equal(t, int32(0), common.Connections.GetTotalTransfers())
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMustChangePasswordRequirement(t *testing.T) {

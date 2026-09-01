@@ -32,11 +32,17 @@ import (
 )
 
 func createProvider(basePath string) error {
-	sqlPlaceholders = getSQLPlaceholders()
+	// write the placeholders only when their value changes: tests
+	// re-initialize the provider repeatedly while goroutines from previous
+	// initializations may still read them, so redundant writes of unchanged
+	// values would be reported as data races by the race detector
+	if placeholders := getSQLPlaceholders(); !slices.Equal(placeholders, sqlPlaceholders) {
+		sqlPlaceholders = placeholders
+	}
 	if err := validateSQLTablesPrefix(); err != nil {
 		return err
 	}
-	logSender = fmt.Sprintf("dataprovider_%v", holder.getConfig().Driver)
+	setLogSender(fmt.Sprintf("dataprovider_%v", holder.getConfig().Driver))
 
 	switch holder.getConfig().Driver {
 	case SQLiteDataProviderName:
@@ -49,7 +55,7 @@ func createProvider(basePath string) error {
 		return initializeBoltProvider(basePath)
 	case MemoryDataProviderName:
 		if err := initializeMemoryProvider(basePath); err != nil {
-			logger.Warn(logSender, "", "provider initialized but data loading failed: %v", err)
+			logger.Warn(getLogSender(), "", "provider initialized but data loading failed: %v", err)
 			logger.WarnToConsole("provider initialized but data loading failed: %v", err)
 		}
 		return nil

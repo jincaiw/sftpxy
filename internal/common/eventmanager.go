@@ -778,7 +778,10 @@ func (*EventParams) getStringReplacement(val string, escapeMode int) string {
 
 func (p *EventParams) getStringReplacements(addObjectData bool, escapeMode int) []string {
 	var dateTimeString string
-	if Config.TZ == "local" {
+	configMutex.RLock()
+	tz := Config.TZ
+	configMutex.RUnlock()
+	if tz == "local" {
 		dateTimeString = p.Timestamp.Local().Format(dateTimeMillisFormat)
 	} else {
 		dateTimeString = p.Timestamp.UTC().Format(dateTimeMillisFormat)

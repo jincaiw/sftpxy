@@ -1559,7 +1559,7 @@ func TestMimeCache(t *testing.T) {
 }
 
 func TestVerifyTLSConnection(t *testing.T) {
-	oldCertMgr := certMgr
+	oldCertMgr := certMgr.Load()
 
 	caCrlPath := filepath.Join(os.TempDir(), "testcrl.crt")
 	certPath := filepath.Join(os.TempDir(), "test.crt")
@@ -1578,11 +1578,12 @@ func TestVerifyTLSConnection(t *testing.T) {
 			ID:   common.DefaultTLSKeyPaidID,
 		},
 	}
-	certMgr, err = common.NewCertManager(keyPairs, "", "webdav_test")
+	mgr, err := common.NewCertManager(keyPairs, "", "webdav_test")
 	assert.NoError(t, err)
+	certMgr.Store(mgr)
 
-	certMgr.SetCARevocationLists([]string{caCrlPath})
-	err = certMgr.LoadCRLs()
+	mgr.SetCARevocationLists([]string{caCrlPath})
+	err = mgr.LoadCRLs()
 	assert.NoError(t, err)
 
 	crt, err := tls.X509KeyPair([]byte(client1Crt), []byte(client1Key))
@@ -1625,19 +1626,19 @@ func TestVerifyTLSConnection(t *testing.T) {
 	err = os.Remove(keyPath)
 	assert.NoError(t, err)
 
-	certMgr = oldCertMgr
+	certMgr.Store(oldCertMgr)
 }
 
 func TestMisc(t *testing.T) {
-	oldCertMgr := certMgr
+	oldCertMgr := certMgr.Load()
 
-	certMgr = nil
+	certMgr.Store(nil)
 	err := ReloadCertificateMgr()
 	assert.Nil(t, err)
 	val := getConfigPath("", ".")
 	assert.Empty(t, val)
 
-	certMgr = oldCertMgr
+	certMgr.Store(oldCertMgr)
 }
 
 func TestParseTime(t *testing.T) {

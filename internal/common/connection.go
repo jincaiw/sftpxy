@@ -168,7 +168,10 @@ func (c *BaseConnection) AddTransfer(t ActiveTransfer) {
 				}
 			}
 		}
-		go transfersChecker.AddTransfer(dataprovider.ActiveTransfer{
+		configMutex.RLock()
+		checker := transfersChecker
+		configMutex.RUnlock()
+		go checker.AddTransfer(dataprovider.ActiveTransfer{
 			ID:            t.GetID(),
 			Type:          t.GetType(),
 			ConnID:        c.ID,
@@ -193,7 +196,10 @@ func (c *BaseConnection) RemoveTransfer(t ActiveTransfer) {
 	defer c.Unlock()
 
 	if t.HasSizeLimit() {
-		go transfersChecker.RemoveTransfer(t.GetID(), c.ID)
+		configMutex.RLock()
+		checker := transfersChecker
+		configMutex.RUnlock()
+		go checker.RemoveTransfer(t.GetID(), c.ID)
 	}
 
 	for idx, transfer := range c.activeTransfers {
@@ -999,10 +1005,14 @@ func (c *BaseConnection) createDirIfMissing(name string) error {
 }
 
 func (c *BaseConnection) ignoreSetStat(fs vfs.Fs) bool {
-	if Config.SetstatMode == 1 {
+	configMutex.RLock()
+	setstatMode := Config.SetstatMode
+	configMutex.RUnlock()
+
+	if setstatMode == 1 {
 		return true
 	}
-	if Config.SetstatMode == 2 && !vfs.IsLocalOrSFTPFs(fs) && !vfs.IsCryptOsFs(fs) {
+	if setstatMode == 2 && !vfs.IsLocalOrSFTPFs(fs) && !vfs.IsCryptOsFs(fs) {
 		return true
 	}
 	return false
@@ -1049,14 +1059,17 @@ func (c *BaseConnection) handleChtimes(fs vfs.Fs, fsPath, virtualPath, pathForPe
 	if !c.User.HasPerm(dataprovider.PermChtimes, pathForPerms) {
 		return c.GetPermissionDeniedError()
 	}
-	if Config.SetstatMode == 1 {
+	configMutex.RLock()
+	setstatMode := Config.SetstatMode
+	configMutex.RUnlock()
+	if setstatMode == 1 {
 		return nil
 	}
 	startTime := time.Now()
 	isUploading := c.setTimes(fsPath, attributes.Atime, attributes.Mtime)
 	if err := fs.Chtimes(c.getRealFsPath(fsPath), attributes.Atime, attributes.Mtime, isUploading); err != nil {
 		c.setTimes(fsPath, time.Time{}, time.Time{})
-		if errors.Is(err, vfs.ErrVfsUnsupported) && Config.SetstatMode == 2 {
+		if errors.Is(err, vfs.ErrVfsUnsupported) && setstatMode == 2 {
 			return nil
 		}
 		c.Log(logger.LevelError, "failed to chtimes for path %q, access time: %v, modification time: %v, err: %+v",
@@ -1163,11 +1176,15 @@ func (c *BaseConnection) checkRecursiveRenameDirPermissions(fsSrc, fsDst vfs.Fs,
 		}
 	}
 
+	configMutex.RLock()
+	renameMode := Config.RenameMode
+	configMutex.RUnlock()
+
 	return fsSrc.Walk(sourcePath, func(walkedPath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return c.GetFsError(fsSrc, err)
 		}
-		if walkedPath != sourcePath && !vfs.IsRenameAtomic(fsSrc) && Config.RenameMode == 0 {
+		if walkedPath != sourcePath && !vfs.IsRenameAtomic(fsSrc) && renameMode == 0 {
 			c.Log(logger.LevelInfo, "cannot rename non empty directory %q on this filesystem", virtualSourcePath)
 			return c.GetOpUnsupportedError()
 		}
@@ -1890,21 +1907,33 @@ func getPermissionDeniedError(protocol string) error {
 }
 
 func keepConnectionAlive(c *BaseConnection, interval time.Duration) func() {
+	// mu guards timer and closed: the AfterFunc callback can start running
+	// before the assignment below completes, so accessing timer from the
+	// callback without synchronization is a data race
+	var mu sync.Mutex
 	var timer *time.Timer
-	var closed atomic.Bool
+	closed := false
 
 	task := func() {
 		c.UpdateLastActivity()
 
-		if !closed.Load() {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if !closed {
 			timer.Reset(interval)
 		}
 	}
 
+	mu.Lock()
 	timer = time.AfterFunc(interval, task)
+	mu.Unlock()
 
 	return func() {
-		closed.Store(true)
+		mu.Lock()
+		defer mu.Unlock()
+
+		closed = true
 		timer.Stop()
 	}
 }

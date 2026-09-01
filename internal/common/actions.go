@@ -57,13 +57,29 @@ type ProtocolActions struct {
 	Hook string `json:"hook" mapstructure:"hook"`
 }
 
-var actionHandler ActionHandler = &defaultActionHandler{}
+// actionHandler holds the active ActionHandler. It is stored atomically:
+// tests replace it while goroutines from previously executed actions may
+// still read it.
+var actionHandler atomic.Pointer[ActionHandler]
+
+func init() {
+	h := ActionHandler(&defaultActionHandler{})
+	actionHandler.Store(&h)
+}
+
+// getActionHandler returns the active ActionHandler.
+func getActionHandler() ActionHandler {
+	if h := actionHandler.Load(); h != nil {
+		return *h
+	}
+	return &defaultActionHandler{}
+}
 
 // InitializeActionHandler lets the user choose an action handler implementation.
 //
 // Do NOT call this function after application initialization.
 func InitializeActionHandler(handler ActionHandler) {
-	actionHandler = handler
+	actionHandler.Store(&handler)
 }
 
 // ExecutePreAction executes a pre-* action and returns the result.
@@ -74,7 +90,10 @@ func InitializeActionHandler(handler ActionHandler) {
 func ExecutePreAction(conn *BaseConnection, operation, filePath, virtualPath string, fileSize int64, openFlags int) (int, error) {
 	var event *notifier.FsEvent
 	hasNotifiersPlugin := plugin.Handler.HasNotifiers()
-	hasHook := slices.Contains(Config.Actions.ExecuteOn, operation)
+	configMutex.RLock()
+	executeOn := Config.Actions.ExecuteOn
+	configMutex.RUnlock()
+	hasHook := slices.Contains(executeOn, operation)
 	hasRules := eventManager.hasFsRules()
 	if !hasHook && !hasNotifiersPlugin && !hasRules {
 		return 0, nil
@@ -113,7 +132,7 @@ func ExecutePreAction(conn *BaseConnection, operation, filePath, virtualPath str
 	if !hasHook {
 		return 0, nil
 	}
-	return actionHandler.Handle(event)
+	return getActionHandler().Handle(event)
 }
 
 // ExecuteActionNotification executes the defined hook, if any, for the specified action
@@ -121,7 +140,11 @@ func ExecuteActionNotification(conn *BaseConnection, operation, filePath, virtua
 	fileSize int64, err error, elapsed int64, metadata map[string]string,
 ) error {
 	hasNotifiersPlugin := plugin.Handler.HasNotifiers()
-	hasHook := slices.Contains(Config.Actions.ExecuteOn, operation)
+	configMutex.RLock()
+	executeOn := Config.Actions.ExecuteOn
+	executeSync := Config.Actions.ExecuteSync
+	configMutex.RUnlock()
+	hasHook := slices.Contains(executeOn, operation)
 	hasRules := eventManager.hasFsRules()
 	if !hasHook && !hasNotifiersPlugin && !hasRules {
 		return nil
@@ -163,15 +186,15 @@ func ExecuteActionNotification(conn *BaseConnection, operation, filePath, virtua
 		}
 	}
 	if hasHook {
-		if slices.Contains(Config.Actions.ExecuteSync, operation) {
-			_, err := actionHandler.Handle(notification)
+		if slices.Contains(executeSync, operation) {
+			_, err := getActionHandler().Handle(notification)
 			return err
 		}
 		go func() {
 			startNewHook()
 			defer hookEnded()
 
-			actionHandler.Handle(notification) //nolint:errcheck
+			getActionHandler().Handle(notification) //nolint:errcheck
 		}()
 	}
 	return nil
@@ -238,30 +261,35 @@ func newActionNotification(
 type defaultActionHandler struct{}
 
 func (h *defaultActionHandler) Handle(event *notifier.FsEvent) (int, error) {
-	if !slices.Contains(Config.Actions.ExecuteOn, event.Action) {
+	configMutex.RLock()
+	executeOn := Config.Actions.ExecuteOn
+	hook := Config.Actions.Hook
+	configMutex.RUnlock()
+
+	if !slices.Contains(executeOn, event.Action) {
 		return 0, nil
 	}
 
-	if Config.Actions.Hook == "" {
+	if hook == "" {
 		logger.Warn(event.Protocol, "", "Unable to send notification, no hook is defined")
 
 		return 0, nil
 	}
 
-	if strings.HasPrefix(Config.Actions.Hook, "http") {
-		err := h.handleHTTP(event)
+	if strings.HasPrefix(hook, "http") {
+		err := h.handleHTTP(event, hook)
 		return 1, err
 	}
 
-	err := h.handleCommand(event)
+	err := h.handleCommand(event, hook)
 	return 1, err
 }
 
-func (h *defaultActionHandler) handleHTTP(event *notifier.FsEvent) error {
-	u, err := url.Parse(Config.Actions.Hook)
+func (h *defaultActionHandler) handleHTTP(event *notifier.FsEvent, hook string) error {
+	u, err := url.Parse(hook)
 	if err != nil {
 		logger.Error(event.Protocol, "", "Invalid hook %q for operation %q: %v",
-			Config.Actions.Hook, event.Action, err)
+			hook, event.Action, err)
 		return err
 	}
 
@@ -271,7 +299,7 @@ func (h *defaultActionHandler) handleHTTP(event *notifier.FsEvent) error {
 	var b bytes.Buffer
 	_ = json.NewEncoder(&b).Encode(event)
 
-	resp, err := httpclient.RetryablePost(Config.Actions.Hook, "application/json", &b)
+	resp, err := httpclient.RetryablePost(hook, "application/json", &b)
 	if err == nil {
 		respCode = resp.StatusCode
 		resp.Body.Close()
@@ -287,26 +315,26 @@ func (h *defaultActionHandler) handleHTTP(event *notifier.FsEvent) error {
 	return err
 }
 
-func (h *defaultActionHandler) handleCommand(event *notifier.FsEvent) error {
-	if !filepath.IsAbs(Config.Actions.Hook) {
-		err := fmt.Errorf("invalid notification command %q", Config.Actions.Hook)
+func (h *defaultActionHandler) handleCommand(event *notifier.FsEvent, hook string) error {
+	if !filepath.IsAbs(hook) {
+		err := fmt.Errorf("invalid notification command %q", hook)
 		logger.Warn(event.Protocol, "", "unable to execute notification command: %v", err)
 
 		return err
 	}
 
-	timeout, env, args := command.GetConfig(Config.Actions.Hook, command.HookFsActions)
+	timeout, env, args := command.GetConfig(hook, command.HookFsActions)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, Config.Actions.Hook, args...)
+	cmd := exec.CommandContext(ctx, hook, args...)
 	cmd.Env = append(env, notificationAsEnvVars(event)...)
 
 	startTime := time.Now()
 	err := cmd.Run()
 
 	logger.Debug(event.Protocol, "", "executed command %q, elapsed: %s, error: %v",
-		Config.Actions.Hook, time.Since(startTime), err)
+		hook, time.Since(startTime), err)
 
 	return err
 }

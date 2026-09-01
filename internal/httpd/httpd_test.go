@@ -469,22 +469,28 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 		logger.ErrorToConsole("error writing HTTPS private key: %v", err)
 		os.Exit(1)
 	}
-	httpdConf.Bindings[0].Port = 31081
-	httpdConf.Bindings[0].EnableHTTPS = true
-	httpdConf.Bindings[0].CertificateFile = certPath
-	httpdConf.Bindings[0].CertificateKeyFile = keyPath
-	httpdConf.Bindings = append(httpdConf.Bindings, httpd.Binding{})
+	// do not mutate httpdConf here: the first Initialize goroutine still
+	// reads it, so modifying it concurrently is a data race. Start the
+	// HTTPS server with a copy that owns its bindings slice instead
+	httpsConf := httpdConf
+	httpsConf.Bindings = make([]httpd.Binding, len(httpdConf.Bindings))
+	copy(httpsConf.Bindings, httpdConf.Bindings)
+	httpsConf.Bindings[0].Port = 31081
+	httpsConf.Bindings[0].EnableHTTPS = true
+	httpsConf.Bindings[0].CertificateFile = certPath
+	httpsConf.Bindings[0].CertificateKeyFile = keyPath
+	httpsConf.Bindings = append(httpsConf.Bindings, httpd.Binding{})
 
 	go func() {
-		if err := httpdConf.Initialize(configDir, 0); err != nil {
+		if err := httpsConf.Initialize(configDir, 0); err != nil {
 			logger.ErrorToConsole("could not start HTTPS server: %v", err)
 			os.Exit(1)
 		}
 	}()
-	waitTCPListening(httpdConf.Bindings[0].GetAddress())
+	waitTCPListening(httpsConf.Bindings[0].GetAddress())
 	httpd.ReloadCertificateMgr() //nolint:errcheck
 
-	handler, err := httpd.GetHTTPRouter(httpdConf.Bindings[0])
+	handler, err := httpd.GetHTTPRouter(httpsConf.Bindings[0])
 	if err != nil {
 		logger.ErrorToConsole("unable to get http test handler: %v", err)
 		os.Exit(1)
@@ -14937,7 +14943,11 @@ func TestShareUsage(t *testing.T) {
 		Paths:     []string{"/"},
 		Password:  defaultPassword,
 		MaxTokens: 2,
-		ExpiresAt: util.GetTimeAsMsSinceEpoch(time.Now().Add(1 * time.Second)),
+		// the first accesses must happen before the share expires: under
+		// -race the bcrypt password checks can take more than one second,
+		// so use a margin large enough to keep the share valid, while the
+		// sleep below still outlives it
+		ExpiresAt: util.GetTimeAsMsSinceEpoch(time.Now().Add(10 * time.Second)),
 	}
 	asJSON, err := json.Marshal(share)
 	assert.NoError(t, err)
@@ -14967,7 +14977,7 @@ func TestShareUsage(t *testing.T) {
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusOK, rr)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(11 * time.Second)
 
 	req, err = http.NewRequest(http.MethodGet, webClientPubSharesPath+"/"+objectID, nil)
 	assert.NoError(t, err)

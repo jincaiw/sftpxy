@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,12 +114,16 @@ func TestNewActionNotification(t *testing.T) {
 }
 
 func TestActionHTTP(t *testing.T) {
+	ConfigRLock()
 	actionsCopy := Config.Actions
+	ConfigRUnlock()
 
+	ConfigLock()
 	Config.Actions = ProtocolActions{
 		ExecuteOn: []string{operationDownload},
 		Hook:      fmt.Sprintf("http://%v", httpAddr),
 	}
+	ConfigUnlock()
 	user := &dataprovider.User{
 		BaseUser: sdk.BaseUser{
 			Username: "username",
@@ -126,38 +131,48 @@ func TestActionHTTP(t *testing.T) {
 	}
 	a := newActionNotification(user, operationDownload, "path", "vpath", "target", "", "", ProtocolSFTP, "",
 		xid.New().String(), 123, 0, 1, 0, time.Now(), nil)
-	status, err := actionHandler.Handle(a)
+	status, err := getActionHandler().Handle(a)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, status)
 
+	ConfigLock()
 	Config.Actions.Hook = "http://invalid:1234"
-	status, err = actionHandler.Handle(a)
+	ConfigUnlock()
+	status, err = getActionHandler().Handle(a)
 	assert.Error(t, err)
 	assert.Equal(t, 1, status)
 
+	ConfigLock()
 	Config.Actions.Hook = fmt.Sprintf("http://%v/404", httpAddr)
-	status, err = actionHandler.Handle(a)
+	ConfigUnlock()
+	status, err = getActionHandler().Handle(a)
 	if assert.Error(t, err) {
 		assert.EqualError(t, err, errUnexpectedHTTResponse.Error())
 	}
 	assert.Equal(t, 1, status)
 
+	ConfigLock()
 	Config.Actions = actionsCopy
+	ConfigUnlock()
 }
 
 func TestActionCMD(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	ConfigRLock()
 	actionsCopy := Config.Actions
+	ConfigRUnlock()
 
 	hookCmd, err := exec.LookPath("true")
 	assert.NoError(t, err)
 
+	ConfigLock()
 	Config.Actions = ProtocolActions{
 		ExecuteOn: []string{operationDownload},
 		Hook:      hookCmd,
 	}
+	ConfigUnlock()
 	user := &dataprovider.User{
 		BaseUser: sdk.BaseUser{
 			Username: "username",
@@ -166,7 +181,7 @@ func TestActionCMD(t *testing.T) {
 	sessionID := shortuuid.New()
 	a := newActionNotification(user, operationDownload, "path", "vpath", "target", "", "", ProtocolSFTP, "", sessionID,
 		123, 0, 1, 0, time.Now(), map[string]string{"key": "value"})
-	status, err := actionHandler.Handle(a)
+	status, err := getActionHandler().Handle(a)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, status)
 
@@ -177,20 +192,26 @@ func TestActionCMD(t *testing.T) {
 	err = ExecuteActionNotification(c, operationDownload, "path", "vpath", "", "", "", 0, nil, 0, nil)
 	assert.NoError(t, err)
 
+	ConfigLock()
 	Config.Actions = actionsCopy
+	ConfigUnlock()
 }
 
 func TestWrongActions(t *testing.T) {
+	ConfigRLock()
 	actionsCopy := Config.Actions
+	ConfigRUnlock()
 
 	badCommand := "/bad/command"
 	if runtime.GOOS == osWindows {
 		badCommand = "C:\\bad\\command"
 	}
+	ConfigLock()
 	Config.Actions = ProtocolActions{
 		ExecuteOn: []string{operationUpload},
 		Hook:      badCommand,
 	}
+	ConfigUnlock()
 	user := &dataprovider.User{
 		BaseUser: sdk.BaseUser{
 			Username: "username",
@@ -199,48 +220,63 @@ func TestWrongActions(t *testing.T) {
 
 	a := newActionNotification(user, operationUpload, "", "", "", "", "", ProtocolSFTP, "", xid.New().String(),
 		123, 0, 1, 0, time.Now(), nil)
-	status, err := actionHandler.Handle(a)
+	status, err := getActionHandler().Handle(a)
 	assert.Error(t, err, "action with bad command must fail")
 	assert.Equal(t, 1, status)
 
 	a.Action = operationDelete
-	status, err = actionHandler.Handle(a)
+	status, err = getActionHandler().Handle(a)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, status)
 
+	ConfigLock()
 	Config.Actions.Hook = "http://foo\x7f.com/"
+	ConfigUnlock()
 	a.Action = operationUpload
-	status, err = actionHandler.Handle(a)
+	status, err = getActionHandler().Handle(a)
 	assert.Error(t, err, "action with bad url must fail")
 	assert.Equal(t, 1, status)
 
+	ConfigLock()
 	Config.Actions.Hook = ""
-	status, err = actionHandler.Handle(a)
+	ConfigUnlock()
+	status, err = getActionHandler().Handle(a)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, status)
 
+	ConfigLock()
 	Config.Actions.Hook = "relative path"
-	status, err = actionHandler.Handle(a)
+	ConfigUnlock()
+	status, err = getActionHandler().Handle(a)
 	if assert.Error(t, err) {
-		assert.EqualError(t, err, fmt.Sprintf("invalid notification command %q", Config.Actions.Hook))
+		ConfigRLock()
+		hook := Config.Actions.Hook
+		ConfigRUnlock()
+		assert.EqualError(t, err, fmt.Sprintf("invalid notification command %q", hook))
 	}
 	assert.Equal(t, 1, status)
 
+	ConfigLock()
 	Config.Actions = actionsCopy
+	ConfigUnlock()
 }
 
 func TestPreDeleteAction(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	ConfigRLock()
 	actionsCopy := Config.Actions
+	ConfigRUnlock()
 
 	hookCmd, err := exec.LookPath("true")
 	assert.NoError(t, err)
+	ConfigLock()
 	Config.Actions = ProtocolActions{
 		ExecuteOn: []string{operationPreDelete},
 		Hook:      "missing hook",
 	}
+	ConfigUnlock()
 	homeDir := filepath.Join(os.TempDir(), "test_user")
 	err = os.MkdirAll(homeDir, os.ModePerm)
 	assert.NoError(t, err)
@@ -263,23 +299,31 @@ func TestPreDeleteAction(t *testing.T) {
 	err = c.RemoveFile(fs, testfile, "testfile", info)
 	assert.ErrorIs(t, err, c.GetPermissionDeniedError())
 	assert.FileExists(t, testfile)
+	ConfigLock()
 	Config.Actions.Hook = hookCmd
+	ConfigUnlock()
 	err = c.RemoveFile(fs, testfile, "testfile", info)
 	assert.NoError(t, err)
 	assert.NoFileExists(t, testfile)
 
 	os.RemoveAll(homeDir)
 
+	ConfigLock()
 	Config.Actions = actionsCopy
+	ConfigUnlock()
 }
 
 func TestUnconfiguredHook(t *testing.T) {
+	ConfigRLock()
 	actionsCopy := Config.Actions
+	ConfigRUnlock()
 
+	ConfigLock()
 	Config.Actions = ProtocolActions{
 		ExecuteOn: []string{operationDownload},
 		Hook:      "",
 	}
+	ConfigUnlock()
 	pluginsConfig := []plugin.Config{
 		{
 			Type: "notifier",
@@ -304,15 +348,19 @@ func TestUnconfiguredHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, plugin.Handler.HasNotifiers())
 
+	ConfigLock()
 	Config.Actions = actionsCopy
+	ConfigUnlock()
 }
 
 type actionHandlerStub struct {
-	called bool
+	// called is atomic: a previous test may leave an async action hook
+	// goroutine running that calls Handle concurrently with this test
+	called atomic.Bool
 }
 
 func (h *actionHandlerStub) Handle(_ *notifier.FsEvent) (int, error) {
-	h.called = true
+	h.called.Store(true)
 
 	return 1, nil
 }
@@ -325,8 +373,8 @@ func TestInitializeActionHandler(t *testing.T) {
 		InitializeActionHandler(&defaultActionHandler{})
 	})
 
-	status, err := actionHandler.Handle(&notifier.FsEvent{})
+	status, err := getActionHandler().Handle(&notifier.FsEvent{})
 	assert.NoError(t, err)
-	assert.True(t, handler.called)
+	assert.True(t, handler.called.Load())
 	assert.Equal(t, 1, status)
 }

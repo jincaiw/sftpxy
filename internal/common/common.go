@@ -148,6 +148,11 @@ var (
 var (
 	// Config is the configuration for the supported protocols
 	Config Configuration
+	// configMutex protects Config and the other package-level configuration
+	// state (rateLimiters, transfersChecker) against concurrent reads and
+	// writes. Writes only happen within Initialize or, in tests, while
+	// holding ConfigLock. Reads from server goroutines must hold ConfigRLock.
+	configMutex sync.RWMutex
 	// Connections is the list of active connections
 	Connections ActiveConnections
 	// QuotaScans is the list of active quota scans
@@ -168,8 +173,33 @@ func SetUpdateBrandingFn(fn func(*dataprovider.BrandingConfigs)) {
 	fnUpdateBranding = fn
 }
 
+// ConfigLock locks the global configuration for writing.
+// It must be used when modifying Config fields while the service is running,
+// for example in tests that update the configuration with running servers.
+func ConfigLock() {
+	configMutex.Lock()
+}
+
+// ConfigUnlock unlocks the global configuration after writing.
+func ConfigUnlock() {
+	configMutex.Unlock()
+}
+
+// ConfigRLock locks the global configuration for reading.
+func ConfigRLock() {
+	configMutex.RLock()
+}
+
+// ConfigRUnlock unlocks the global configuration after reading.
+func ConfigRUnlock() {
+	configMutex.RUnlock()
+}
+
 // Initialize sets the common configuration
 func Initialize(c Configuration, isShared int) error {
+	configMutex.Lock()
+	defer configMutex.Unlock()
+
 	isShuttingDown.Store(false)
 	util.SetUmask(c.Umask)
 	version.SetConfig(c.ServerVersion)
@@ -315,13 +345,18 @@ func getActiveConnections() int {
 // It returns an error if the time to wait exceeds the max
 // allowed delay
 func LimitRate(protocol, ip string) (time.Duration, error) {
-	if Config.rateLimitersList != nil {
-		isListed, _, err := Config.rateLimitersList.IsListed(ip, protocol)
+	configMutex.RLock()
+	rateLimitersList := Config.rateLimitersList
+	limiters := rateLimiters[protocol]
+	configMutex.RUnlock()
+
+	if rateLimitersList != nil {
+		isListed, _, err := rateLimitersList.IsListed(ip, protocol)
 		if err == nil && isListed {
 			return 0, nil
 		}
 	}
-	for _, limiter := range rateLimiters[protocol] {
+	for _, limiter := range limiters {
 		if delay, err := limiter.Wait(ip, protocol); err != nil {
 			logger.Debug(logSender, "", "protocol %s ip %s: %v", protocol, ip, err)
 			return delay, err
@@ -338,8 +373,12 @@ func Reload() error {
 
 // DelayLogin applies the configured login delay
 func DelayLogin(err error) {
-	if Config.defender != nil {
-		Config.defender.DelayLogin(err)
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+
+	if defender != nil {
+		defender.DelayLogin(err)
 	}
 }
 
@@ -348,67 +387,88 @@ func IsBanned(ip, protocol string) bool {
 	if plugin.Handler.IsIPBanned(ip, protocol) {
 		return true
 	}
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return false
 	}
 
-	return Config.defender.IsBanned(ip, protocol)
+	return defender.IsBanned(ip, protocol)
 }
 
 // GetDefenderBanTime returns the ban time for the given IP
 // or nil if the IP is not banned or the defender is disabled
 func GetDefenderBanTime(ip string) (*time.Time, error) {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return nil, nil
 	}
 
-	return Config.defender.GetBanTime(ip)
+	return defender.GetBanTime(ip)
 }
 
 // GetDefenderHosts returns hosts that are banned or for which some violations have been detected
 func GetDefenderHosts() ([]dataprovider.DefenderEntry, error) {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return nil, nil
 	}
 
-	return Config.defender.GetHosts()
+	return defender.GetHosts()
 }
 
 // GetDefenderHost returns a defender host by ip, if any
 func GetDefenderHost(ip string) (dataprovider.DefenderEntry, error) {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return dataprovider.DefenderEntry{}, errors.New("defender is disabled")
 	}
 
-	return Config.defender.GetHost(ip)
+	return defender.GetHost(ip)
 }
 
 // DeleteDefenderHost removes the specified IP address from the defender lists
 func DeleteDefenderHost(ip string) bool {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return false
 	}
 
-	return Config.defender.DeleteHost(ip)
+	return defender.DeleteHost(ip)
 }
 
 // GetDefenderScore returns the score for the given IP
 func GetDefenderScore(ip string) (int, error) {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return 0, nil
 	}
 
-	return Config.defender.GetScore(ip)
+	return defender.GetScore(ip)
 }
 
 // AddDefenderEvent adds the specified defender event for the given IP.
 // Returns true if the IP is in the defender's safe list.
 func AddDefenderEvent(ip, protocol string, event HostEvent) bool {
-	if Config.defender == nil {
+	configMutex.RLock()
+	defender := Config.defender
+	configMutex.RUnlock()
+	if defender == nil {
 		return false
 	}
 
-	return Config.defender.AddEvent(ip, protocol, event)
+	return defender.AddEvent(ip, protocol, event)
 }
 
 func reloadProviderConfigs() {
@@ -428,6 +488,8 @@ func reloadProviderConfigs() {
 	smtp.Activate(configs.SMTP)
 }
 
+// startPeriodicChecks schedules the periodic checks. It must be called
+// with configMutex held: it reads Config.IdleTimeout
 func startPeriodicChecks(duration time.Duration, isShared int) {
 	startEventScheduler()
 	spec := fmt.Sprintf("@every %s", duration)
@@ -654,9 +716,31 @@ type Configuration struct {
 
 // IsAtomicUploadEnabled returns true if atomic upload is enabled
 func (c *Configuration) IsAtomicUploadEnabled() bool {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
 	return c.UploadMode&UploadModeAtomic != 0 || c.UploadMode&UploadModeAtomicWithResume != 0
 }
 
+// IsProxyProtocolEnabled returns true if the proxy protocol is configured
+func (c *Configuration) IsProxyProtocolEnabled() bool {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	return c.ProxyProtocol > 0
+}
+
+// IsDefenderEnabled returns true if the defender is enabled
+func (c *Configuration) IsDefenderEnabled() bool {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	return c.DefenderConfig.Enabled
+}
+
+// initializeProxyProtocol parses the proxy protocol allowed/skipped IP ranges.
+// It must be called with configMutex held: it writes Config.proxyAllowed
+// and Config.proxySkipped
 func (c *Configuration) initializeProxyProtocol() error {
 	if c.ProxyProtocol > 0 {
 		allowed, err := util.ParseAllowedIPAndRanges(c.ProxyAllowed)
@@ -676,15 +760,20 @@ func (c *Configuration) initializeProxyProtocol() error {
 // GetProxyListener returns a wrapper for the given listener that supports the
 // HAProxy Proxy Protocol
 func (c *Configuration) GetProxyListener(listener net.Listener) (net.Listener, error) {
-	if c.ProxyProtocol > 0 {
+	configMutex.RLock()
+	proxyProtocol := c.ProxyProtocol
+	proxyAllowed, proxySkipped := c.proxyAllowed, c.proxySkipped
+	configMutex.RUnlock()
+
+	if proxyProtocol > 0 {
 		defaultPolicy := proxyproto.REQUIRE
-		if c.ProxyProtocol == 1 {
+		if proxyProtocol == 1 {
 			defaultPolicy = proxyproto.IGNORE
 		}
 
 		return &proxyproto.Listener{
 			Listener:          listener,
-			ConnPolicy:        getProxyPolicy(c.proxyAllowed, c.proxySkipped, defaultPolicy),
+			ConnPolicy:        getProxyPolicy(proxyAllowed, proxySkipped, defaultPolicy),
 			ReadHeaderTimeout: 10 * time.Second,
 		}, nil
 	}
@@ -693,6 +782,9 @@ func (c *Configuration) GetProxyListener(listener net.Listener) (net.Listener, e
 
 // GetRateLimitersStatus returns the rate limiters status
 func (c *Configuration) GetRateLimitersStatus() (bool, []string) {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
 	enabled := false
 	var protocols []string
 	for _, rlCfg := range c.RateLimitersConfig {
@@ -706,19 +798,26 @@ func (c *Configuration) GetRateLimitersStatus() (bool, []string) {
 
 // IsAllowListEnabled returns true if the global allow list is enabled
 func (c *Configuration) IsAllowListEnabled() bool {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
 	return c.AllowListStatus > 0
 }
 
 // ExecuteStartupHook runs the startup hook if defined
 func (c *Configuration) ExecuteStartupHook() error {
-	if c.StartupHook == "" {
+	configMutex.RLock()
+	hook := c.StartupHook
+	configMutex.RUnlock()
+
+	if hook == "" {
 		return nil
 	}
-	if strings.HasPrefix(c.StartupHook, "http") {
+	if strings.HasPrefix(hook, "http") {
 		var url *url.URL
-		url, err := url.Parse(c.StartupHook)
+		url, err := url.Parse(hook)
 		if err != nil {
-			logger.Warn(logSender, "", "Invalid startup hook %q: %v", c.StartupHook, err)
+			logger.Warn(logSender, "", "Invalid startup hook %q: %v", hook, err)
 			return err
 		}
 		startTime := time.Now()
@@ -731,17 +830,17 @@ func (c *Configuration) ExecuteStartupHook() error {
 		logger.Debug(logSender, "", "Startup hook executed, elapsed: %v, response code: %v", time.Since(startTime), resp.StatusCode)
 		return nil
 	}
-	if !filepath.IsAbs(c.StartupHook) {
-		err := fmt.Errorf("invalid startup hook %q", c.StartupHook)
-		logger.Warn(logSender, "", "Invalid startup hook %q", c.StartupHook)
+	if !filepath.IsAbs(hook) {
+		err := fmt.Errorf("invalid startup hook %q", hook)
+		logger.Warn(logSender, "", "Invalid startup hook %q", hook)
 		return err
 	}
 	startTime := time.Now()
-	timeout, env, args := command.GetConfig(c.StartupHook, command.HookStartup)
+	timeout, env, args := command.GetConfig(hook, command.HookStartup)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, c.StartupHook, args...)
+	cmd := exec.CommandContext(ctx, hook, args...)
 	cmd.Env = env
 	err := cmd.Run()
 	logger.Debug(logSender, "", "Startup hook executed, elapsed: %s, error: %v", time.Since(startTime), err)
@@ -752,14 +851,18 @@ func (c *Configuration) executePostDisconnectHook(remoteAddr, protocol, username
 	startNewHook()
 	defer hookEnded()
 
+	configMutex.RLock()
+	hook := c.PostDisconnectHook
+	configMutex.RUnlock()
+
 	ipAddr := util.GetIPFromRemoteAddress(remoteAddr)
 	connDuration := int64(time.Since(connectionTime) / time.Millisecond)
 
-	if strings.HasPrefix(c.PostDisconnectHook, "http") {
+	if strings.HasPrefix(hook, "http") {
 		var url *url.URL
-		url, err := url.Parse(c.PostDisconnectHook)
+		url, err := url.Parse(hook)
 		if err != nil {
-			logger.Warn(protocol, connID, "Invalid post disconnect hook %q: %v", c.PostDisconnectHook, err)
+			logger.Warn(protocol, connID, "Invalid post disconnect hook %q: %v", hook, err)
 			return
 		}
 		q := url.Query()
@@ -779,16 +882,16 @@ func (c *Configuration) executePostDisconnectHook(remoteAddr, protocol, username
 			respCode, time.Since(startTime), err)
 		return
 	}
-	if !filepath.IsAbs(c.PostDisconnectHook) {
-		logger.Debug(protocol, connID, "invalid post disconnect hook %q", c.PostDisconnectHook)
+	if !filepath.IsAbs(hook) {
+		logger.Debug(protocol, connID, "invalid post disconnect hook %q", hook)
 		return
 	}
-	timeout, env, args := command.GetConfig(c.PostDisconnectHook, command.HookPostDisconnect)
+	timeout, env, args := command.GetConfig(hook, command.HookPostDisconnect)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	startTime := time.Now()
-	cmd := exec.CommandContext(ctx, c.PostDisconnectHook, args...)
+	cmd := exec.CommandContext(ctx, hook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPXY_CONNECTION_IP=%s", ipAddr),
 		fmt.Sprintf("SFTPXY_CONNECTION_USERNAME=%s", username),
@@ -799,7 +902,11 @@ func (c *Configuration) executePostDisconnectHook(remoteAddr, protocol, username
 }
 
 func (c *Configuration) checkPostDisconnectHook(remoteAddr, protocol, username, connID string, connectionTime time.Time) {
-	if c.PostDisconnectHook == "" {
+	configMutex.RLock()
+	hook := c.PostDisconnectHook
+	configMutex.RUnlock()
+
+	if hook == "" {
 		return
 	}
 	if !slices.Contains(disconnHookProtocols, protocol) {
@@ -810,15 +917,19 @@ func (c *Configuration) checkPostDisconnectHook(remoteAddr, protocol, username, 
 
 // ExecutePostConnectHook executes the post connect hook if defined
 func (c *Configuration) ExecutePostConnectHook(ipAddr, protocol string) error {
-	if c.PostConnectHook == "" {
+	configMutex.RLock()
+	hook := c.PostConnectHook
+	configMutex.RUnlock()
+
+	if hook == "" {
 		return nil
 	}
-	if strings.HasPrefix(c.PostConnectHook, "http") {
+	if strings.HasPrefix(hook, "http") {
 		var url *url.URL
-		url, err := url.Parse(c.PostConnectHook)
+		url, err := url.Parse(hook)
 		if err != nil {
 			logger.Warn(protocol, "", "Login from ip %q denied, invalid post connect hook %q: %v",
-				ipAddr, c.PostConnectHook, err)
+				ipAddr, hook, err)
 			return getPermissionDeniedError(protocol)
 		}
 		q := url.Query()
@@ -838,16 +949,16 @@ func (c *Configuration) ExecutePostConnectHook(ipAddr, protocol string) error {
 		}
 		return nil
 	}
-	if !filepath.IsAbs(c.PostConnectHook) {
-		err := fmt.Errorf("invalid post connect hook %q", c.PostConnectHook)
+	if !filepath.IsAbs(hook) {
+		err := fmt.Errorf("invalid post connect hook %q", hook)
 		logger.Warn(protocol, "", "Login from ip %q denied: %v", ipAddr, err)
 		return getPermissionDeniedError(protocol)
 	}
-	timeout, env, args := command.GetConfig(c.PostConnectHook, command.HookPostConnect)
+	timeout, env, args := command.GetConfig(hook, command.HookPostConnect)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, c.PostConnectHook, args...)
+	cmd := exec.CommandContext(ctx, hook, args...)
 	cmd.Env = append(env,
 		fmt.Sprintf("SFTPXY_CONNECTION_IP=%s", ipAddr),
 		fmt.Sprintf("SFTPXY_CONNECTION_PROTOCOL=%s", protocol))
@@ -1124,17 +1235,22 @@ func (conns *ActiveConnections) RemoveSSHConnection(connectionID string) {
 }
 
 func (conns *ActiveConnections) checkIdles() {
+	configMutex.RLock()
+	idleTimeoutAsDuration := Config.idleTimeoutAsDuration
+	idleLoginTimeout := Config.idleLoginTimeout
+	configMutex.RUnlock()
+
 	conns.RLock()
 
 	for _, sshConn := range conns.sshConnections {
 		idleTime := time.Since(sshConn.GetLastActivity())
-		if idleTime > Config.idleTimeoutAsDuration {
+		if idleTime > idleTimeoutAsDuration {
 			// we close an SSH connection if it has no active connections associated
 			idToMatch := fmt.Sprintf("_%s_", sshConn.GetID())
 			toClose := true
 			for _, conn := range conns.connections {
 				if strings.Contains(conn.GetID(), idToMatch) {
-					if time.Since(conn.GetLastActivity()) <= Config.idleTimeoutAsDuration {
+					if time.Since(conn.GetLastActivity()) <= idleTimeoutAsDuration {
 						toClose = false
 						break
 					}
@@ -1154,7 +1270,7 @@ func (conns *ActiveConnections) checkIdles() {
 		idleTime := time.Since(c.GetLastActivity())
 		isUnauthenticatedFTPUser := (c.GetProtocol() == ProtocolFTP && c.GetUsername() == "")
 
-		if idleTime > Config.idleTimeoutAsDuration || (isUnauthenticatedFTPUser && idleTime > Config.idleLoginTimeout) {
+		if idleTime > idleTimeoutAsDuration || (isUnauthenticatedFTPUser && idleTime > idleLoginTimeout) {
 			defer func(conn ActiveConnection) {
 				err := conn.Disconnect()
 				logger.Debug(conn.GetProtocol(), conn.GetID(), "close idle connection, idle time: %s, username: %q close err: %v",
@@ -1180,6 +1296,10 @@ func (conns *ActiveConnections) checkTransfers() {
 	conns.transfersCheckStatus.Store(true)
 	defer conns.transfersCheckStatus.Store(false)
 
+	configMutex.RLock()
+	checker := transfersChecker
+	configMutex.RUnlock()
+
 	conns.RLock()
 
 	if !dataprovider.IsSharedMode() && len(conns.connections) < 2 {
@@ -1199,7 +1319,7 @@ func (conns *ActiveConnections) checkTransfers() {
 
 				go func(transfer ConnectionTransfer, connID string) {
 					defer wg.Done()
-					transfersChecker.UpdateTransferCurrentSizes(transfer.ULSize, transfer.DLSize, transfer.ID, connID)
+					checker.UpdateTransferCurrentSizes(transfer.ULSize, transfer.DLSize, transfer.ID, connID)
 				}(t, c.GetID())
 			}
 		}
@@ -1215,7 +1335,7 @@ func (conns *ActiveConnections) checkTransfers() {
 	wg.Wait()
 
 	logger.Debug(logSender, "", "getting overquota transfers")
-	overquotaTransfers := transfersChecker.GetOverquotaTransfers()
+	overquotaTransfers := checker.GetOverquotaTransfers()
 	logger.Debug(logSender, "", "number of overquota transfers: %v", len(overquotaTransfers))
 	if len(overquotaTransfers) == 0 {
 		return
@@ -1268,9 +1388,14 @@ func (conns *ActiveConnections) IsNewTransferAllowed(c *BaseConnection) error {
 	if isShuttingDown.Load() {
 		return ErrShuttingDown
 	}
+	configMutex.RLock()
+	maxTotalConnections := Config.MaxTotalConnections
+	maxPerHostConnections := Config.MaxPerHostConnections
+	configMutex.RUnlock()
+
 	username := c.GetUsername()
 	maxSessions := c.GetMaxSessions()
-	if Config.MaxTotalConnections == 0 && Config.MaxPerHostConnections == 0 && (maxSessions == 0 || username == "") {
+	if maxTotalConnections == 0 && maxPerHostConnections == 0 && (maxSessions == 0 || username == "") {
 		return nil
 	}
 	if maxSessions > 0 && username != "" {
@@ -1279,17 +1404,17 @@ func (conns *ActiveConnections) IsNewTransferAllowed(c *BaseConnection) error {
 			return ErrConnectionDenied
 		}
 	}
-	if Config.MaxPerHostConnections > 0 {
+	if maxPerHostConnections > 0 {
 		if ipAddr := c.GetRemoteIP(); ipAddr != "" {
-			if transfers := conns.transfersPerIP.getTotalFrom(ipAddr); transfers >= Config.MaxPerHostConnections {
-				logger.Info(logSender, "", "denying new transfer, active transfers from IP %q: %d/%d", ipAddr, transfers, Config.MaxPerHostConnections)
+			if transfers := conns.transfersPerIP.getTotalFrom(ipAddr); transfers >= maxPerHostConnections {
+				logger.Info(logSender, "", "denying new transfer, active transfers from IP %q: %d/%d", ipAddr, transfers, maxPerHostConnections)
 				return ErrConnectionDenied
 			}
 		}
 	}
-	if Config.MaxTotalConnections > 0 {
-		if transfers := conns.transfers.getTotal(); transfers >= int32(Config.MaxTotalConnections) {
-			logger.Info(logSender, "", "denying new transfer, active transfers %d/%d", transfers, Config.MaxTotalConnections)
+	if maxTotalConnections > 0 {
+		if transfers := conns.transfers.getTotal(); transfers >= int32(maxTotalConnections) {
+			logger.Info(logSender, "", "denying new transfer, active transfers %d/%d", transfers, maxTotalConnections)
 			return ErrConnectionDenied
 		}
 	}
@@ -1303,8 +1428,14 @@ func (conns *ActiveConnections) IsNewConnectionAllowed(ipAddr, protocol string) 
 	if isShuttingDown.Load() {
 		return ErrShuttingDown
 	}
-	if Config.allowList != nil {
-		isListed, _, err := Config.allowList.IsListed(ipAddr, protocol)
+	configMutex.RLock()
+	allowList := Config.allowList
+	maxTotalConnections := Config.MaxTotalConnections
+	maxPerHostConnections := Config.MaxPerHostConnections
+	configMutex.RUnlock()
+
+	if allowList != nil {
+		isListed, _, err := allowList.IsListed(ipAddr, protocol)
 		if err != nil {
 			logger.Error(logSender, "", "unable to query allow list, connection denied, ip %q, protocol %s, err: %v",
 				ipAddr, protocol, err)
@@ -1314,39 +1445,39 @@ func (conns *ActiveConnections) IsNewConnectionAllowed(ipAddr, protocol string) 
 			return ErrConnectionDenied
 		}
 	}
-	if Config.MaxTotalConnections == 0 && Config.MaxPerHostConnections == 0 {
+	if maxTotalConnections == 0 && maxPerHostConnections == 0 {
 		return nil
 	}
 
-	if Config.MaxPerHostConnections > 0 {
-		if total := conns.clients.getTotalFrom(ipAddr); total > Config.MaxPerHostConnections {
+	if maxPerHostConnections > 0 {
+		if total := conns.clients.getTotalFrom(ipAddr); total > maxPerHostConnections {
 			if !AddDefenderEvent(ipAddr, protocol, HostEventLimitExceeded) {
 				logger.Warn(logSender, "", "connection denied, active connections from IP %q: %d/%d",
-					ipAddr, total, Config.MaxPerHostConnections)
+					ipAddr, total, maxPerHostConnections)
 				return ErrConnectionDenied
 			}
 			logger.Info(logSender, "", "active connections from safe IP %q: %d", ipAddr, total)
 		}
 	}
 
-	if Config.MaxTotalConnections > 0 {
-		if total := conns.clients.getTotal(); total > int32(Config.MaxTotalConnections) {
-			logger.Info(logSender, "", "active client connections %d/%d", total, Config.MaxTotalConnections)
+	if maxTotalConnections > 0 {
+		if total := conns.clients.getTotal(); total > int32(maxTotalConnections) {
+			logger.Info(logSender, "", "active client connections %d/%d", total, maxTotalConnections)
 			return ErrConnectionDenied
 		}
 
 		// on a single SFTP connection we could have multiple SFTP channels or commands
 		// so we check the estabilished connections and active uploads too
-		if transfers := conns.transfers.getTotal(); transfers >= int32(Config.MaxTotalConnections) {
-			logger.Info(logSender, "", "active transfers %d/%d", transfers, Config.MaxTotalConnections)
+		if transfers := conns.transfers.getTotal(); transfers >= int32(maxTotalConnections) {
+			logger.Info(logSender, "", "active transfers %d/%d", transfers, maxTotalConnections)
 			return ErrConnectionDenied
 		}
 
 		conns.RLock()
 		defer conns.RUnlock()
 
-		if sess := len(conns.connections); sess >= Config.MaxTotalConnections {
-			logger.Info(logSender, "", "active client sessions %d/%d", sess, Config.MaxTotalConnections)
+		if sess := len(conns.connections); sess >= maxTotalConnections {
+			logger.Info(logSender, "", "active client sessions %d/%d", sess, maxTotalConnections)
 			return ErrConnectionDenied
 		}
 	}

@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	ftpserver "github.com/fclairamb/ftpserverlib"
@@ -27,8 +29,13 @@ const (
 )
 
 var (
-	certMgr       *common.CertManager
-	serviceStatus ServiceStatus
+	// certMgr is stored atomically: tests re-initialize the server in a
+	// goroutine while other goroutines may read it concurrently
+	certMgr atomic.Pointer[common.CertManager]
+	// serviceStatusMu protects serviceStatus: tests may re-initialize
+	// the server concurrently while status readers are active
+	serviceStatusMu sync.RWMutex
+	serviceStatus   ServiceStatus
 )
 
 // PassiveIPOverride defines an exception for the configured passive IP
@@ -205,12 +212,13 @@ func (b *Binding) passiveIPResolver(cc ftpserver.ClientContext) (string, error) 
 
 // HasProxy returns true if the proxy protocol is active for this binding
 func (b *Binding) HasProxy() bool {
-	return b.ApplyProxyConfig && common.Config.ProxyProtocol > 0
+	return b.ApplyProxyConfig && common.Config.IsProxyProtocolEnabled()
 }
 
 // GetTLSDescription returns the TLS mode as string
 func (b *Binding) GetTLSDescription() string {
-	if certMgr == nil {
+	mgr := certMgr.Load()
+	if mgr == nil {
 		return util.I18nFTPTLSDisabled
 	}
 	switch b.TLSMode {
@@ -220,7 +228,7 @@ func (b *Binding) GetTLSDescription() string {
 		return util.I18nFTPTLSImplicit
 	}
 
-	if certMgr.HasCertificate(common.DefaultTLSKeyPaidID) || certMgr.HasCertificate(b.GetAddress()) {
+	if mgr.HasCertificate(common.DefaultTLSKeyPaidID) || mgr.HasCertificate(b.GetAddress()) {
 		return util.I18nFTPTLSMixed
 	}
 	return util.I18nFTPTLSDisabled
@@ -373,12 +381,14 @@ func (c *Configuration) Initialize(configDir string) error {
 		if err := mgr.LoadCRLs(); err != nil {
 			return err
 		}
-		certMgr = mgr
+		certMgr.Store(mgr)
 	}
+	serviceStatusMu.Lock()
 	serviceStatus = ServiceStatus{
 		Bindings:         nil,
 		PassivePortRange: c.PassivePortRange,
 	}
+	serviceStatusMu.Unlock()
 
 	exitChannel := make(chan error, 1)
 
@@ -403,24 +413,30 @@ func (c *Configuration) Initialize(configDir string) error {
 			exitChannel <- ftpServer.ListenAndServe()
 		}(server)
 
+		serviceStatusMu.Lock()
 		serviceStatus.Bindings = append(serviceStatus.Bindings, binding)
+		serviceStatusMu.Unlock()
 	}
 
+	serviceStatusMu.Lock()
 	serviceStatus.IsActive = true
+	serviceStatusMu.Unlock()
 
 	return <-exitChannel
 }
 
 // ReloadCertificateMgr reloads the certificate manager
 func ReloadCertificateMgr() error {
-	if certMgr != nil {
-		return certMgr.Reload()
+	if mgr := certMgr.Load(); mgr != nil {
+		return mgr.Reload()
 	}
 	return nil
 }
 
 // GetStatus returns the server status
 func GetStatus() ServiceStatus {
+	serviceStatusMu.RLock()
+	defer serviceStatusMu.RUnlock()
 	return serviceStatus
 }
 

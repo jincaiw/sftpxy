@@ -31,8 +31,8 @@ func isWebClientRequest(r *http.Request) bool {
 
 // ReloadCertificateMgr reloads the certificate manager
 func ReloadCertificateMgr() error {
-	if certMgr != nil {
-		return certMgr.Reload()
+	if mgr := certMgr.Load(); mgr != nil {
+		return mgr.Reload()
 	}
 	return nil
 }
@@ -55,7 +55,7 @@ func getServicesStatus() *ServicesStatus {
 		WebDAV:       webdavd.GetStatus(),
 		DataProvider: dataprovider.GetProviderStatus(),
 		Defender: defenderStatus{
-			IsActive: common.Config.DefenderConfig.Enabled,
+			IsActive: common.Config.IsDefenderEnabled(),
 		},
 		MFA: mfa.GetStatus(),
 		AllowList: allowListStatus{

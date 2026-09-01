@@ -149,6 +149,19 @@ func getCmdOutput(cmd *exec.Cmd, sender string) ([]byte, error) {
 	return stdout.Bytes(), err
 }
 
+// getLogSender returns the log sender tag for the active provider driver.
+func getLogSender() string {
+	if s := logSender.Load(); s != nil {
+		return *s
+	}
+	return "dataprovider"
+}
+
+// setLogSender sets the log sender tag for the active provider driver.
+func setLogSender(sender string) {
+	logSender.Store(&sender)
+}
+
 func providerLog(level logger.LogLevel, format string, v ...any) {
-	logger.Log(level, logSender, "", format, v...)
+	logger.Log(level, getLogSender(), "", format, v...)
 }

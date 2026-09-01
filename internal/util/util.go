@@ -153,24 +153,25 @@ func IsStringPrefixInSlice(obj string, list []string) bool {
 	return false
 }
 
-// RemoveDuplicates returns a new slice removing any duplicate element from the initial one
+// RemoveDuplicates returns a new slice removing any duplicate element from the initial one.
+// The input slice is never modified: callers may share the same backing array
+// across concurrent readers, so this function must stay pure.
 func RemoveDuplicates(obj []string, trim bool) []string {
 	if len(obj) == 0 {
 		return obj
 	}
-	seen := make(map[string]bool)
-	validIdx := 0
+	seen := make(map[string]bool, len(obj))
+	result := make([]string, 0, len(obj))
 	for _, item := range obj {
 		if trim {
 			item = strings.TrimSpace(item)
 		}
 		if !seen[item] {
 			seen[item] = true
-			obj[validIdx] = item
-			validIdx++
+			result = append(result, item)
 		}
 	}
-	return obj[:validIdx]
+	return result
 }
 
 // IsNameValid validates that a name/username contains only safe characters.

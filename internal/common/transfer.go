@@ -358,7 +358,10 @@ func (t *BaseTransfer) checkUploadOutsideHomeDir(err error) int {
 	if t.ErrTransfer == nil {
 		t.ErrTransfer = err
 	}
-	if Config.TempPath == "" {
+	configMutex.RLock()
+	tempPath := Config.TempPath
+	configMutex.RUnlock()
+	if tempPath == "" {
 		return 0
 	}
 	err = t.Fs.Remove(t.effectiveFsPath, false)
@@ -396,7 +399,10 @@ func (t *BaseTransfer) Close() error {
 		t.Connection.Log(logger.LevelWarn, "upload denied due to space limit, delete temporary file: %q, deletion error: %v",
 			t.effectiveFsPath, err)
 	} else if t.isAtomicUpload() {
-		if t.ErrTransfer == nil || Config.UploadMode&UploadModeAtomicWithResume != 0 {
+		configMutex.RLock()
+		uploadMode := Config.UploadMode
+		configMutex.RUnlock()
+		if t.ErrTransfer == nil || uploadMode&UploadModeAtomicWithResume != 0 {
 			_, _, err = t.Fs.Rename(t.effectiveFsPath, t.fsPath, 0)
 			t.Connection.Log(logger.LevelDebug, "atomic upload completed, rename: %q -> %q, error: %v",
 				t.effectiveFsPath, t.fsPath, err)

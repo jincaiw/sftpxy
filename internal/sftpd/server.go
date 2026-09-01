@@ -110,7 +110,7 @@ func (b *Binding) IsValid() bool {
 
 // HasProxy returns true if the proxy protocol is active for this binding
 func (b *Binding) HasProxy() bool {
-	return b.ApplyProxyConfig && common.Config.ProxyProtocol > 0
+	return b.ApplyProxyConfig && common.Config.IsProxyProtocolEnabled()
 }
 
 // Configuration for the SFTP server
@@ -287,14 +287,21 @@ func (c *Configuration) getServerConfig() *ssh.ServerConfig {
 		serverConfig.PasswordCallback = func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 			return c.validatePasswordCredentials(conn, password, dataprovider.LoginMethodPassword)
 		}
+		serviceStatusMu.Lock()
 		serviceStatus.Authentications = append(serviceStatus.Authentications, dataprovider.LoginMethodPassword)
+		serviceStatusMu.Unlock()
 	}
+	serviceStatusMu.Lock()
 	serviceStatus.Authentications = append(serviceStatus.Authentications, dataprovider.SSHLoginMethodPublicKey)
+	serviceStatusMu.Unlock()
 
 	return serverConfig
 }
 
 func (c *Configuration) updateSupportedAuthentications() {
+	serviceStatusMu.Lock()
+	defer serviceStatusMu.Unlock()
+
 	serviceStatus.Authentications = util.RemoveDuplicates(serviceStatus.Authentications, false)
 
 	if slices.Contains(serviceStatus.Authentications, dataprovider.LoginMethodPassword) &&
@@ -353,7 +360,9 @@ func (c *Configuration) Initialize(configDir string) error {
 	if err := c.loadFromProvider(); err != nil {
 		return fmt.Errorf("unable to load configs from provider: %w", err)
 	}
+	serviceStatusMu.Lock()
 	serviceStatus = ServiceStatus{}
+	serviceStatusMu.Unlock()
 	serverConfig := c.getServerConfig()
 
 	if !c.ShouldBind() {
@@ -367,7 +376,9 @@ func (c *Configuration) Initialize(configDir string) error {
 		return err
 	}
 	if err := c.checkAndLoadHostKeys(configDir, serverConfig); err != nil {
+		serviceStatusMu.Lock()
 		serviceStatus.HostKeys = nil
+		serviceStatusMu.Unlock()
 		return err
 	}
 	if err := c.initializeCertChecker(configDir); err != nil {
@@ -381,13 +392,17 @@ func (c *Configuration) Initialize(configDir string) error {
 	c.checkSSHCommands()
 
 	exitChannel := make(chan error, 1)
+	serviceStatusMu.Lock()
 	serviceStatus.Bindings = nil
+	serviceStatusMu.Unlock()
 
 	for _, binding := range c.Bindings {
 		if !binding.IsValid() {
 			continue
 		}
+		serviceStatusMu.Lock()
 		serviceStatus.Bindings = append(serviceStatus.Bindings, binding)
+		serviceStatusMu.Unlock()
 
 		go func(binding Binding) {
 			addr := binding.GetAddress()
@@ -399,7 +414,7 @@ func (c *Configuration) Initialize(configDir string) error {
 				return
 			}
 
-			if binding.ApplyProxyConfig && common.Config.ProxyProtocol > 0 {
+			if binding.ApplyProxyConfig && common.Config.IsProxyProtocolEnabled() {
 				proxyListener, err := common.Config.GetProxyListener(listener)
 				if err != nil {
 					logger.Warn(logSender, "", "error enabling proxy listener: %v", err)
@@ -413,8 +428,10 @@ func (c *Configuration) Initialize(configDir string) error {
 		}(binding)
 	}
 
+	serviceStatusMu.Lock()
 	serviceStatus.IsActive = true
 	serviceStatus.SSHCommands = c.EnabledSSHCommands
+	serviceStatusMu.Unlock()
 	c.updateSupportedAuthentications()
 
 	return <-exitChannel
@@ -473,7 +490,9 @@ func (c *Configuration) configureKeyAlgos(serverConfig *ssh.ServerConfig) error 
 		c.PublicKeyAlgorithms = preferredPublicKeyAlgos
 	}
 	serverConfig.PublicKeyAuthAlgorithms = c.PublicKeyAlgorithms
+	serviceStatusMu.Lock()
 	serviceStatus.PublicKeyAlgorithms = c.PublicKeyAlgorithms
+	serviceStatusMu.Unlock()
 
 	return nil
 }
@@ -516,7 +535,9 @@ func (c *Configuration) configureSecurityOptions(serverConfig *ssh.ServerConfig)
 		c.checkKeyExchangeAlgorithms()
 	}
 	serverConfig.KeyExchanges = c.KexAlgorithms
+	serviceStatusMu.Lock()
 	serviceStatus.KexAlgorithms = c.KexAlgorithms
+	serviceStatusMu.Unlock()
 
 	if len(c.Ciphers) > 0 {
 		c.Ciphers = util.RemoveDuplicates(c.Ciphers, true)
@@ -532,7 +553,9 @@ func (c *Configuration) configureSecurityOptions(serverConfig *ssh.ServerConfig)
 		c.Ciphers = preferredCiphers
 	}
 	serverConfig.Ciphers = c.Ciphers
+	serviceStatusMu.Lock()
 	serviceStatus.Ciphers = c.Ciphers
+	serviceStatusMu.Unlock()
 
 	if len(c.MACs) > 0 {
 		c.MACs = util.RemoveDuplicates(c.MACs, true)
@@ -545,7 +568,9 @@ func (c *Configuration) configureSecurityOptions(serverConfig *ssh.ServerConfig)
 		c.MACs = preferredMACs
 	}
 	serverConfig.MACs = c.MACs
+	serviceStatusMu.Lock()
 	serviceStatus.MACs = c.MACs
+	serviceStatusMu.Unlock()
 
 	return nil
 }
@@ -596,7 +621,9 @@ func (c *Configuration) configureKeyboardInteractiveAuth(serverConfig *ssh.Serve
 		return c.validateKeyboardInteractiveCredentials(conn, client, dataprovider.SSHLoginMethodKeyboardInteractive, false)
 	}
 
+	serviceStatusMu.Lock()
 	serviceStatus.Authentications = append(serviceStatus.Authentications, dataprovider.SSHLoginMethodKeyboardInteractive)
+	serviceStatusMu.Unlock()
 }
 
 // AcceptInboundConnection handles an inbound connection to the server instance and determines if the request should be served or not.
@@ -977,7 +1004,9 @@ func (c *Configuration) checkAndLoadHostKeys(configDir string, serverConfig *ssh
 	if err != nil {
 		return err
 	}
+	serviceStatusMu.Lock()
 	serviceStatus.HostKeys = nil
+	serviceStatusMu.Unlock()
 	for _, hostKey := range c.HostKeys {
 		hostKey = strings.TrimSpace(hostKey)
 		if !util.IsFileInputValid(hostKey) {
@@ -1008,7 +1037,9 @@ func (c *Configuration) checkAndLoadHostKeys(configDir string, serverConfig *ssh
 		if err != nil {
 			return fmt.Errorf("could not create signer for key %q with algorithms %+v: %w", k.Path, k.Algorithms, err)
 		}
+		serviceStatusMu.Lock()
 		serviceStatus.HostKeys = append(serviceStatus.HostKeys, k)
+		serviceStatusMu.Unlock()
 		logger.Info(logSender, "", "Host key %q loaded, type %q, fingerprint %q, algorithms %+v", hostKey,
 			private.PublicKey().Type(), k.Fingerprint, k.Algorithms)
 
@@ -1025,11 +1056,13 @@ func (c *Configuration) checkAndLoadHostKeys(configDir string, serverConfig *ssh
 						}
 					}
 				}
+				serviceStatusMu.Lock()
 				serviceStatus.HostKeys = append(serviceStatus.HostKeys, HostKey{
 					Path:        cert.Path,
 					Fingerprint: ssh.FingerprintSHA256(signer.PublicKey()),
 					Algorithms:  algos,
 				})
+				serviceStatusMu.Unlock()
 				serverConfig.AddHostKey(signer)
 				logger.Info(logSender, "", "Host certificate loaded for host key %q, fingerprint %q, algorithms %+v",
 					hostKey, ssh.FingerprintSHA256(signer.PublicKey()), algos)
@@ -1037,10 +1070,12 @@ func (c *Configuration) checkAndLoadHostKeys(configDir string, serverConfig *ssh
 		}
 	}
 	var fp []string
+	serviceStatusMu.RLock()
 	for idx := range serviceStatus.HostKeys {
 		h := &serviceStatus.HostKeys[idx]
 		fp = append(fp, h.Fingerprint)
 	}
+	serviceStatusMu.RUnlock()
 	vfs.SetSFTPFingerprints(fp)
 	return nil
 }

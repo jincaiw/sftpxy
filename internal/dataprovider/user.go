@@ -221,7 +221,7 @@ func (u *User) checkLocalHomeDir(connectionID string) {
 func (u *User) checkRootPath(connectionID string) error {
 	fs, err := u.GetFilesystemForPath("/", connectionID)
 	if err != nil {
-		logger.Warn(logSender, connectionID, "could not create main filesystem for user %q err: %v", u.Username, err)
+		logger.Warn(getLogSender(), connectionID, "could not create main filesystem for user %q err: %v", u.Username, err)
 		return fmt.Errorf("could not create root filesystem: %w", err)
 	}
 	fs.CheckRootPath(u.Username, u.GetUID(), u.GetGID())
@@ -256,7 +256,7 @@ func (u *User) CheckFsRoot(connectionID string) error {
 	if u.Filters.StartDirectory != "" {
 		err = u.checkDirWithParents(u.Filters.StartDirectory, connectionID)
 		if err != nil {
-			logger.Warn(logSender, connectionID, "could not create start directory %q, err: %v",
+			logger.Warn(getLogSender(), connectionID, "could not create start directory %q, err: %v",
 				u.Filters.StartDirectory, err)
 		}
 	}
@@ -269,7 +269,7 @@ func (u *User) CheckFsRoot(connectionID string) error {
 		// now check intermediary folders
 		err = u.checkDirWithParents(path.Dir(v.VirtualPath), connectionID)
 		if err != nil {
-			logger.Warn(logSender, connectionID, "could not create intermediary dir to %q, err: %v", v.VirtualPath, err)
+			logger.Warn(getLogSender(), connectionID, "could not create intermediary dir to %q, err: %v", v.VirtualPath, err)
 		}
 	}
 	return nil
@@ -1257,7 +1257,7 @@ func (u *User) GetBandwidthForIP(clientIP, connectionID string) (int64, int64) {
 					_, ipNet, err := net.ParseCIDR(source)
 					if err == nil {
 						if ipNet.Contains(ip) {
-							logger.Debug(logSender, connectionID, "override bandwidth limit for ip %q, upload limit: %v KB/s, download limit: %v KB/s",
+							logger.Debug(getLogSender(), connectionID, "override bandwidth limit for ip %q, upload limit: %v KB/s, download limit: %v KB/s",
 								clientIP, bwLimit.UploadBandwidth, bwLimit.DownloadBandwidth)
 							return bwLimit.UploadBandwidth, bwLimit.DownloadBandwidth
 						}
@@ -1280,7 +1280,7 @@ func (u *User) IsLoginFromAddrAllowed(remoteAddr string) bool {
 	remoteIP := net.ParseIP(util.GetIPFromRemoteAddress(remoteAddr))
 	// if remoteIP is invalid we allow login, this should never happen
 	if remoteIP == nil {
-		logger.Warn(logSender, "", "login allowed for invalid IP. remote address: %q", remoteAddr)
+		logger.Warn(getLogSender(), "", "login allowed for invalid IP. remote address: %q", remoteAddr)
 		return true
 	}
 	for _, IPMask := range u.Filters.AllowedIP {

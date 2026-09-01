@@ -153,7 +153,6 @@ var (
 		yescryptPwdPrefix}
 	digestPwdPrefixes            = []string{md5DigestPwdPrefix, sha256DigestPwdPrefix, sha512DigestPwdPrefix}
 	sharedProviders              = []string{PGSQLDataProviderName, MySQLDataProviderName, CockroachDataProviderName}
-	logSender                    = "dataprovider"
 	sqlTableUsers                string
 	sqlTableFolders              string
 	sqlTableUsersFoldersMapping  string
@@ -180,6 +179,11 @@ var (
 	sqlTableSchemaVersion        string
 	lastLoginMinDelay            = 10 * time.Minute
 	usernameRegex                = regexp.MustCompile("^[a-zA-Z0-9-_.~]+$")
+	// logSender is the log sender tag for the active provider driver. It is
+	// stored atomically because it is re-assigned every time the provider is
+	// re-initialized (tests do this repeatedly) while goroutines from
+	// previous initializations may still log concurrently.
+	logSender                    atomic.Pointer[string]
 	tempPath                     string
 	allowSelfConnections         int
 	fnReloadRules                FnReloadRules
@@ -187,31 +191,45 @@ var (
 	fnHandleRuleForProviderEvent FnHandleRuleForProviderEvent
 )
 
-func initSQLTables() {
-	sqlTableUsers = "users"
-	sqlTableFolders = "folders"
-	sqlTableUsersFoldersMapping = "users_folders_mapping"
-	sqlTableAdmins = "admins"
-	sqlTableAPIKeys = "api_keys"
-	sqlTableShares = "shares"
-	sqlTableSharesGroupsMapping = "shares_groups_mapping"
-	sqlTableDefenderHosts = "defender_hosts"
-	sqlTableDefenderEvents = "defender_events"
-	sqlTableActiveTransfers = "active_transfers"
-	sqlTableGroups = "groups"
-	sqlTableUsersGroupsMapping = "users_groups_mapping"
-	sqlTableGroupsFoldersMapping = "groups_folders_mapping"
-	sqlTableAdminsGroupsMapping = "admins_groups_mapping"
-	sqlTableSharedSessions = "shared_sessions"
-	sqlTableEventsActions = "events_actions"
-	sqlTableEventsRules = "events_rules"
-	sqlTableRulesActionsMapping = "rules_actions_mapping"
-	sqlTableTasks = "tasks"
-	sqlTableNodes = "nodes"
-	sqlTableRoles = "roles"
-	sqlTableIPLists = "ip_lists"
-	sqlTableConfigs = "configurations"
-	sqlTableSchemaVersion = "schema_version"
+// updateSQLTables sets each SQL table name to prefix+default. Each
+// package-level variable is written only when its value actually changes:
+// tests re-initialize the provider repeatedly while goroutines from previous
+// initializations may still be reading these names, and redundant writes of
+// unchanged values would be reported as data races by the race detector.
+func updateSQLTables(prefix string) {
+	for _, t := range []struct {
+		dst *string
+		def string
+	}{
+		{&sqlTableUsers, "users"},
+		{&sqlTableFolders, "folders"},
+		{&sqlTableUsersFoldersMapping, "users_folders_mapping"},
+		{&sqlTableAdmins, "admins"},
+		{&sqlTableAPIKeys, "api_keys"},
+		{&sqlTableShares, "shares"},
+		{&sqlTableSharesGroupsMapping, "shares_groups_mapping"},
+		{&sqlTableDefenderHosts, "defender_hosts"},
+		{&sqlTableDefenderEvents, "defender_events"},
+		{&sqlTableActiveTransfers, "active_transfers"},
+		{&sqlTableGroups, "groups"},
+		{&sqlTableUsersGroupsMapping, "users_groups_mapping"},
+		{&sqlTableGroupsFoldersMapping, "groups_folders_mapping"},
+		{&sqlTableAdminsGroupsMapping, "admins_groups_mapping"},
+		{&sqlTableSharedSessions, "shared_sessions"},
+		{&sqlTableEventsActions, "events_actions"},
+		{&sqlTableEventsRules, "events_rules"},
+		{&sqlTableRulesActionsMapping, "rules_actions_mapping"},
+		{&sqlTableTasks, "tasks"},
+		{&sqlTableNodes, "nodes"},
+		{&sqlTableRoles, "roles"},
+		{&sqlTableIPLists, "ip_lists"},
+		{&sqlTableConfigs, "configurations"},
+		{&sqlTableSchemaVersion, "schema_version"},
+	} {
+		if want := prefix + t.def; *t.dst != want {
+			*t.dst = want
+		}
+	}
 }
 
 // FnReloadRules defined the callback to reload event rules

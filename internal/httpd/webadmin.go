@@ -634,7 +634,7 @@ func (s *httpdServer) getBasePageData(title, currentURL string, w http.ResponseW
 		IsEventManagerPage:  isEventManagerResource(currentURL),
 		IsIPManagerPage:     isIPListsResource(currentURL),
 		IsServerManagerPage: isServerManagerResource(currentURL),
-		HasDefender:         common.Config.DefenderConfig.Enabled,
+		HasDefender:         common.Config.IsDefenderEnabled(),
 		HasSearcher:         plugin.Handler.HasSearcher(),
 		HasExternalLogin:    isLoggedInWithOIDC(r),
 		CSRFToken:           csrfToken,

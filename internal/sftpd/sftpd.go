@@ -7,6 +7,7 @@ package sftpd
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -22,8 +23,11 @@ var (
 		"SFTPxy-copy", "SFTPxy-remove"}
 	defaultSSHCommands = []string{"md5sum", "sha1sum", "sha256sum", "cd", "pwd", "scp"}
 	sshHashCommands    = []string{"md5sum", "sha1sum", "sha256sum", "sha384sum", "sha512sum"}
-	serviceStatus      ServiceStatus
-	certKeyAlgoNames   = map[string]string{
+	// serviceStatusMu protects serviceStatus: tests may re-initialize
+	// the server concurrently while status readers are active
+	serviceStatusMu  sync.RWMutex
+	serviceStatus    ServiceStatus
+	certKeyAlgoNames = map[string]string{
 		ssh.CertAlgoRSAv01:         ssh.KeyAlgoRSA,
 		ssh.CertAlgoRSASHA256v01:   ssh.KeyAlgoRSASHA256,
 		ssh.CertAlgoRSASHA512v01:   ssh.KeyAlgoRSASHA512,
@@ -108,6 +112,8 @@ func (s *ServiceStatus) GetPublicKeysAlgosAsString() string {
 
 // GetStatus returns the server status
 func GetStatus() ServiceStatus {
+	serviceStatusMu.RLock()
+	defer serviceStatusMu.RUnlock()
 	return serviceStatus
 }
 

@@ -40,6 +40,7 @@ import (
 	"github.com/jincaiw/sftpxy/v2/internal/config"
 	"github.com/jincaiw/sftpxy/v2/internal/dataprovider"
 	"github.com/jincaiw/sftpxy/v2/internal/ftpd"
+	"github.com/jincaiw/sftpxy/v2/internal/httpd"
 	"github.com/jincaiw/sftpxy/v2/internal/httpdtest"
 	"github.com/jincaiw/sftpxy/v2/internal/kms"
 	"github.com/jincaiw/sftpxy/v2/internal/logger"
@@ -383,28 +384,28 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 		os.Exit(1)
 	}
 
-	go func() {
-		logger.Debug(logSender, "", "initializing FTP server with config %+v", ftpdConf)
-		if err := ftpdConf.Initialize(configDir); err != nil {
+	go func(cfg ftpd.Configuration) {
+		logger.Debug(logSender, "", "initializing FTP server with config %+v", cfg)
+		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start FTP server: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(ftpdConf)
 
-	go func() {
-		logger.Debug(logSender, "", "initializing SFTP server with config %+v", sftpdConf)
-		if err := sftpdConf.Initialize(configDir); err != nil {
+	go func(cfg sftpd.Configuration) {
+		logger.Debug(logSender, "", "initializing SFTP server with config %+v", cfg)
+		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start SFTP server: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(sftpdConf)
 
-	go func() {
-		if err := httpdConf.Initialize(configDir, 0); err != nil {
+	go func(cfg httpd.Conf) {
+		if err := cfg.Initialize(configDir, 0); err != nil {
 			logger.ErrorToConsole("could not start HTTP server: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(httpdConf)
 
 	waitTCPListening(ftpdConf.Bindings[0].GetAddress())
 	waitTCPListening(httpdConf.Bindings[0].GetAddress())
@@ -427,13 +428,13 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf.CombineSupport = 1
 	ftpdConf.HASHSupport = 1
 
-	go func() {
-		logger.Debug(logSender, "", "initializing FTP server with config %+v", ftpdConf)
-		if err := ftpdConf.Initialize(configDir); err != nil {
+	go func(cfg ftpd.Configuration) {
+		logger.Debug(logSender, "", "initializing FTP server with config %+v", cfg)
+		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start FTP server: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(ftpdConf)
 
 	waitTCPListening(ftpdConf.Bindings[0].GetAddress())
 
@@ -450,13 +451,13 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	ftpdConf.CACertificates = []string{caCrtPath}
 	ftpdConf.CARevocationLists = []string{caCRLPath}
 
-	go func() {
-		logger.Debug(logSender, "", "initializing FTP server with config %+v", ftpdConf)
-		if err := ftpdConf.Initialize(configDir); err != nil {
+	go func(cfg ftpd.Configuration) {
+		logger.Debug(logSender, "", "initializing FTP server with config %+v", cfg)
+		if err := cfg.Initialize(configDir); err != nil {
 			logger.ErrorToConsole("could not start FTP server: %v", err)
 			os.Exit(1)
 		}
-	}()
+	}(ftpdConf)
 
 	waitTCPListening(ftpdConf.Bindings[0].GetAddress())
 
@@ -1496,11 +1497,15 @@ func TestPreDownloadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreDownload}
 	common.Config.Actions.Hook = preDownloadPath
+	common.ConfigUnlock()
 
 	user, _, err := httpdtest.AddUser(getTestUser(), http.StatusCreated)
 	assert.NoError(t, err)
@@ -1552,19 +1557,25 @@ func TestPreDownloadHook(t *testing.T) {
 	err = os.Remove(testFilePath)
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPreUploadHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigRLock()
 	oldExecuteOn := common.Config.Actions.ExecuteOn
 	oldHook := common.Config.Actions.Hook
+	common.ConfigRUnlock()
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = []string{common.OperationPreUpload}
 	common.Config.Actions.Hook = preUploadPath
+	common.ConfigUnlock()
 
 	user, _, err := httpdtest.AddUser(getTestUser(), http.StatusCreated)
 	assert.NoError(t, err)
@@ -1615,15 +1626,19 @@ func TestPreUploadHook(t *testing.T) {
 	err = os.Remove(testFilePath)
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.Actions.ExecuteOn = oldExecuteOn
 	common.Config.Actions.Hook = oldHook
+	common.ConfigUnlock()
 }
 
 func TestPostConnectHook(t *testing.T) {
 	if runtime.GOOS == osWindows {
 		t.Skip("this test is not available on Windows")
 	}
+	common.ConfigLock()
 	common.Config.PostConnectHook = postConnectPath
+	common.ConfigUnlock()
 
 	u := getTestUser()
 	user, _, err := httpdtest.AddUser(u, http.StatusCreated)
@@ -1645,7 +1660,9 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:32080/healthz"
+	common.ConfigUnlock()
 
 	client, err = getFTPClient(user, false, nil)
 	if assert.NoError(t, err) {
@@ -1655,7 +1672,9 @@ func TestPostConnectHook(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = "http://127.0.0.1:32080/notfound"
+	common.ConfigUnlock()
 
 	client, err = getFTPClient(user, true, nil)
 	if !assert.Error(t, err) {
@@ -1668,13 +1687,20 @@ func TestPostConnectHook(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.PostConnectHook = ""
+	common.ConfigUnlock()
 }
 
 //nolint:dupl
 func TestMaxConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxTotalConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1698,13 +1724,20 @@ func TestMaxConnections(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxTotalConnections = oldValue
+	common.ConfigUnlock()
 }
 
 //nolint:dupl
 func TestMaxPerHostConnections(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 1
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1728,12 +1761,19 @@ func TestMaxPerHostConnections(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestMaxTransfers(t *testing.T) {
+	common.ConfigRLock()
 	oldValue := common.Config.MaxPerHostConnections
+	common.ConfigRUnlock()
+
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 2
+	common.ConfigUnlock()
 
 	assert.Eventually(t, func() bool {
 		return common.Connections.GetClientConnections() == 0
@@ -1788,7 +1828,9 @@ func TestMaxTransfers(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldValue
+	common.ConfigUnlock()
 }
 
 func TestRateLimiter(t *testing.T) {
@@ -1801,7 +1843,10 @@ func TestRateLimiter(t *testing.T) {
 	cfg.RateLimitersConfig = []common.RateLimiterConfig{
 		{
 			Average:                1,
-			Period:                 1000,
+			// use a long period so that no token is refilled while the test
+			// runs: with a short period the limiter could allow the next
+			// connection again, making the test timing-dependent
+			Period:                 60000,
 			Burst:                  1,
 			Type:                   2,
 			Protocols:              []string{common.ProtocolFTP},

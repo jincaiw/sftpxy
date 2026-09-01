@@ -308,7 +308,9 @@ func TestTransferCancelFn(t *testing.T) {
 }
 
 func TestUploadFiles(t *testing.T) {
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeAtomic
+	common.ConfigUnlock()
 	fs := vfs.NewOsFs("123", os.TempDir(), "", nil)
 	u := dataprovider.User{}
 	c := Connection{
@@ -320,7 +322,9 @@ func TestUploadFiles(t *testing.T) {
 	_, err := c.handleSFTPUploadToExistingFile(fs, flags, "missing_path", "other_missing_path", 0, "/missing_path", nil)
 	assert.Error(t, err, "upload to existing file must fail if one or both paths are invalid")
 
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeStandard
+	common.ConfigUnlock()
 	_, err = c.handleSFTPUploadToExistingFile(fs, flags, "missing_path", "other_missing_path", 0, "/missing_path", nil)
 	assert.Error(t, err, "upload to existing file must fail if one or both paths are invalid")
 
@@ -351,7 +355,9 @@ func TestUploadFiles(t *testing.T) {
 	}
 	err = os.Remove(f.Name())
 	assert.NoError(t, err)
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeAtomicWithResume
+	common.ConfigUnlock()
 }
 
 func TestWithInvalidHome(t *testing.T) {
@@ -1356,7 +1362,9 @@ func TestSCPUploadFiledata(t *testing.T) {
 }
 
 func TestUploadError(t *testing.T) {
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeAtomic
+	common.ConfigUnlock()
 
 	user := dataprovider.User{
 		BaseUser: sdk.BaseUser{
@@ -1390,7 +1398,9 @@ func TestUploadError(t *testing.T) {
 	assert.NoFileExists(t, testfile)
 	assert.NoFileExists(t, fileTempName)
 
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeAtomicWithResume
+	common.ConfigUnlock()
 }
 
 func TestTransferFailingReader(t *testing.T) {

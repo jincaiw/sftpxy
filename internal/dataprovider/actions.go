@@ -120,7 +120,7 @@ func executeAction(operation, executor, ip, objectType, objectName, role string,
 func executeNotificationCommand(operation, executor, ip, objectType, objectName, role string, objectAsJSON []byte) error {
 	if !filepath.IsAbs(holder.getConfig().Actions.Hook) {
 		err := fmt.Errorf("invalid notification command %q", holder.getConfig().Actions.Hook)
-		logger.Warn(logSender, "", "unable to execute notification command: %v", err)
+		logger.Warn(getLogSender(), "", "unable to execute notification command: %v", err)
 		return err
 	}
 

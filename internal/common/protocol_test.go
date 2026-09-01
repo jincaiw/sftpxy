@@ -254,7 +254,9 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	}()
 
 	go func() {
+		common.ConfigLock()
 		common.Config.ProxyProtocol = 2
+		common.ConfigUnlock()
 		listener, err := net.Listen("tcp", httpProxyAddr)
 		if err != nil {
 			logger.ErrorToConsole("error creating listener for proxy protocol server: %v", err)
@@ -265,7 +267,9 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 			logger.ErrorToConsole("error creating proxy protocol listener: %v", err)
 			os.Exit(1)
 		}
+		common.ConfigLock()
 		common.Config.ProxyProtocol = 0
+		common.ConfigUnlock()
 
 		s := &http.Server{}
 		if err := s.Serve(proxyListener); err != nil {
@@ -3237,8 +3241,10 @@ func TestRenameErrorOutsideHomeDir(t *testing.T) {
 	oldUploadMode := common.Config.UploadMode
 	oldTempPath := common.Config.TempPath
 
+	common.ConfigLock()
 	common.Config.UploadMode = common.UploadModeAtomicWithResume
 	common.Config.TempPath = filepath.Clean(os.TempDir())
+	common.ConfigUnlock()
 	vfs.SetTempPath(common.Config.TempPath)
 
 	u := getTestUser()
@@ -3277,8 +3283,10 @@ func TestRenameErrorOutsideHomeDir(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.UploadMode = oldUploadMode
 	common.Config.TempPath = oldTempPath
+	common.ConfigUnlock()
 	vfs.SetTempPath(oldTempPath)
 }
 
@@ -3441,8 +3449,9 @@ func TestAllowList(t *testing.T) {
 		assert.NoError(t, err, string(resp))
 	}
 
-	common.Config.AllowListStatus = 1
-	err := common.Initialize(common.Config, 0)
+	newConfig := common.Config
+	newConfig.AllowListStatus = 1
+	err := common.Initialize(newConfig, 0)
 	assert.NoError(t, err)
 	assert.True(t, common.Config.IsAllowListEnabled())
 
@@ -3470,8 +3479,7 @@ func TestAllowList(t *testing.T) {
 	assert.Error(t, common.Connections.IsNewConnectionAllowed("10.8.8.2", common.ProtocolWebDAV))
 	assert.Error(t, common.Connections.IsNewConnectionAllowed("invalid IP", common.ProtocolHTTP))
 
-	common.Config = configCopy
-	err = common.Initialize(common.Config, 0)
+	err = common.Initialize(configCopy, 0)
 	assert.NoError(t, err)
 	assert.False(t, common.Config.IsAllowListEnabled())
 
@@ -3486,9 +3494,10 @@ func TestDbDefenderErrors(t *testing.T) {
 		t.Skip("this test is not supported with the current database provider")
 	}
 	configCopy := common.Config
-	common.Config.DefenderConfig.Enabled = true
-	common.Config.DefenderConfig.Driver = common.DefenderDriverProvider
-	err := common.Initialize(common.Config, 0)
+	newConfig := common.Config
+	newConfig.DefenderConfig.Enabled = true
+	newConfig.DefenderConfig.Driver = common.DefenderDriverProvider
+	err := common.Initialize(newConfig, 0)
 	assert.NoError(t, err)
 
 	testIP := "127.1.1.1"
@@ -3528,8 +3537,7 @@ func TestDbDefenderErrors(t *testing.T) {
 	err = dataprovider.CleanupDefender(util.GetTimeAsMsSinceEpoch(time.Now().Add(1 * time.Hour)))
 	assert.NoError(t, err)
 
-	common.Config = configCopy
-	err = common.Initialize(common.Config, 0)
+	err = common.Initialize(configCopy, 0)
 	assert.NoError(t, err)
 }
 
@@ -8578,7 +8586,9 @@ func TestRetentionAPI(t *testing.T) {
 func TestPerUserTransferLimits(t *testing.T) {
 	oldMaxPerHostConns := common.Config.MaxPerHostConnections
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = 2
+	common.ConfigUnlock()
 
 	u := getTestUser()
 	u.UploadBandwidth = 32
@@ -8614,7 +8624,9 @@ func TestPerUserTransferLimits(t *testing.T) {
 	err = os.RemoveAll(user.GetHomeDir())
 	assert.NoError(t, err)
 
+	common.ConfigLock()
 	common.Config.MaxPerHostConnections = oldMaxPerHostConns
+	common.ConfigUnlock()
 }
 
 func TestMaxSessionsSameConnection(t *testing.T) {

@@ -23,7 +23,9 @@ import (
 
 func checkSharedMode() {
 	if !slices.Contains(sharedProviders, holder.getConfig().Driver) {
-		holder.getConfig().IsShared = 0
+		holder.updateConfig(func(c *Config) {
+			c.IsShared = 0
+		})
 	}
 }
 
@@ -32,8 +34,10 @@ func checkSharedMode() {
 func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	holder.setConfig(cnf)
 	checkSharedMode()
-	holder.getConfig().Actions.ExecuteOn = util.RemoveDuplicates(holder.getConfig().Actions.ExecuteOn, true)
-	holder.getConfig().Actions.ExecuteFor = util.RemoveDuplicates(holder.getConfig().Actions.ExecuteFor, true)
+	holder.updateConfig(func(c *Config) {
+		c.Actions.ExecuteOn = util.RemoveDuplicates(c.Actions.ExecuteOn, true)
+		c.Actions.ExecuteFor = util.RemoveDuplicates(c.Actions.ExecuteFor, true)
+	})
 
 	cnf.BackupsPath = getConfigPath(cnf.BackupsPath, basePath)
 	if cnf.BackupsPath == "" {
@@ -43,7 +47,9 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to get absolute backup path: %w", err)
 	}
-	holder.getConfig().BackupsPath = absoluteBackupPath
+	holder.updateConfig(func(c *Config) {
+		c.BackupsPath = absoluteBackupPath
+	})
 
 	if err := initializeHashingAlgo(&cnf); err != nil {
 		return err
@@ -55,7 +61,9 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	if err != nil {
 		return fmt.Errorf("unable to read password from file %q: %w", cnf.PasswordFile, err)
 	}
-	holder.getConfig().Password = password
+	holder.updateConfig(func(c *Config) {
+		c.Password = password
+	})
 	if err := createProvider(basePath); err != nil {
 		return err
 	}
@@ -72,7 +80,9 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 	}
 	delayedQuotaUpdater.start()
 	if currentNode != nil {
-		holder.getConfig().BackupsPath = filepath.Join(holder.getConfig().BackupsPath, currentNode.Name)
+		holder.updateConfig(func(c *Config) {
+			c.BackupsPath = filepath.Join(c.BackupsPath, currentNode.Name)
+		})
 	}
 	providerLog(logger.LevelDebug, "absolute backup path %q", holder.getConfig().BackupsPath)
 	return startScheduler()
@@ -181,37 +191,16 @@ func initializeHashingAlgo(cnf *Config) error {
 }
 
 func validateSQLTablesPrefix() error {
-	initSQLTables()
-	if holder.getConfig().SQLTablesPrefix != "" {
-		for _, char := range holder.getConfig().SQLTablesPrefix {
+	prefix := holder.getConfig().SQLTablesPrefix
+	if prefix != "" {
+		for _, char := range prefix {
 			if !strings.Contains(sqlPrefixValidChars, strings.ToLower(string(char))) {
 				return errors.New("invalid sql_tables_prefix only chars in range 'a..z', 'A..Z', '0-9' and '_' are allowed")
 			}
 		}
-		sqlTableUsers = holder.getConfig().SQLTablesPrefix + sqlTableUsers
-		sqlTableFolders = holder.getConfig().SQLTablesPrefix + sqlTableFolders
-		sqlTableUsersFoldersMapping = holder.getConfig().SQLTablesPrefix + sqlTableUsersFoldersMapping
-		sqlTableAdmins = holder.getConfig().SQLTablesPrefix + sqlTableAdmins
-		sqlTableAPIKeys = holder.getConfig().SQLTablesPrefix + sqlTableAPIKeys
-		sqlTableShares = holder.getConfig().SQLTablesPrefix + sqlTableShares
-		sqlTableSharesGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableSharesGroupsMapping
-		sqlTableDefenderEvents = holder.getConfig().SQLTablesPrefix + sqlTableDefenderEvents
-		sqlTableDefenderHosts = holder.getConfig().SQLTablesPrefix + sqlTableDefenderHosts
-		sqlTableActiveTransfers = holder.getConfig().SQLTablesPrefix + sqlTableActiveTransfers
-		sqlTableGroups = holder.getConfig().SQLTablesPrefix + sqlTableGroups
-		sqlTableUsersGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableUsersGroupsMapping
-		sqlTableAdminsGroupsMapping = holder.getConfig().SQLTablesPrefix + sqlTableAdminsGroupsMapping
-		sqlTableGroupsFoldersMapping = holder.getConfig().SQLTablesPrefix + sqlTableGroupsFoldersMapping
-		sqlTableSharedSessions = holder.getConfig().SQLTablesPrefix + sqlTableSharedSessions
-		sqlTableEventsActions = holder.getConfig().SQLTablesPrefix + sqlTableEventsActions
-		sqlTableEventsRules = holder.getConfig().SQLTablesPrefix + sqlTableEventsRules
-		sqlTableRulesActionsMapping = holder.getConfig().SQLTablesPrefix + sqlTableRulesActionsMapping
-		sqlTableTasks = holder.getConfig().SQLTablesPrefix + sqlTableTasks
-		sqlTableNodes = holder.getConfig().SQLTablesPrefix + sqlTableNodes
-		sqlTableRoles = holder.getConfig().SQLTablesPrefix + sqlTableRoles
-		sqlTableIPLists = holder.getConfig().SQLTablesPrefix + sqlTableIPLists
-		sqlTableConfigs = holder.getConfig().SQLTablesPrefix + sqlTableConfigs
-		sqlTableSchemaVersion = holder.getConfig().SQLTablesPrefix + sqlTableSchemaVersion
+	}
+	updateSQLTables(prefix)
+	if prefix != "" {
 		providerLog(logger.LevelDebug, "sql table for users %q, folders %q users folders mapping %q admins %q "+
 			"api keys %q shares %q defender hosts %q defender events %q transfers %q  groups %q "+
 			"users groups mapping %q admins groups mapping %q groups folders mapping %q shared sessions %q "+
@@ -234,7 +223,7 @@ func checkDefaultAdmin() error {
 	if len(admins) > 0 {
 		return nil
 	}
-	logger.Debug(logSender, "", "no admins found, try to create the default one")
+	logger.Debug(getLogSender(), "", "no admins found, try to create the default one")
 	// we need to create the default admin
 	admin := &Admin{}
 	if err := admin.setFromEnv(); err != nil {

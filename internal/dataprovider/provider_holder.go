@@ -4,6 +4,7 @@ package dataprovider
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/alexedwards/argon2id"
 )
@@ -25,7 +26,14 @@ type providerHolder struct {
 	mu sync.RWMutex
 
 	provider Provider
-	config   Config
+	// config holds the active provider configuration as an immutable
+	// snapshot. Swapping the whole configuration (tests re-initialize the
+	// provider repeatedly) is done by storing a new pointer atomically, so
+	// readers that already loaded the old snapshot keep a consistent view
+	// without any lock: this removes the write/read race between setConfig
+	// and background goroutines (e.g. protocol handlers, quota updater)
+	// reading config fields through getConfig().
+	config atomic.Pointer[Config]
 	// argon2Params holds the active Argon2id hashing parameters. It is set once
 	// during Initialize and read on every password hash verification.
 	argon2Params *argon2id.Params
@@ -33,6 +41,10 @@ type providerHolder struct {
 
 // holder is the single instance owning the active provider runtime state.
 var holder = &providerHolder{}
+
+// emptyConfig is returned by getConfig before the first initialization,
+// preserving the previous zero-value semantics of the bare config variable.
+var emptyConfig Config
 
 // getProvider returns the active Provider under a read lock. Callers must not
 // retain the returned value across long-lived operations expecting it to stay
@@ -51,27 +63,33 @@ func (h *providerHolder) setProvider(p Provider) {
 	h.provider = p
 }
 
-// getConfig returns a pointer to the active provider configuration under a
-// read lock. Config is a large struct (dozens of scalar fields plus nested
-// Actions/Defender/RateLimiters/Node sub-structs), so returning a pointer
-// avoids a full copy on every access — this matters on hot paths such as
-// quota checks which read config fields on each transfer.
-//
-// The pointer targets the holder's stored config. Callers must treat it as
-// read-only: mutating it is NOT serialized and must not happen at runtime.
-// Legitimate mutations (all confined to the single-threaded Initialize path)
-// go through setConfig or an explicit, documented in-place edit during init.
+// getConfig returns a pointer to the currently active configuration
+// snapshot. The returned Config is immutable: it is never modified after
+// being published, so callers can read its fields freely without holding any
+// lock, even while a concurrent re-initialization publishes a new snapshot.
+// Runtime mutations are not allowed; use updateConfig on the init path.
 func (h *providerHolder) getConfig() *Config {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	return &h.config
+	if c := h.config.Load(); c != nil {
+		return c
+	}
+	return &emptyConfig
 }
 
-// setConfig replaces the active configuration under a write lock.
+// setConfig replaces the active configuration by publishing a new immutable
+// snapshot atomically.
 func (h *providerHolder) setConfig(c Config) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.config = c
+	h.config.Store(&c)
+}
+
+// updateConfig applies f to a copy of the active configuration and publishes
+// the result as a new snapshot. It exists for the single-threaded
+// initialization path, which adjusts a few fields (backups path, resolved
+// password, ...) after the initial setConfig; publishing a fresh snapshot
+// keeps already-loaded readers consistent and race-free.
+func (h *providerHolder) updateConfig(f func(c *Config)) {
+	c := *h.config.Load()
+	f(&c)
+	h.config.Store(&c)
 }
 
 // getArgon2Params returns the active Argon2id parameters under a read lock.
