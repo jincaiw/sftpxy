@@ -514,6 +514,11 @@ func TestInitialization(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(passphraseFile)
 	httpdConf := config.GetHTTPDConfig()
+	// keep only the first binding: the default config defines a second WebClient
+	// binding on port 30081 that, if left in place, would be started by the
+	// Initialize calls below and leak a listener, making subsequent Initialize
+	// calls race between the expected validation error and a bind error
+	httpdConf.Bindings = httpdConf.Bindings[:1]
 	httpdConf.SigningPassphraseFile = invalidFile
 	err = httpdConf.Initialize(configDir, isShared)
 	assert.ErrorIs(t, err, fs.ErrNotExist)

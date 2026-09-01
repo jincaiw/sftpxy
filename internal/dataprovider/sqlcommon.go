@@ -28,6 +28,9 @@ const (
 	sqlDatabaseVersion     = 34
 	defaultSQLQueryTimeout = 10 * time.Second
 	longSQLQueryTimeout    = 60 * time.Second
+	// schema creation and migrations run a large DDL transaction that can take
+	// more than one minute on slow providers such as a cold CockroachDB instance
+	sqlSchemaQueryTimeout = 5 * time.Minute
 )
 
 var (
@@ -3980,7 +3983,7 @@ func sqlCommonUpdateDatabaseVersion(ctx context.Context, dbHandle sqlQuerier, ve
 }
 
 func sqlCommonExecSQLAndUpdateDBVersion(dbHandle *sql.DB, sqlQueries []string, newVersion int, isUp bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), longSQLQueryTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), sqlSchemaQueryTimeout)
 	defer cancel()
 
 	conn, err := dbHandle.Conn(ctx)

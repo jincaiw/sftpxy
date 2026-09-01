@@ -204,7 +204,7 @@ jobs:
 
       - name: Initialize data provider
         run: |
-          rm SFTPxy.db
+          rm -f SFTPxy.db
           ./SFTPxy initprovider
         shell: bash
 
