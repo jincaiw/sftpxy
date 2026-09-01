@@ -2,6 +2,11 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.7 - 2026-09-01
+
+- Fix flaky transfers checker tests: the periodic background transfer check scheduled by the test setup could still be in flight while a test invoked its own synchronous check, which was then skipped by the "previous check still running" guard. Stopping the event scheduler in the affected tests and waiting for running jobs on scheduler shutdown makes the checks deterministic.
+- Fix a data race in the HTTPD server: the package-level configuration values (e.g. the token validation mode) were written after the HTTP servers were already started, so concurrently served requests could read them without synchronization. The values are now set before the servers start.
+
 ## v0.2.6 - 2026-09-01
 
 - Return a 400 validation error when an event rule references a non-existent action for Bolt and memory data providers, aligning their behavior with the SQL providers.
