@@ -50,11 +50,11 @@ import (
 
 const (
 	logSender           = "webavdTesting"
-	webDavServerAddr    = "localhost:34087"
-	webDavTLSServerAddr = "localhost:34088"
-	webDavServerPort    = 34087
-	webDavTLSServerPort = 34088
-	sftpServerAddr      = "127.0.0.1:34085"
+	webDavServerAddr    = "localhost:24087"
+	webDavTLSServerAddr = "localhost:24088"
+	webDavServerPort    = 24087
+	webDavTLSServerPort = 24088
+	sftpServerAddr      = "127.0.0.1:24085"
 	defaultUsername     = "test_user_dav"
 	defaultPassword     = "test_password"
 	osWindows           = "windows"
@@ -342,17 +342,17 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
-	httpdConf.Bindings[0].Port = 34086
+	httpdConf.Bindings[0].Port = 24086
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
-	httpdtest.SetBaseURL("http://127.0.0.1:34086")
+	httpdtest.SetBaseURL("http://127.0.0.1:24086")
 
 	// required to test sftpfs
 	sftpdConf := config.GetSFTPDConfig()
 	sftpdConf.Bindings = []sftpd.Binding{
 		{
-			Port: 34085,
+			Port: 24085,
 		},
 	}
 	hostKeyPath := filepath.Join(os.TempDir(), "id_ecdsa")
@@ -485,7 +485,7 @@ func TestInitialization(t *testing.T) {
 
 	cfg.Bindings = []webdavd.Binding{
 		{
-			Port:           34085,
+			Port:           24085,
 			ClientAuthType: 1,
 			EnableHTTPS:    true,
 		},
@@ -1602,10 +1602,10 @@ func TestPostConnectHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Error(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:34086/healthz"
+	common.Config.PostConnectHook = "http://127.0.0.1:24086/healthz"
 	assert.NoError(t, checkBasicFunc(client))
 
-	common.Config.PostConnectHook = "http://127.0.0.1:34086/notfound"
+	common.Config.PostConnectHook = "http://127.0.0.1:24086/notfound"
 	assert.Error(t, checkBasicFunc(client))
 
 	_, err = httpdtest.RemoveUser(user, http.StatusOK)

@@ -34,7 +34,7 @@ import (
 
 const (
 	logSenderTest    = "common_test"
-	httpAddr         = "127.0.0.1:35085"
+	httpAddr         = "127.0.0.1:25085"
 	osWindows        = "windows"
 	userTestUsername = "common_test_username"
 )

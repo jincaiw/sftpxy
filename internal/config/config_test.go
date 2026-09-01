@@ -318,7 +318,7 @@ func TestSetGetConfig(t *testing.T) {
 	assert.Equal(t, kmsConf.Secrets.MasterKeyPath, config.GetKMSConfig().Secrets.MasterKeyPath)
 	assert.Equal(t, kmsConf.Secrets.URL, config.GetKMSConfig().Secrets.URL)
 	telemetryConf := config.GetTelemetryConfig()
-	telemetryConf.BindPort = 35090
+	telemetryConf.BindPort = 25090
 	telemetryConf.BindAddress = "0.0.0.0"
 	config.SetTelemetryConfig(telemetryConf)
 	assert.Equal(t, telemetryConf.BindPort, config.GetTelemetryConfig().BindPort)
@@ -364,19 +364,19 @@ func TestServiceToStart(t *testing.T) {
 	config.SetHTTPDConfig(httpdConf)
 	assert.False(t, config.HasServicesToStart())
 	ftpdConf := config.GetFTPDConfig()
-	ftpdConf.Bindings[0].Port = 35081
+	ftpdConf.Bindings[0].Port = 25081
 	config.SetFTPDConfig(ftpdConf)
 	assert.True(t, config.HasServicesToStart())
 	ftpdConf.Bindings[0].Port = 0
 	config.SetFTPDConfig(ftpdConf)
 	webdavdConf := config.GetWebDAVDConfig()
-	webdavdConf.Bindings[0].Port = 35087
+	webdavdConf.Bindings[0].Port = 25087
 	config.SetWebDAVDConfig(webdavdConf)
 	assert.True(t, config.HasServicesToStart())
 	webdavdConf.Bindings[0].Port = 0
 	config.SetWebDAVDConfig(webdavdConf)
 	assert.False(t, config.HasServicesToStart())
-	sftpdConf.Bindings[0].Port = 35082
+	sftpdConf.Bindings[0].Port = 25082
 	config.SetSFTPDConfig(sftpdConf)
 	assert.True(t, config.HasServicesToStart())
 }

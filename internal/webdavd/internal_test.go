@@ -1739,8 +1739,8 @@ func TestBindingGetAddress(t *testing.T) {
 	}{
 		{
 			name:    "IP address with port",
-			binding: Binding{Address: "127.0.0.1", Port: 34080},
-			want:    "127.0.0.1:34080",
+			binding: Binding{Address: "127.0.0.1", Port: 24080},
+			want:    "127.0.0.1:24080",
 		},
 		{
 			name:    "Unix socket path (no port)",

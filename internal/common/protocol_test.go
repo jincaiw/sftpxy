@@ -58,12 +58,12 @@ import (
 )
 
 const (
-	httpAddr              = "127.0.0.1:35085"
-	httpProxyAddr         = "127.0.0.1:35086"
-	sftpServerAddr        = "127.0.0.1:35081"
-	smtpServerAddr        = "127.0.0.1:35084"
-	webDavServerPort      = 35083
-	httpFsPort            = 35087
+	httpAddr              = "127.0.0.1:25085"
+	httpProxyAddr         = "127.0.0.1:25086"
+	sftpServerAddr        = "127.0.0.1:25081"
+	smtpServerAddr        = "127.0.0.1:25084"
+	webDavServerPort      = 25083
+	httpFsPort            = 25087
 	defaultUsername       = "test_common_sftp"
 	defaultPassword       = "test_password"
 	defaultSFTPUsername   = "test_common_sftpfs_user"
@@ -180,20 +180,20 @@ func TestMain(m *testing.M) { //nolint:gocyclo
 	}
 
 	sftpdConf := config.GetSFTPDConfig()
-	sftpdConf.Bindings[0].Port = 35081
+	sftpdConf.Bindings[0].Port = 25081
 	sftpdConf.EnabledSSHCommands = []string{"*"}
 	sftpdConf.Bindings = append(sftpdConf.Bindings, sftpd.Binding{
-		Port: 35082,
+		Port: 25082,
 	})
 	sftpdConf.KeyboardInteractiveAuthentication = true
 
 	httpdConf := config.GetHTTPDConfig()
 	httpdConf.Bindings = httpdConf.Bindings[:1]
-	httpdConf.Bindings[0].Port = 35080
+	httpdConf.Bindings[0].Port = 25080
 	httpdConf.Bindings[0].EnableWebAdmin = true
 	httpdConf.Bindings[0].EnableWebClient = true
 	httpdConf.Bindings[0].EnableRESTAPI = true
-	httpdtest.SetBaseURL("http://127.0.0.1:35080")
+	httpdtest.SetBaseURL("http://127.0.0.1:25080")
 
 	webDavConf := config.GetWebDAVDConfig()
 	webDavConf.Bindings = []webdavd.Binding{
@@ -2937,7 +2937,7 @@ func TestCrossFolderRename(t *testing.T) {
 			Provider: sdk.SFTPFilesystemProvider,
 			SFTPConfig: vfs.SFTPFsConfig{
 				BaseSFTPFsConfig: sdk.BaseSFTPFsConfig{
-					Endpoint: "127.0.0.1:35082",
+					Endpoint: "127.0.0.1:25082",
 					Username: baseUser.Username,
 					Prefix:   path.Join("/", folder6),
 				},
@@ -3756,7 +3756,7 @@ func TestEventRule(t *testing.T) {
 	}
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -4116,7 +4116,7 @@ func TestEventRule(t *testing.T) {
 func TestEventRuleStatues(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -4220,7 +4220,7 @@ func TestEventRuleDisabledCommand(t *testing.T) {
 	}
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -4364,7 +4364,7 @@ func TestEventRuleProviderEvents(t *testing.T) {
 	}
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -4899,7 +4899,7 @@ func TestEventActionObjectBaseName(t *testing.T) {
 func TestUploadEventRule(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -5505,7 +5505,7 @@ func TestFsActionCopy(t *testing.T) {
 func TestEventFsActionsGroupFilters(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -5636,7 +5636,7 @@ func TestEventFsActionsGroupFilters(t *testing.T) {
 func TestEventProviderActionGroupFilters(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -5768,7 +5768,7 @@ func TestEventProviderActionGroupFilters(t *testing.T) {
 func TestBackupAsAttachment(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -6086,7 +6086,7 @@ func TestEventActionCompress(t *testing.T) {
 func TestEventActionCompressQuotaErrors(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -6481,7 +6481,7 @@ func TestEventActionCompressErrors(t *testing.T) {
 func TestEventActionEmailAttachments(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -6599,7 +6599,7 @@ func TestEventActionEmailAttachments(t *testing.T) {
 func TestEventActionsRetentionReports(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -6846,7 +6846,7 @@ func TestEventActionsRetentionReports(t *testing.T) {
 func TestEventRuleFirstUploadDownloadActions(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -6977,7 +6977,7 @@ func TestEventRuleFirstUploadDownloadActions(t *testing.T) {
 func TestEventRuleRenameEvent(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7063,7 +7063,7 @@ func TestEventRuleRenameEvent(t *testing.T) {
 func TestEventRuleIDPLogin(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7357,7 +7357,7 @@ func TestEventRuleIDPLogin(t *testing.T) {
 func TestEventRuleEmailField(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7505,7 +7505,7 @@ func TestEventRuleEmailField(t *testing.T) {
 func TestEventRuleCertificate(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notify@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7646,7 +7646,7 @@ func TestEventRuleIPBlocked(t *testing.T) {
 
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7761,7 +7761,7 @@ func TestEventRuleIPBlocked(t *testing.T) {
 func TestEventRuleRotateLog(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7858,7 +7858,7 @@ func TestEventRuleRotateLog(t *testing.T) {
 func TestEventRuleInactivityCheck(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -7961,7 +7961,7 @@ func TestEventRuleInactivityCheck(t *testing.T) {
 func TestEventRulePasswordExpiration(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}
@@ -8928,7 +8928,7 @@ func TestSplittedRenamePerms(t *testing.T) {
 func TestSFTPLoopError(t *testing.T) {
 	smtpCfg := smtp.Config{
 		Host:          "127.0.0.1",
-		Port:          35084,
+		Port:          25084,
 		From:          "notification@example.com",
 		TemplatesPath: "templates",
 	}

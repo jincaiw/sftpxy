@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	httpFsPort            = 33086
+	httpFsPort            = 23086
 	defaultHTTPFsUsername = "httpfs_user"
 )
 

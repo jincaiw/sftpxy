@@ -9,6 +9,7 @@ All notable SFTPxy release changes are tracked here.
 - Fix a flaky TestInitialization in the HTTPD tests: the second WebClient binding from the default config leaked a listener on port 30081 and made subsequent assertions race against bind errors.
 - Increase the schema creation and migration timeout to 5 minutes so a cold CockroachDB instance can finish the initial DDL instead of failing at the previous 60 seconds deadline.
 - Fix the Windows CI job failing at the "Initialize data provider" step when no previous SFTPxy.db file exists to remove.
+- Fix flaky CI test failures ("bind: address already in use") by moving the test server listening ports out of the Linux ephemeral port range (32768-60999): outbound connections from earlier test packages could land on those ports and their TIME_WAIT sockets blocked the next listener bind.
 
 ## v0.2.5 - 2026-08-31
 
