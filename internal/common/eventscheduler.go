@@ -18,7 +18,10 @@ var (
 
 func stopEventScheduler() {
 	if eventScheduler != nil {
-		eventScheduler.Stop()
+		// wait for any currently running job to complete, this prevents
+		// a scheduled job to keep running after the scheduler is stopped
+		ctx := eventScheduler.Stop()
+		<-ctx.Done()
 		eventScheduler = nil
 	}
 }

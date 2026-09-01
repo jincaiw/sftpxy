@@ -653,6 +653,16 @@ func (c *Conf) Initialize(configDir string, isShared int) error {
 
 	exitChannel := make(chan error, 1)
 
+	// set the package-level configuration values before starting the servers:
+	// the request handlers spawned below read these values and writing them
+	// after the servers are started is a data race
+	maxUploadFileSize = c.MaxUploadFileSize
+	installationCode = c.Setup.InstallationCode
+	installationCodeHint = c.Setup.InstallationCodeHint
+	updateTokensDuration(c.JWTLifetime, c.CookieLifetime, c.ShareCookieLifetime)
+	c.setTokenValidationMode()
+	startCleanupTicker(10 * time.Minute)
+
 	for _, binding := range c.Bindings {
 		if !binding.IsValid() {
 			continue
@@ -677,11 +687,5 @@ func (c *Conf) Initialize(configDir string, isShared int) error {
 		}(binding)
 	}
 
-	maxUploadFileSize = c.MaxUploadFileSize
-	installationCode = c.Setup.InstallationCode
-	installationCodeHint = c.Setup.InstallationCodeHint
-	updateTokensDuration(c.JWTLifetime, c.CookieLifetime, c.ShareCookieLifetime)
-	startCleanupTicker(10 * time.Minute)
-	c.setTokenValidationMode()
 	return <-exitChannel
 }

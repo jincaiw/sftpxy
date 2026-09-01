@@ -23,6 +23,9 @@ import (
 )
 
 func TestTransfersCheckerDiskQuota(t *testing.T) {
+	// stop the event scheduler, if it is running, so the periodic transfers
+	// check cannot race with the synchronous checks below
+	stopEventScheduler()
 	username := "transfers_check_username"
 	folderName := "test_transfers_folder"
 	groupName := "test_transfers_group"
@@ -255,6 +258,9 @@ func TestTransfersCheckerDiskQuota(t *testing.T) {
 }
 
 func TestTransferCheckerTransferQuota(t *testing.T) {
+	// stop the event scheduler, if it is running, so the periodic transfers
+	// check cannot race with the synchronous checks below
+	stopEventScheduler()
 	username := "transfers_check_username"
 	user := dataprovider.User{
 		BaseUser: sdk.BaseUser{
@@ -748,6 +754,9 @@ func TestTransfersCheckerSharedSingleTransfer(t *testing.T) {
 	if !isDbTransferCheckerSupported() {
 		t.Skip("this test is not supported with the current database provider")
 	}
+	// stop the event scheduler, if it is running, so the periodic transfers
+	// check cannot race with the synchronous checks below
+	stopEventScheduler()
 	providerConf := dataprovider.GetProviderConfig()
 	err := dataprovider.Close()
 	assert.NoError(t, err)
