@@ -257,6 +257,43 @@ func TestTransfersCheckerDiskQuota(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// waitForCheckerTransfers waits until the memory transfers checker contains
+// (want=true) or no longer contains (want=false) the given transfers.
+// Transfers are added to and removed from the checker asynchronously, so we
+// poll to avoid flaky assertions on slow or highly loaded machines.
+func waitForCheckerTransfers(t *testing.T, want bool, transfers ...dataprovider.ActiveTransfer) {
+	t.Helper()
+
+	configMutex.RLock()
+	checker := transfersChecker
+	configMutex.RUnlock()
+
+	memChecker, ok := checker.(*transfersCheckerMem)
+	if !ok {
+		// non memory checker, nothing to wait for
+		return
+	}
+
+	assert.Eventually(t, func() bool {
+		memChecker.RLock()
+		defer memChecker.RUnlock()
+
+		for _, expected := range transfers {
+			found := false
+			for _, transfer := range memChecker.transfers {
+				if transfer.ID == expected.ID && transfer.ConnID == expected.ConnID {
+					found = true
+					break
+				}
+			}
+			if found != want {
+				return false
+			}
+		}
+		return true
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
 func TestTransferCheckerTransferQuota(t *testing.T) {
 	// stop the event scheduler, if it is running, so the periodic transfers
 	// check cannot race with the synchronous checks below
@@ -303,6 +340,9 @@ func TestTransferCheckerTransferQuota(t *testing.T) {
 	transfer2.BytesReceived.Store(150)
 	err = Connections.Add(fakeConn2)
 	assert.NoError(t, err)
+	waitForCheckerTransfers(t, true,
+		dataprovider.ActiveTransfer{ID: transfer1.ID, ConnID: conn1.GetID()},
+		dataprovider.ActiveTransfer{ID: transfer2.ID, ConnID: conn2.GetID()})
 	Connections.checkTransfers()
 	assert.Nil(t, transfer1.errAbort)
 	assert.Nil(t, transfer2.errAbort)
@@ -329,6 +369,12 @@ func TestTransferCheckerTransferQuota(t *testing.T) {
 	assert.NoError(t, err)
 	Connections.Remove(fakeConn1.GetID())
 	Connections.Remove(fakeConn2.GetID())
+	// the transfers are removed from the checker asynchronously, make sure
+	// they are gone before adding new ones and checking the quota again,
+	// otherwise the closed uploads could be counted against the user quota
+	waitForCheckerTransfers(t, false,
+		dataprovider.ActiveTransfer{ID: transfer1.ID, ConnID: conn1.GetID()},
+		dataprovider.ActiveTransfer{ID: transfer2.ID, ConnID: conn2.GetID()})
 
 	connID3 := xid.New().String()
 	conn3 := NewBaseConnection(connID3, ProtocolSFTP, "", "", user)
@@ -351,6 +397,9 @@ func TestTransferCheckerTransferQuota(t *testing.T) {
 	transfer4.BytesSent.Store(150)
 	err = Connections.Add(fakeConn4)
 	assert.NoError(t, err)
+	waitForCheckerTransfers(t, true,
+		dataprovider.ActiveTransfer{ID: transfer3.ID, ConnID: conn3.GetID()},
+		dataprovider.ActiveTransfer{ID: transfer4.ID, ConnID: conn4.GetID()})
 	Connections.checkTransfers()
 	assert.Nil(t, transfer3.errAbort)
 	assert.Nil(t, transfer4.errAbort)
