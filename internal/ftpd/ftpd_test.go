@@ -1842,7 +1842,7 @@ func TestRateLimiter(t *testing.T) {
 	cfg.DefenderConfig.ScoreLimitExceeded = 3
 	cfg.RateLimitersConfig = []common.RateLimiterConfig{
 		{
-			Average:                1,
+			Average: 1,
 			// use a long period so that no token is refilled while the test
 			// runs: with a short period the limiter could allow the next
 			// connection again, making the test timing-dependent

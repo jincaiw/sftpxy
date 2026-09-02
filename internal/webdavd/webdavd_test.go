@@ -1112,7 +1112,7 @@ func TestRateLimiter(t *testing.T) {
 	cfg := config.GetCommonConfig()
 	cfg.RateLimitersConfig = []common.RateLimiterConfig{
 		{
-			Average:   1,
+			Average: 1,
 			// use a long period so that no token is refilled while the test
 			// runs: with a short period the limiter could allow the next
 			// request again, making the test timing-dependent
