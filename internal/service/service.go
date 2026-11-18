@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/rs/zerolog"
 
@@ -48,7 +49,31 @@ type Service struct {
 	LoadDataMode      int
 	LoadDataQuotaScan int
 	Shutdown          chan bool
-	Error             error
+
+	// errorMu protects Error, which is written by the goroutines started by
+	// startServices and read by Wait/Stop callers and the Windows service
+	// handler. It is never copied after first use.
+	errorMu sync.Mutex
+	Error   error
+}
+
+// setError records the first service error. Later errors do not overwrite it
+// so the original failure is the one reported on exit.
+func (s *Service) setError(err error) {
+	s.errorMu.Lock()
+	defer s.errorMu.Unlock()
+
+	if s.Error == nil {
+		s.Error = err
+	}
+}
+
+// GetError returns the service error, if any, in a race-free way.
+func (s *Service) GetError() error {
+	s.errorMu.Lock()
+	defer s.errorMu.Unlock()
+
+	return s.Error
 }
 
 func (s *Service) initLogger() {
@@ -205,7 +230,7 @@ func (s *Service) startServices() {
 			if err := sftpdConf.Initialize(s.ConfigDir); err != nil {
 				logger.Error(logSender, "", "could not start SFTP server: %v", err)
 				logger.ErrorToConsole("could not start SFTP server: %v", err)
-				s.Error = err
+				s.setError(err)
 			}
 			s.Shutdown <- true
 		}()
@@ -219,7 +244,7 @@ func (s *Service) startServices() {
 			if err := httpdConf.Initialize(s.ConfigDir, providerConf.GetShared()); err != nil {
 				logger.Error(logSender, "", "could not start HTTP server: %v", err)
 				logger.ErrorToConsole("could not start HTTP server: %v", err)
-				s.Error = err
+				s.setError(err)
 			}
 			s.Shutdown <- true
 		}()
@@ -234,7 +259,7 @@ func (s *Service) startServices() {
 			if err := ftpdConf.Initialize(s.ConfigDir); err != nil {
 				logger.Error(logSender, "", "could not start FTP server: %v", err)
 				logger.ErrorToConsole("could not start FTP server: %v", err)
-				s.Error = err
+				s.setError(err)
 			}
 			s.Shutdown <- true
 		}()
@@ -246,7 +271,7 @@ func (s *Service) startServices() {
 			if err := webDavDConf.Initialize(s.ConfigDir); err != nil {
 				logger.Error(logSender, "", "could not start WebDAV server: %v", err)
 				logger.ErrorToConsole("could not start WebDAV server: %v", err)
-				s.Error = err
+				s.setError(err)
 			}
 			s.Shutdown <- true
 		}()
@@ -258,7 +283,7 @@ func (s *Service) startServices() {
 			if err := telemetryConf.Initialize(s.ConfigDir); err != nil {
 				logger.Error(logSender, "", "could not start telemetry server: %v", err)
 				logger.ErrorToConsole("could not start telemetry server: %v", err)
-				s.Error = err
+				s.setError(err)
 			}
 			s.Shutdown <- true
 		}()

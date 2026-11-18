@@ -47,7 +47,9 @@ const (
 )
 
 type WindowsService struct {
-	Service       Service
+	// Service is a pointer because Service embeds a mutex and must never be
+	// copied after first use.
+	Service       *Service
 	isInteractive bool
 }
 
@@ -83,8 +85,8 @@ func (s *WindowsService) handleExit(wasStopped chan bool) {
 	default:
 		// the server failed while running, we must be sure to exit the process.
 		// The defined recovery action will be executed.
-		logger.Info(logSender, "", "Service wait ended, error: %v", s.Service.Error)
-		if s.Service.Error == nil {
+		logger.Info(logSender, "", "Service wait ended, error: %v", s.Service.GetError())
+		if s.Service.GetError() == nil {
 			os.Exit(0)
 		} else {
 			os.Exit(1)
@@ -98,7 +100,7 @@ func (s *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, chan
 	go func() {
 		if err := s.Service.Start(); err != nil {
 			logger.Error(logSender, "", "Windows service failed to start, error: %v", err)
-			s.Service.Error = err
+			s.Service.setError(err)
 			s.Service.Shutdown <- true
 			return
 		}

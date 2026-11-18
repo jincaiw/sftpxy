@@ -37,7 +37,7 @@ Please take a look at the usage below to customize the startup options`,
 				Shutdown:      make(chan bool),
 			}
 			winService := service.WindowsService{
-				Service: s,
+				Service: &s,
 			}
 			serviceArgs := []string{"service", "start"}
 			customFlags := getCustomServeFlags()

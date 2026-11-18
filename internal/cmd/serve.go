@@ -51,7 +51,7 @@ Please take a look at the usage below to customize the startup options`,
 			}
 			if err := service.Start(); err == nil {
 				service.Wait()
-				if service.Error == nil {
+				if service.GetError() == nil {
 					os.Exit(0)
 				}
 			}

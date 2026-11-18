@@ -17,7 +17,7 @@ var (
 		Short: "Reload the SFTPxy Windows Service sending a \"paramchange\" request",
 		Run: func(_ *cobra.Command, _ []string) {
 			s := service.WindowsService{
-				Service: service.Service{
+				Service: &service.Service{
 					Shutdown: make(chan bool),
 				},
 			}

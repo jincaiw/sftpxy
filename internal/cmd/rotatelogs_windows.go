@@ -17,7 +17,7 @@ var (
 		Short: "Signal to the running service to rotate the logs",
 		Run: func(_ *cobra.Command, _ []string) {
 			s := service.WindowsService{
-				Service: service.Service{
+				Service: &service.Service{
 					Shutdown: make(chan bool),
 				},
 			}

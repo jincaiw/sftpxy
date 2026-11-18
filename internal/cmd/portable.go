@@ -282,7 +282,7 @@ Please take a look at the usage below to customize the serving parameters`,
 				portableHTTPSCert, portableHTTPSKey)
 			if err == nil {
 				service.Wait()
-				if service.Error == nil {
+				if service.GetError() == nil {
 					os.Exit(0)
 				}
 			}

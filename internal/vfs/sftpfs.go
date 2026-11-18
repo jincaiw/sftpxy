@@ -1000,7 +1000,7 @@ func (c *sftpConnection) openConnNoLock() error {
 	clientConfig.Ciphers = append(supportedAlgos.Ciphers, ssh.InsecureCipherAES128CBC)
 	clientConfig.KeyExchanges = append(supportedAlgos.KeyExchanges, insecureAlgos.KeyExchanges...)
 	clientConfig.MACs = append(supportedAlgos.MACs, insecureAlgos.MACs...)
-	sshClient, err := ssh.Dial("tcp", c.config.Endpoint, clientConfig)
+	sshClient, err := dialSSH(c.config.Endpoint, clientConfig)
 	if err != nil {
 		return fmt.Errorf("sftpfs: unable to connect: %w", err)
 	}
@@ -1014,6 +1014,43 @@ func (c *sftpConnection) openConnNoLock() error {
 	c.isConnected = true
 	go c.Wait()
 	return nil
+}
+
+// dialSSH connects to the given endpoint and completes the SSH handshake
+// honoring the configured timeout for the whole operation.
+//
+// ssh.Dial only applies config.Timeout to the TCP connection, so a peer that
+// accepts the connection but never sends its SSH version banner would block
+// the handshake forever, hanging the connection and its callers. We set a
+// deadline on the raw connection so the handshake cannot outlive the timeout,
+// and clear it afterwards so it does not affect the established session.
+func dialSSH(endpoint string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	timeout := config.Timeout
+	dialer := &net.Dialer{Timeout: timeout}
+	conn, err := dialer.Dial("tcp", endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	if timeout > 0 {
+		if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
+
+	c, chans, reqs, err := ssh.NewClientConn(conn, endpoint, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	if timeout > 0 {
+		if err := conn.SetDeadline(time.Time{}); err != nil {
+			c.Close()
+			return nil, err
+		}
+	}
+	return ssh.NewClient(c, chans, reqs), nil
 }
 
 func (c *sftpConnection) getClientOptions() []sftp.ClientOption {

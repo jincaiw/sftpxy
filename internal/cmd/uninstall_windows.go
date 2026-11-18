@@ -17,7 +17,7 @@ var (
 		Short: "Uninstall the SFTPxy Windows Service",
 		Run: func(_ *cobra.Command, _ []string) {
 			s := service.WindowsService{
-				Service: service.Service{
+				Service: &service.Service{
 					Shutdown: make(chan bool),
 				},
 			}

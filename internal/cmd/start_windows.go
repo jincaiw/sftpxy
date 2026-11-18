@@ -37,7 +37,7 @@ var (
 				Shutdown:          make(chan bool),
 			}
 			winService := service.WindowsService{
-				Service: s,
+				Service: &s,
 			}
 			err := winService.RunService()
 			if err != nil {
