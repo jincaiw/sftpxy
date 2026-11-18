@@ -44,6 +44,9 @@ tests/eventsearcher/eventsearcher
 # local development caches and private tool state
 .gocache/
 .gopath/
+.lintcache/
+.tools/
+.tools12611/
 .trae/
 .DS_Store
 .env
