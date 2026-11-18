@@ -56,3 +56,6 @@ tests/eventsearcher/eventsearcher
 # release helper outputs
 pkgs/dist/
 windows-installer/output/
+
+# gh CLI local cache
+.ghcache/
