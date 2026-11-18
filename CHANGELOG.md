@@ -2,6 +2,13 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.11 - 2026-11-19
+
+- Use the `macos-latest` runner for the macOS release job: the pinned
+  `macos-14` label is no longer provisioned and the job was cancelled before
+  running any step ("The configuration 'macos-14-arm64-us-default' is not
+  supported"), which skipped the whole release job.
+
 ## v0.2.10 - 2026-11-19
 
 - Fix a hang in the SFTP filesystem backend: `ssh.Dial` applies the configured
