@@ -437,8 +437,51 @@
         border-top-right-radius: 8px !important;
     }
 
+    /* Metronic ships a permanently dark sidebar: the theme sets
+       --bs-app-sidebar-base-bg-color to #0B0C10 for both themes and pairs it
+       with light menu text. That leaves the sidebar dark while the rest of the
+       light theme is white, so make it follow the theme instead. The menu text
+       and icons have to be overridden too, because they are hard-coded to light
+       colours in the bundled stylesheet. */
     .app-sidebar {
-        background: #111827;
+        background: var(--bs-app-sidebar-base-bg-color);
+    }
+
+    [data-bs-theme=light] .app-sidebar {
+        background: #ffffff;
+        border-right: 1px solid var(--bs-border-color);
+    }
+
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link .menu-title {
+        color: var(--bs-gray-800);
+    }
+
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link .menu-icon,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link .menu-icon i,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link .menu-icon .svg-icon {
+        color: var(--bs-gray-500);
+    }
+
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link:hover:not(.disabled):not(.active):not(.here),
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link:hover:not(.disabled):not(.active):not(.here) .menu-title {
+        color: var(--bs-gray-900);
+    }
+
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link.active,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link.active .menu-title {
+        color: var(--bs-primary);
+        background-color: rgba(13, 110, 253, 0.08);
+    }
+
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link.active .menu-icon,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link.active .menu-icon i,
+    [data-bs-theme=light] .app-sidebar-navs .menu .menu-item .menu-link.active .menu-icon .svg-icon {
+        color: var(--bs-primary);
+    }
+
+    [data-bs-theme=light] .app-sidebar-header .text-sidebar {
+        color: var(--bs-gray-900);
     }
 
     .app-sidebar .menu-link {
@@ -447,7 +490,7 @@
 
     .app-sidebar .menu-link.active,
     .app-sidebar .menu-link:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(127, 127, 127, 0.08);
     }
 
     .btn {
