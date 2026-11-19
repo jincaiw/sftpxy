@@ -62,3 +62,6 @@ windows-installer/output/
 
 # vendored upstream tooling (LoopForge checkout used to install the devflow skill)
 /tools/LoopForge/
+
+# Python bytecode from the devflow skill scripts
+__pycache__/

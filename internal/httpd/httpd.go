@@ -610,6 +610,26 @@ func (c *Conf) loadTemplates(templatesPath string) {
 	}
 }
 
+// checkBindings validates every configured binding and applies the defaults it
+// computes, such as the branding stylesheets, logo and favicon.
+//
+// It iterates by index on purpose: check() has a pointer receiver and stores its
+// results on the receiver, so iterating by value would apply the defaults to a
+// copy only. Initialize starts the servers from this same slice afterwards, so
+// losing those defaults leaves the WebAdmin and WebClient pages without any
+// stylesheet.
+func (c *Conf) checkBindings() error {
+	for i := range c.Bindings {
+		if !c.Bindings[i].IsValid() {
+			continue
+		}
+		if err := c.Bindings[i].check(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Initialize configures and starts the HTTP server
 func (c *Conf) Initialize(configDir string, isShared int) error {
 	if err := c.loadFromProvider(); err != nil {
@@ -669,13 +689,8 @@ func (c *Conf) Initialize(configDir string, isShared int) error {
 	// validate all the bindings before starting any server: if a later
 	// binding fails validation, the servers for the earlier ones would
 	// keep running and leak their listeners
-	for _, binding := range c.Bindings {
-		if !binding.IsValid() {
-			continue
-		}
-		if err := binding.check(); err != nil {
-			return err
-		}
+	if err := c.checkBindings(); err != nil {
+		return err
 	}
 
 	for _, binding := range c.Bindings {
