@@ -2,6 +2,27 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## v0.2.12 - 2026-11-19
+
+- Fix the WebAdmin and WebClient pages rendering without any stylesheet.
+  `Conf.Initialize` validated each binding with `for _, binding := range
+  c.Bindings`; `binding` is a copy, and `(*Binding).check()` has a pointer
+  receiver, so the branding defaults it computes (`DefaultCSS`, `LogoPath`,
+  `FaviconPath`) were stored on that copy and lost. The servers then started
+  from the untouched slice, an empty `DefaultCSS` renders no `<link>` at all,
+  and every page loaded unstyled with the logo falling back to alt text.
+  Validation is now `(*Conf).checkBindings`, which iterates by index so the
+  defaults land on the elements the servers are started from.
+
+- Add regression tests for the binding defaults: they fail with the previous
+  value iteration and pass after the fix.
+
+- Add `scripts/docker-dev.sh` for building, running and testing the project in
+  Docker. It pins `DOCKER_CONFIG` inside the repo (the build writes to
+  `~/.docker`, which is not writable in a sandbox) and defaults `GOPROXY` to a
+  mirror, because with the default proxy the `go mod download` layer gets
+  killed and the build fails with exit 137.
+
 ## v0.2.11 - 2026-11-19
 
 - Use the `macos-latest` runner for the macOS release job: the pinned

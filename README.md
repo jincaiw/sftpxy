@@ -4,7 +4,7 @@
 
 SFTPxy is a self-hosted file transfer service with SFTP, WebAdmin, WebClient, FTP/S, WebDAV, REST APIs, and pluggable storage backends.
 
-Current release: `v0.2.11`.
+Current release: `v0.2.12`.
 
 ## Highlights
 
