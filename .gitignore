@@ -60,6 +60,10 @@ windows-installer/output/
 # gh CLI local cache
 .ghcache/
 
+# local docker state used by the dev scripts (sandbox-friendly DOCKER_CONFIG)
+.dockercfg/
+.dockerrun/
+
 # vendored upstream tooling (LoopForge checkout used to install the devflow skill)
 /tools/LoopForge/
 
