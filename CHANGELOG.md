@@ -2,7 +2,29 @@
 
 All notable SFTPxy release changes are tracked here.
 
-## Unreleased
+## v0.2.13 - 2026-11-20
+
+- Add `scripts/pre-tag-check.sh`, a gate to run before creating a release tag.
+  It fails when the working tree is dirty, when HEAD is not the tip of the
+  tracked remote branch (the mistake that made v0.2.11 ship without its fix),
+  when the tag already exists, or when the release metadata is inconsistent.
+
+- Add `scripts/check-artifacts.sh` and `make check-artifacts` to verify the
+  artifacts that publish asynchronously: the GitHub release, the Docker Hub and
+  GHCR manifests and the docs site. Network failures are reported separately
+  from missing artifacts.
+
+- Add `scripts/loadtest.py`, a dependency-free HTTP load test that fails when a
+  run misses the error-rate or p95 thresholds passed on the command line.
+
+- `scripts/verify-prod.sh` now asserts that the built binary reports both the
+  expected version and the commit it was built from, so a stale or mislabelled
+  build cannot pass silently.
+
+- `make release-tag` now runs `scripts/pre-tag-check.sh` first.
+
+- Document the gate and the artifact check in `docs/RELEASE_SOP.md` and
+  `docs/RELEASE_CHECKLIST.md`.
 
 - Add `scripts/pre-tag-check.sh`, a gate to run before creating a release tag.
   It fails when the working tree is dirty, when HEAD is not the tip of the
