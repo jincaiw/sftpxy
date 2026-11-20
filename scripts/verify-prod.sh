@@ -44,6 +44,18 @@ echo "==> sdk test"
 echo "==> production build"
 mkdir -p build/verify
 go build -trimpath -tags "${features}" -ldflags "${ldflags}" -o build/verify/SFTPxy .
-build/verify/SFTPxy -v
+build_output="$(build/verify/SFTPxy -v)"
+echo "${build_output}"
+
+# The binary must report this version and the commit it was built from: a
+# stale or mislabelled build would otherwise pass silently.
+if [[ "${build_output}" != *"${version}"* ]]; then
+  echo "built binary does not report version ${version}: ${build_output}" >&2
+  exit 1
+fi
+if [[ "${build_output}" != *"${commit}"* ]]; then
+  echo "built binary does not report commit ${commit}: ${build_output}" >&2
+  exit 1
+fi
 
 echo "Production verification passed for v${version}"

@@ -2,6 +2,20 @@
 
 All notable SFTPxy release changes are tracked here.
 
+## Unreleased
+
+- Add `scripts/pre-tag-check.sh`, a gate to run before creating a release tag.
+  It fails when the working tree is dirty, when HEAD is not the tip of the
+  tracked remote branch (the mistake that made v0.2.11 ship without its
+  fix), when the tag already exists, or when the release metadata is
+  inconsistent.
+
+- `scripts/verify-prod.sh` now asserts that the built binary reports both the
+  expected version and the commit it was built from, so a stale or mislabelled
+  build cannot pass silently.
+
+- Document the gate in `docs/RELEASE_SOP.md` and `docs/RELEASE_CHECKLIST.md`.
+
 ## v0.2.12 - 2026-11-19
 
 - Fix the WebAdmin and WebClient pages rendering without any stylesheet.

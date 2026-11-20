@@ -25,12 +25,23 @@ docker build --build-arg DOWNLOAD_PLUGINS=false --build-arg INSTALL_OPTIONAL_PAC
 
 ## 3. 提交并打 Tag
 
+先提交，把提交推到远端，再跑发布门禁，最后才打 Tag：
+
 ```bash
 git add -A
 git commit -m "chore: release vX.Y.Z"
+git push origin master
+
+# 门禁：工作区干净、HEAD 是 origin 的最新提交、Tag 尚未存在、发布元数据一致
+scripts/pre-tag-check.sh X.Y.Z
+
 git tag -a vX.Y.Z -m "SFTPxy vX.Y.Z"
-git push origin master refs/tags/vX.Y.Z
+git push origin refs/tags/vX.Y.Z
 ```
+
+> 为什么要先 push 再打 Tag：v0.2.11 的 Tag 打在了样式修复之前的旧提交上，
+> 导致发布的资产仍带缺陷。`pre-tag-check.sh` 校验 Tag 目标的提交就是
+> `origin` 分支的最新提交，从而拦住「在旧提交上打 Tag」这类错误。
 
 ## 4. GitHub Release
 

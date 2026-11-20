@@ -37,10 +37,16 @@ SFTPxy 标准发布清单。
 
 1. `git add -A`
 2. `git commit -m "chore: release vX.Y.Z"`
-3. 创建并推送 `vX.Y.Z` Tag
-4. `git push origin master refs/tags/vX.Y.Z`
+3. `git push origin master`（先把提交推上去）
+4. `scripts/pre-tag-check.sh X.Y.Z`（发布门禁，必须通过）
+5. 创建并推送 `vX.Y.Z` Tag
+6. `git push origin refs/tags/vX.Y.Z`
 
-验收标准：仓库主分支和 Tag 已同步到远端。
+验收标准：仓库主分支和 Tag 已同步到远端，且 `pre-tag-check.sh` 通过。
+
+> 门禁校验四件事：工作区干净、HEAD 就是 `origin` 分支的最新提交、
+> `vX.Y.Z` Tag 尚未存在、发布元数据一致。v0.2.11 曾把 Tag 打在旧提交上，
+> 导致发布资产不含预期修复；这道门禁专门拦截该情形。
 
 ## 4. GitHub Release
 
@@ -79,7 +85,9 @@ make ci VERSION=X.Y.Z
 make release-dry-run VERSION=X.Y.Z
 scripts/release-check.sh X.Y.Z
 scripts/verify-prod.sh X.Y.Z
-git push origin master refs/tags/vX.Y.Z
+scripts/pre-tag-check.sh X.Y.Z
+git push origin master
+git push origin refs/tags/vX.Y.Z
 ```
 
 ## 8. 发布顺序速查
