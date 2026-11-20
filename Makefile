@@ -49,11 +49,7 @@ release-dry-run: release-check verify-prod release-bundle
 	@echo "Release dry run completed for v$(VERSION)"
 
 release-tag: release-check
-	@if [ -n "$$(git status --short)" ]; then \
-		echo "Refusing to tag: working tree is not clean"; \
-		git status --short; \
-		exit 1; \
-	fi
+	@scripts/pre-tag-check.sh $(VERSION)
 	@git tag -a "v$(VERSION)" -m "SFTPxy v$(VERSION)"
 	@echo "Created tag v$(VERSION)"
 
