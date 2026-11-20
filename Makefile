@@ -36,6 +36,9 @@ vulncheck:
 verify-prod:
 	@scripts/verify-prod.sh "$(VERSION)"
 
+check-artifacts:
+	@scripts/check-artifacts.sh $(VERSION)
+
 release-bundle:
 	@scripts/release-bundle.sh "$(VERSION)"
 
